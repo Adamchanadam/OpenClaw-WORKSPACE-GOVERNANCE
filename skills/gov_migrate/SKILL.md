@@ -15,6 +15,11 @@ Execute the migration workflow defined by:
 2. Follow the migration prompt exactly (no skipped gates).
 3. Preserve non-target user files.
 4. After migration, instruct operator to run `/gov_audit`.
+5. Treat workspace root as runtime-resolved `<workspace-root>`; do not hardcode `~/.openclaw/workspace`.
+6. For OpenClaw system claims (commands/config/plugins/skills/hooks), verify using:
+   - relevant local skill docs under `skills/`
+   - official docs at `https://docs.openclaw.ai`
+7. For date/time-sensitive claims, verify runtime current time context first (session status).
 
 ## Fallback
 - If slash command is unavailable or name-collided, use:

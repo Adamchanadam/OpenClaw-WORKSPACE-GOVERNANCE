@@ -18,6 +18,9 @@ Execute:
 2. If BOOT menu context is missing, stop and request the latest BOOT menu section.
 3. Apply only the approved item.
 4. After apply, run migration/audit flow as required by the apply runner.
+5. For OpenClaw system claims during apply, verify against local skill docs and `https://docs.openclaw.ai`.
+6. For date/time-sensitive claims during apply, verify runtime current time context first (session status).
+7. Use runtime `<workspace-root>` semantics; do not assume fixed home paths.
 
 ## Fallback
 - If slash command is unavailable or name-collided, use:

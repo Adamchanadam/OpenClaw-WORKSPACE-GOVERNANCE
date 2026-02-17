@@ -13,6 +13,12 @@ Perform governance integrity checks after bootstrap, migration, or apply.
 1. Run the checklist in `_control/REGRESSION_CHECK.md` with fixed denominator 12/12.
 2. Verify governance anchor consistency required by your active migration baseline.
 3. Produce a clear PASS/FAIL result and remediation if any item fails.
+4. Verify path compatibility:
+   - governance content must use runtime `<workspace-root>` semantics
+   - no hardcoded `~/.openclaw/workspace` assumptions in changed governance content
+5. Verify system-truth evidence:
+   - OpenClaw system claims must cite `https://docs.openclaw.ai` sources
+   - date/time claims must include runtime current time evidence (session status)
 
 ## Persistence
 - Write audit result into `_runs/` when the active governance flow requires persistence.

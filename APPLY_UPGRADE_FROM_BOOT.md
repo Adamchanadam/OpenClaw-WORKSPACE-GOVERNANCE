@@ -5,6 +5,18 @@ Turn a BOOT-generated upgrade suggestion into a verified governance improvement:
 - Operator approves an upgrade by replying with its item number (e.g., `01`)
 - The agent applies the upgrade via governance gates (PLAN -> READ -> CHANGE -> QC -> PERSIST)
 - The agent then runs the Migration kit to keep the workspace baseline aligned
+- The agent records measurable before/after evidence so upgrade effectiveness can be validated
+
+RUNTIME MODES (Hard)
+- Mode A (Conversation): casual chat only; no persistence and no system claims.
+- Mode B (Verified Answer): no writes, but factual answer required.
+  - Mode B2 (OpenClaw system topics): MUST verify against local skill docs and `https://docs.openclaw.ai` before answering.
+  - Mode B3 (Date/time topics): MUST verify runtime current time context first (session status), then answer using absolute dates when relevant.
+- Mode C (Governance change): any write/update/save/persist operation; MUST run PLAN → READ → CHANGE → QC → PERSIST.
+
+PATH COMPATIBILITY CONTRACT (Hard)
+- Resolve and use runtime `<workspace-root>`.
+- Do NOT assume `~/.openclaw/workspace` as a fixed path.
 
 INPUT CONTRACT (Hard)
 - Expected operator message: a two-digit upgrade item number: `01` / `02` / `03`
@@ -59,6 +71,12 @@ READ GATE (Required reads)
 - `_control/ACTIVE_GUARDS.md` (must exist; if missing, STOP and request running Bootstrap/Migration)
 - `_control/LESSONS.md` (must exist; if missing, STOP and request running Bootstrap/Migration)
 - Latest 5 run reports under `_runs/` (filenames from BOOT report; read only the specific reports referenced by the menu trigger)
+- If the selected BOOT item touches OpenClaw system behavior:
+  - Read relevant local skill docs (`skills/*/SKILL.md`) first.
+  - Verify commands/config claims against `https://docs.openclaw.ai` and list source URLs in the run report.
+- If reasoning involves date/time:
+  - Verify runtime current time context first (session status).
+  - Record absolute date/time in the run report.
 
 Also read (from chat history):
 - The full `BOOT UPGRADE MENU (BOOT+APPLY v1)` block to extract the selected item text.
@@ -114,6 +132,13 @@ B) Guard recurrence escalation (Guard#<id>)
 - Execute: `prompts/governance/WORKSPACE_GOVERNANCE_MIGRATION.md`
 - If Migration produces any FAIL in QC 12/12: STOP and report Blocked/Remediation (do not claim completion).
 
+5) Effectiveness validation (required)
+- Before completion claim, compare pre/post indicators for the selected upgrade item:
+  - recurrence count window from BOOT trigger
+  - related QC item status (if QC-type upgrade)
+  - related Guard/Lesson recurrence marker (if Guard-type upgrade)
+- If no measurable improvement signal can be shown, mark outcome as `PARTIAL` and keep follow-up actions mandatory.
+
 ---
 
 QC GATE (Must be 12/12)
@@ -128,7 +153,7 @@ QC GATE (Must be 12/12)
 PERSIST GATE
 - Write one run report under `_runs/`:
   - Filename: `<timestamp>_apply_upgrade_from_boot_v1.md`
-  - Include: plan, reads, changes (before/after excerpts), QC 12/12, and follow-ups
+  - Include: plan, reads, changes (before/after excerpts), QC 12/12, effectiveness validation, and follow-ups
   - Follow-ups MUST include `operator next action`:
     - Send slash command as a standalone message: `/gov_audit`
     - Fallback if slash command is unavailable or name-collided: `/skill gov_audit`

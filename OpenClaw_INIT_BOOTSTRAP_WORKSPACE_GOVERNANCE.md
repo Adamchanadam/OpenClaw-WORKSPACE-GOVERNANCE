@@ -1,4 +1,4 @@
-TASK: BOOTSTRAP_WORKSPACE_GOVERNANCE (ONE-SHOT, INTEGRATE-LEGACY, FAIL-CLOSED, REV5)
+TASK: BOOTSTRAP_WORKSPACE_GOVERNANCE (ONE-SHOT, INTEGRATE-LEGACY, FAIL-CLOSED, REV6)
 
 GOAL
 Create the workspace governance control plane, without assuming any prior context:
@@ -161,6 +161,14 @@ PLAN-first rule (Hard):
 No-Write Guardrail (Hard):
 - You MUST NOT run any file-changing action (write/edit/move/copy/rm) until PLAN GATE + READ GATE are completed.
 
+Evidence modes (Hard):
+- Mode A (Conversation): casual interaction; no persistence and no system claims.
+- Mode B (Verified Answer): factual answer required, no writes.
+  - Mode B2 (OpenClaw system topics): MUST verify using relevant local skill docs + official docs at `https://docs.openclaw.ai` before answering.
+  - Mode B3 (Date/time topics): MUST verify runtime current time context first (session status), then answer with explicit absolute date when relevant.
+- Mode C (Governance change): any write/update/save/persist operation; MUST run PLAN → READ → CHANGE → QC → PERSIST.
+- If verification cannot be completed, do not guess; report uncertainty and required next check.
+
 Workspace boundary (Hard):
 - Any deliverable/evidence write/edit MUST target paths inside the workspace root (the folder containing `AGENTS.md`).
 - Do NOT place deliverables or evidence under system temporary locations (e.g., `/tmp/`). Use temp dirs only for throwaway scratch and never for completion claims.
@@ -170,6 +178,7 @@ Workspace boundary (Hard):
 - If `memory/` exists, persisted session summaries/memory entries (when enabled) go under `memory/` (do not mix with `_runs/`).
 - If `canvas/` exists, tool-managed canvas artifacts may live under `canvas/` (do not treat as deliverables/evidence unless explicitly promoted into `projects/` or `_runs/` with links).
 - `.openclaw/` (workspace-local) and `.git/` (and `.gitignore`) are allowed as workspace internal metadata; never use them as deliverables/evidence targets.
+- Treat workspace path as runtime-resolved `<workspace-root>`; do NOT hardcode home paths such as `~/.openclaw/workspace/...`.
 
 Learning loop (Hard):
 - If a failure repeats, do NOT invent a parallel governance system.
@@ -210,6 +219,11 @@ Before making any change, you MUST read:
    - `HEARTBEAT.md`
    - `memory/YYYY-MM-DD.md` (today + yesterday), if `memory/` exists
 8) The target file(s) to be modified (including Platform control-plane targets such as `~/.openclaw/openclaw.json` when applicable)
+9) If task includes OpenClaw system claims (commands/config/plugins/skills/hooks/path defaults):
+   - relevant local skill docs (from `skills/`)
+   - official docs evidence from `https://docs.openclaw.ai`
+10) If task includes date/time-sensitive claims:
+   - verify runtime current time context first (session status), then use explicit absolute dates in conclusions
 
 ## Mandatory end of every governance task
 - Run QC using `_control/REGRESSION_CHECK.md` (12 items; fixed denominator; pass/fail).
@@ -315,7 +329,7 @@ See `_control/WORKSPACE_INDEX.md` for navigation.
    - `prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`
    - If missing: STOP and output Blocked Report with remediation: "Copy the Governance kit files into the workspace before first run."
 4) Execute the governance SSOT prompt file exactly (no skipped gates):
-   - Run `TASK: BOOTSTRAP_WORKSPACE_GOVERNANCE (ONE-SHOT, INTEGRATE-LEGACY, FAIL-CLOSED, REV5)`
+   - Run `TASK: BOOTSTRAP_WORKSPACE_GOVERNANCE (ONE-SHOT, INTEGRATE-LEGACY, FAIL-CLOSED, REV6)`
 5) After completion:
    - Confirm `_control/`, `_runs/`, `docs/`, `projects/`, `prompts/governance/`, and `archive/` exist.
    - Confirm `_control/WORKSPACE_INDEX.md` links Active Guards + Lessons + Boot audit + Migration kit + Boot+Apply runner + governance entrypoints (TUI: `/gov_migrate`, `/gov_audit`, `/gov_apply <NN>`; invoke slash command as a standalone message; fallback: `/skill <name> [input]`).
@@ -341,6 +355,18 @@ Turn a BOOT-generated upgrade suggestion into a verified governance improvement:
 - Operator approves an upgrade by replying with its item number (e.g., `01`)
 - The agent applies the upgrade via governance gates (PLAN -> READ -> CHANGE -> QC -> PERSIST)
 - The agent then runs the Migration kit to keep the workspace baseline aligned
+- The agent records measurable before/after evidence so upgrade effectiveness can be validated
+
+RUNTIME MODES (Hard)
+- Mode A (Conversation): casual chat only; no persistence and no system claims.
+- Mode B (Verified Answer): no writes, but factual answer required.
+  - Mode B2 (OpenClaw system topics): MUST verify against local skill docs and `https://docs.openclaw.ai` before answering.
+  - Mode B3 (Date/time topics): MUST verify runtime current time context first (session status), then answer using absolute dates when relevant.
+- Mode C (Governance change): any write/update/save/persist operation; MUST run PLAN → READ → CHANGE → QC → PERSIST.
+
+PATH COMPATIBILITY CONTRACT (Hard)
+- Resolve and use runtime `<workspace-root>`.
+- Do NOT assume `~/.openclaw/workspace` as a fixed path.
 
 INPUT CONTRACT (Hard)
 - Expected operator message: a two-digit upgrade item number: `01` / `02` / `03`
@@ -395,6 +421,12 @@ READ GATE (Required reads)
 - `_control/ACTIVE_GUARDS.md` (must exist; if missing, STOP and request running Bootstrap/Migration)
 - `_control/LESSONS.md` (must exist; if missing, STOP and request running Bootstrap/Migration)
 - Latest 5 run reports under `_runs/` (filenames from BOOT report; read only the specific reports referenced by the menu trigger)
+- If the selected BOOT item touches OpenClaw system behavior:
+  - Read relevant local skill docs (`skills/*/SKILL.md`) first.
+  - Verify commands/config claims against `https://docs.openclaw.ai` and list source URLs in the run report.
+- If reasoning involves date/time:
+  - Verify runtime current time context first (session status).
+  - Record absolute date/time in the run report.
 
 Also read (from chat history):
 - The full `BOOT UPGRADE MENU (BOOT+APPLY v1)` block to extract the selected item text.
@@ -450,6 +482,13 @@ B) Guard recurrence escalation (Guard#<id>)
 - Execute: `prompts/governance/WORKSPACE_GOVERNANCE_MIGRATION.md`
 - If Migration produces any FAIL in QC 12/12: STOP and report Blocked/Remediation (do not claim completion).
 
+5) Effectiveness validation (required)
+- Before completion claim, compare pre/post indicators for the selected upgrade item:
+  - recurrence count window from BOOT trigger
+  - related QC item status (if QC-type upgrade)
+  - related Guard/Lesson recurrence marker (if Guard-type upgrade)
+- If no measurable improvement signal can be shown, mark outcome as `PARTIAL` and keep follow-up actions mandatory.
+
 ---
 
 QC GATE (Must be 12/12)
@@ -464,7 +503,7 @@ QC GATE (Must be 12/12)
 PERSIST GATE
 - Write one run report under `_runs/`:
   - Filename: `<timestamp>_apply_upgrade_from_boot_v1.md`
-  - Include: plan, reads, changes (before/after excerpts), QC 12/12, and follow-ups
+  - Include: plan, reads, changes (before/after excerpts), QC 12/12, effectiveness validation, and follow-ups
   - Follow-ups MUST include `operator next action`:
     - Send slash command as a standalone message: `/gov_audit`
     - Fallback if slash command is unavailable or name-collided: `/skill gov_audit`
@@ -472,7 +511,7 @@ PERSIST GATE
 <<END FILE>>
 
 <<BEGIN FILE: prompts/governance/WORKSPACE_GOVERNANCE_MIGRATION.md>>
-TASK: MIGRATION_WORKSPACE_GOVERNANCE (REENTRANT, PATCH-ONLY, FAIL-CLOSED, REV5)
+TASK: MIGRATION_WORKSPACE_GOVERNANCE (REENTRANT, PATCH-ONLY, FAIL-CLOSED, REV6)
 
 GOAL
 Apply the latest governance hardening to an ALREADY-RUNNING workspace without destructive overwrites:
@@ -485,6 +524,19 @@ Apply the latest governance hardening to an ALREADY-RUNNING workspace without de
   - `gov_migrate` / `gov_audit` / `gov_apply <NN>` (backed by `skills/gov_migrate/`, `skills/gov_audit/`, `skills/gov_apply/`).
   - Slash commands should be invoked as standalone command messages.
   - If slash command is unavailable or name-collided, use `/skill <name> [input]` fallback.
+
+RUNTIME MODES (Hard)
+- Mode A (Conversation): casual or stylistic chat; no persistence, no system claims.
+- Mode B (Verified Answer): no writes, but factual answer required.
+  - Mode B1 (General facts): verify evidence before answering.
+  - Mode B2 (OpenClaw system topics): MUST read relevant local skills/docs AND verify using official docs at `https://docs.openclaw.ai` before answering.
+  - Mode B3 (Date/time topics): MUST verify current time context first (use runtime session status), then answer with explicit absolute date when relevant.
+- Mode C (Governance change): any write/update/save/persist operation; MUST run PLAN → READ → CHANGE → QC → PERSIST.
+
+PATH COMPATIBILITY CONTRACT (Hard)
+- Treat workspace root as runtime-resolved `<workspace-root>`.
+- Do NOT hardcode home-based paths such as `~/.openclaw/workspace/...` in logic or evidence claims.
+- Official defaults are allowed in documentation examples only, with explicit note that deployments may override them.
 
 NON-GOALS (hard)
 - Do NOT re-run the one-shot bootstrap procedure.
@@ -562,6 +614,12 @@ HARD ORDER (NO SKIP)
      - `skills/gov_audit/SKILL.md` (if present)
      - `skills/gov_apply/SKILL.md` (if present)
      - Relevant Brain Docs when the task implies persistence/user-profile/timezone: `USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`
+   - If task content includes OpenClaw system topics (commands/config/plugins/skills/hooks/path defaults):
+     - Read relevant local skill docs first (`skills/*/SKILL.md` that map to the operation).
+     - Verify claims against official docs at `https://docs.openclaw.ai` and record source URLs in the run report.
+   - If task content includes date/time statements (e.g., today/current year/current month):
+     - Verify runtime current time context first (session status).
+     - Record the observed absolute date/time in the run report before making conclusions.
 
 4) CHANGE GATE (patch-only)
    4.1 Create backup tree:
@@ -602,6 +660,11 @@ HARD ORDER (NO SKIP)
      - Confirm `_control/GOVERNANCE_BOOTSTRAP.md` contains the learning loop rule (Guards + Lessons) and the 5-gate lifecycle.
      - Confirm `_control/REGRESSION_CHECK.md` still has 12 items + fixed denominator rule.
      - Confirm `_control/WORKSPACE_INDEX.md` includes Active Guards + Lessons + Boot audit + Migration kit + Boot+Apply runner + governance command shortcuts (`/gov_migrate`, `/gov_audit`, `/gov_apply <NN>`).
+   - System-truth self-check (Fail-Closed):
+     - If this run makes OpenClaw system claims, run report must include source URLs from `https://docs.openclaw.ai`.
+     - If this run makes date/time claims, run report must include runtime-verified absolute date/time evidence (from session status).
+   - Path-compatibility self-check (Fail-Closed):
+     - No hardcoded `~/.openclaw/workspace/...` path assumptions in changed content.
    - Canonical equality check (Fail-Closed):
      - Extract the three deployed AUTOGEN blocks: `AGENTS_CORE_v1`, `GOV_CORE_v1`, `REGRESSION_12_v1`.
      - Extract the three canonical contents from `prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md` using the mapping rules above.
@@ -611,7 +674,7 @@ HARD ORDER (NO SKIP)
 
 6) PERSIST GATE
    - Write run report under `_runs/` named:
-     `migrate_governance_rev5_<ts>.md`
+     `migrate_governance_rev6_<ts>.md`
    - Run report must include:
      - summary + `<ts>`
      - backup paths created
@@ -627,123 +690,10 @@ HARD ORDER (NO SKIP)
      - If missing => STOP and output Blocked/Remediation (do NOT claim completion).
 
 END TASK
-<<END FILE>>`
-    - Extract starting at heading `## Non-negotiable rules` through end of that file payload.
-  - `GOV_CORE_v1` canonical content:
-    - From canonical source payload `<<BEGIN FILE: _control/GOVERNANCE_BOOTSTRAP.md>> ... <<END FILE>>`
-    - Extract starting at heading `## 0) Prime Directive (Fail-Closed)` through end of that file payload.
-  - `REGRESSION_12_v1` canonical content:
-    - From canonical source payload `<<BEGIN FILE: _control/REGRESSION_CHECK.md>> ... <<END FILE>>`
-    - Extract starting at line `# Regression Checklist` through end of that file payload.
-- Normalization for equality checks (hard):
-  - Treat line endings as LF.
-  - Trim trailing whitespace.
-  - Ensure exactly one terminal newline.
-
-AUTHORIZED ACTIONS (explicit permission granted)
-A) Workspace-local backups (Fail-Closed):
-   - Create `archive/_migration_backup_<ts>/...` and store exact before-copies of every file you will modify.
-
-B) Patch targets (ONLY these paths are allowed to be modified by this migration):
-   - `AGENTS.md` (replace AUTOGEN block `AGENTS_CORE_v1` only; if missing, insert once)
-   - `_control/GOVERNANCE_BOOTSTRAP.md` (replace AUTOGEN block `GOV_CORE_v1` only; if missing, insert once)
-   - `_control/REGRESSION_CHECK.md` (replace AUTOGEN block `REGRESSION_12_v1` only; if missing, insert once)
-   - `_control/WORKSPACE_INDEX.md` (append-only minimal links; do NOT delete existing links)
-   - `_control/PRESETS.md` (overwrite with canonical payload only if it matches an older known payload; otherwise PATCH-only)
-   - `_control/RULES.md` (overwrite pointer-only payload)
-   - `_control/ACTIVE_GUARDS.md` (create if missing; if exists, ensure header/preamble exists while preserving existing log content)
-   - `prompts/governance/APPLY_UPGRADE_FROM_BOOT.md` (create if missing; backup and overwrite with canonical payload)
-   - `BOOT.md` (create if missing; overwrite only if it is clearly not the startup audit file)
-
-C) Any other file/folder:
-   - DO NOT overwrite/move/delete. Non-destructive.
-
-HARD ORDER (NO SKIP)
-1) PLAN GATE
-   - Declare `<ts>` in sortable format: YYYYMMDD_HHMMSS.
-   - List every read/write/edit/backup action with exact paths.
-
-2) PROBE GATE (read-only)
-   - Verify this is an active workspace: `_control/` exists and `_control/GOVERNANCE_BOOTSTRAP.md` exists.
-     If not, STOP and output Blocked Report: "Workspace not initialized; run Bootstrap task instead."
-   - Verify canonical source exists: `prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`.
-     If not, STOP and output Blocked Report: "Canonical source missing; cannot perform deterministic patch."
-   - Detect required capabilities (read/write/edit/move/copy/exec).
-   - If any required capability is missing, STOP and output Blocked Report with exact missing capability and which step cannot proceed.
-
-3) READ GATE (mandatory)
-   - Read (and later list as evidence):
-     - `prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md` (canonical source)
-     - `AGENTS.md`
-     - `_control/GOVERNANCE_BOOTSTRAP.md`
-     - `_control/PRESETS.md`
-     - `_control/WORKSPACE_INDEX.md`
-     - `_control/REGRESSION_CHECK.md`
-     - `_control/ACTIVE_GUARDS.md` (if present)
-     - `_control/LESSONS.md` (if present)
-     - Relevant Brain Docs when the task implies persistence/user-profile/timezone: `USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`
-
-4) CHANGE GATE (patch-only)
-   4.1 Create backup tree:
-       `archive/_migration_backup_<ts>/` (and subfolders mirroring targets)
-   4.2 For each patch target you will modify, copy exact BEFORE into backup tree.
-   4.3 Apply deterministic patches:
-       - `AGENTS.md`: ensure AUTOGEN block `AGENTS_CORE_v1` exists exactly once; replace its content with canonical content extracted per "CANONICAL SOURCE (hard)" mapping rules.
-       - `_control/GOVERNANCE_BOOTSTRAP.md`: ensure AUTOGEN block `GOV_CORE_v1` exists exactly once; replace its content with canonical content extracted per "CANONICAL SOURCE (hard)" mapping rules.
-       - `_control/REGRESSION_CHECK.md`: ensure AUTOGEN block `REGRESSION_12_v1` exists exactly once; replace its content with canonical content extracted per "CANONICAL SOURCE (hard)" mapping rules.
-       - `_control/WORKSPACE_INDEX.md`: ensure it contains links to:
-         `./ACTIVE_GUARDS.md`, `./LESSONS.md`, `../BOOT.md`, `../prompts/governance/WORKSPACE_GOVERNANCE_MIGRATION.md`, `../prompts/governance/APPLY_UPGRADE_FROM_BOOT.md`
-         Add missing links only; do not remove existing content.
-       - `_control/RULES.md`: set pointer-only content (no duplicated rules).
-       - `_control/ACTIVE_GUARDS.md`:
-         - If missing: create it using canonical payload.
-         - If present: ensure the canonical header/preamble exists at top; preserve the existing log entries below.
-       - `prompts/governance/APPLY_UPGRADE_FROM_BOOT.md`:
-         - If missing: create it using canonical payload.
-         - If present: backup and overwrite with canonical payload.
-       - `BOOT.md`:
-         - If missing: create it using canonical payload.
-         - If present but clearly unrelated: backup and overwrite with canonical payload.
-   4.4 Update `_control/WORKSPACE_INDEX.md` to include the migration run report link (after the run report is written).
-
-5) QC GATE (fixed denominator)
-   - Execute `_control/REGRESSION_CHECK.md` EXACTLY 12 items in order.
-   - ALWAYS report as 12/12. Do NOT reduce denominator even if an item is not applicable.
-   - If an item is not applicable, mark it "PASS (N/A)" but keep it within 12/12.
-   - Payload integrity self-check (Fail-Closed):
-     - Confirm `AGENTS.md` contains the PLAN-first rule, PERSISTENCE trigger, and No-Write guardrail.
-     - Confirm `_control/GOVERNANCE_BOOTSTRAP.md` contains the learning loop rule (Guards + Lessons) and the 5-gate lifecycle.
-     - Confirm `_control/REGRESSION_CHECK.md` still has 12 items + fixed denominator rule.
-     - Confirm `_control/WORKSPACE_INDEX.md` includes Active Guards + Boot audit + Migration kit + Boot+Apply runner links.
-   - Canonical equality check (Fail-Closed):
-     - Extract the three deployed AUTOGEN blocks: `AGENTS_CORE_v1`, `GOV_CORE_v1`, `REGRESSION_12_v1`.
-     - Extract the three canonical contents from `prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md` using the mapping rules above.
-     - Normalize both sides using the normalization rules above.
-     - Compute sha256 for each (record first 12 chars).
-     - Any mismatch => STOP and output Blocked/Remediation (do NOT claim completion).
-
-6) PERSIST GATE
-   - Write run report under `_runs/` named:
-     `migrate_governance_rev5_<ts>.md`
-   - Run report must include:
-     - summary + `<ts>`
-     - backup paths created
-     - files patched (paths) + before/after excerpts (AUTOGEN blocks)
-     - QC results 12/12 with evidence
-     - final tree view (only top-level + `_control/` + `prompts/governance/`)
-     - NEXT STEP (Operator):
-       - Restart the gateway to trigger `BOOT.md` (read-only) if the boot-md hook is enabled.
-       - If BOOT prints `BOOT UPGRADE MENU (BOOT+APPLY v1)`: reply with `01`/`02`/`03` to authorize guided apply.
-   - Update `_control/WORKSPACE_INDEX.md` to link this run report.
-   - Post-update self-check (Fail-Closed):
-     - Re-read `_control/WORKSPACE_INDEX.md` and confirm it contains a link/reference to the new run report path.
-     - If missing => STOP and output Blocked/Remediation (do NOT claim completion).
-
-END TASK
 <<END FILE>>
 
 <<BEGIN FILE: _control/GOVERNANCE_BOOTSTRAP.md>>
-# OpenClaw Workspace Governance Bootstrap  REV5
+# OpenClaw Workspace Governance Bootstrap  REV6
 > SSOT: Single authoritative governance specification for this workspace.
 > Related SSOTs: `_control/PRESETS.md` (policy switches), `_control/REGRESSION_CHECK.md` (QC checklist).
 > Design goals: sustainable execution, minimal sprawl, deterministic edits, evidence-based completion, and convergence over time.
@@ -784,6 +734,7 @@ END TASK
 - All new governance/outputs MUST go under `_control/`, `_runs/`, `docs/`, `projects/`, `skills/`, `prompts/`, or `archive/`.
 - Workspace boundary (deliverables/evidence): do NOT write deliverables/evidence under system temporary locations (e.g., `/tmp/`) except throwaway scratch, and never use it for completion claims.
 - Any new/moved file requires `_control/WORKSPACE_INDEX.md` update.
+- Path compatibility rule: resolve runtime `<workspace-root>`; never hardcode `~/.openclaw/workspace/...` as an absolute assumption.
 
 ### 1.3 Platform Channel (Control Plane) — OpenClaw global state
 - Scope: `~/.openclaw/` is OUTSIDE the workspace root. It is OpenClaw’s platform control-plane state (global config/state).
@@ -807,6 +758,14 @@ Brain docs are the pillar for stateless sessions. When a task implies persistenc
 Rule:
 - Do not create ad-hoc new files for single facts if an existing brain doc has an appropriate field/section.
 - If a new dedicated SSOT doc is necessary, place it under `docs/` and link it from `_control/WORKSPACE_INDEX.md`, while keeping the primary reference point in the relevant brain doc.
+
+### 2.1 Evidence routing modes (A/B/C)
+- Mode A (Conversation): no persistence; style/persona interaction allowed.
+- Mode B (Verified Answer): no writes; factual answer must be evidence-backed.
+  - Mode B2 (OpenClaw system topics): read relevant local skill docs and verify against official docs `https://docs.openclaw.ai` before answering.
+  - Mode B3 (Date/time topics): verify runtime current time context first (session status), then answer with explicit absolute date where needed.
+- Mode C (Governance change): any write/update/save/persist operation; full 5-gate workflow is mandatory.
+- If evidence is missing, answer with uncertainty + next check, never by guessing.
 
 ---
 
@@ -876,6 +835,12 @@ Must read:
   - `HEARTBEAT.md`
   - `memory/YYYY-MM-DD.md` (today + yesterday), if `memory/` exists
 - Target file(s)
+- If task involves OpenClaw system claims (commands/config/plugins/skills/hooks/path defaults):
+  - relevant local skill docs in `skills/`
+  - official docs evidence from `https://docs.openclaw.ai`
+- If task involves date/time-sensitive conclusions:
+  - verify runtime current time context first (session status)
+  - use explicit absolute date in conclusions to avoid relative-date drift
 
 ### 5.3 CHANGE GATE (Deterministic Edit Protocol)
 Classify every change:
@@ -927,6 +892,11 @@ This workspace uses a three-piece workflow to avoid “re-run bootstrap overwrit
 - Purpose: read-only audit/reminder on gateway start (when boot-md hook is enabled).
 - Must not write files; it only reports drift + recommends running Migration when needed.
 
+4) BOOT+APPLY effectiveness validation
+- BOOT proposals MUST map to measurable indicators (e.g., recurrence counts, failed QC item frequency, or repeated guard ID hits).
+- After `/gov_apply <NN>`, run Migration + Audit and record pre/post indicators in the run report.
+- If no measurable improvement is observed, mark result as PARTIAL and create a follow-up guard/lesson instead of claiming full resolution.
+
 ---
 
 ## 8) Run Report Format (Required)
@@ -953,6 +923,8 @@ Must include:
    plus relevant Brain Docs (e.g., `USER.md`) when the task implies persistence/user-profile changes.
    If `_control/ACTIVE_GUARDS.md` and/or `_control/LESSONS.md` exist, the run report shows they were read as part of READ GATE.
    If a PLATFORM update occurred, the run report also shows read evidence for the relevant Platform control-plane target(s) (e.g., `~/.openclaw/openclaw.json`).
+   If task output includes OpenClaw system claims, run report includes source URLs from `https://docs.openclaw.ai`.
+   If task output includes date/time conclusions, run report includes runtime current time evidence (session status + absolute date/time).
 2) ROOT SPRAWL:
    No new files/folders created in root except allowed whitelist (includes `AGENTS.md`, `README.md` (optional), `projects/`, `skills/`, `prompts/`, `memory/`, `canvas/`, `BOOT.md` (optional), optional `.openclaw/`, optional `.git/`, optional `.gitignore`).
    No deliverables/evidence written outside workspace root (e.g., `/tmp/`).
@@ -977,6 +949,7 @@ Must include:
 11) CONSOLIDATION:
    Governance switches/rules are not duplicated elsewhere; reference SSOT docs only.
    Do NOT invent parallel “new governance systems” when `_control/ACTIVE_GUARDS.md` + `_control/LESSONS.md` already cover the need.
+   Path assumptions are runtime-compatible (`<workspace-root>` semantics) and do not hardcode `~/.openclaw/workspace/...`.
 12) COMPLETION LANGUAGE:
    If any item FAILS, do NOT say "completed/updated"; output Blocked/Remediation instead.
 <!-- AUTOGEN:END REGRESSION_12_v1 -->
@@ -1080,6 +1053,9 @@ Run the workspace governance migration kit for an already-running workspace.
 - Follow the migration SSOT exactly (no paraphrase, no skipped gates).
 - Create backups under `archive/_migration_backup_<ts>/...` before modifying any file.
 - After completion, instruct the operator to run `/gov_audit`.
+- Treat workspace root as runtime-resolved `<workspace-root>`; do not hardcode `~/.openclaw/workspace`.
+- For OpenClaw system claims (commands/config/plugins/skills/hooks), verify using relevant local skill docs and official docs at `https://docs.openclaw.ai`.
+- For date/time-sensitive claims, verify runtime current time context first (session status).
 
 ## Notes
 - If the slash command name is suffixed (collision), use `/skill gov_migrate`.
@@ -1104,6 +1080,8 @@ Verify governance integrity after bootstrap or migration (read-only audit; fail-
   - `GOV_CORE_v1`
   - `REGRESSION_12_v1`
   using `prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md` mapping rules.
+- Path compatibility: governance content uses runtime `<workspace-root>` semantics and does not hardcode `~/.openclaw/workspace`.
+- System-truth evidence: OpenClaw system claims cite `https://docs.openclaw.ai`; date/time claims include runtime current time evidence (session status).
 
 ## Output
 - Write a run report under `_runs/`:
@@ -1136,6 +1114,9 @@ Apply an approved BOOT upgrade item by running the guided apply runner, then ens
 - If `<NN>` is missing or not two digits, STOP and ask for the correct number.
 - If the BOOT upgrade menu is not available in the current conversation context, STOP and ask the operator to paste the latest BOOT report section that contains the numbered menu.
 - Do not write outside allowlisted targets in the apply runner.
+- For OpenClaw system claims during apply, verify against relevant local skill docs and `https://docs.openclaw.ai`.
+- For date/time-sensitive claims during apply, verify runtime current time context first (session status).
+- Use runtime `<workspace-root>` semantics; do not assume fixed home paths.
 
 ## Notes
 - If the slash command name is suffixed (collision), use `/skill gov_apply <NN>`.

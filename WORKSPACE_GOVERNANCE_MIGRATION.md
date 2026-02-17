@@ -1,4 +1,4 @@
-TASK: MIGRATION_WORKSPACE_GOVERNANCE (REENTRANT, PATCH-ONLY, FAIL-CLOSED, REV5)
+TASK: MIGRATION_WORKSPACE_GOVERNANCE (REENTRANT, PATCH-ONLY, FAIL-CLOSED, REV6)
 
 GOAL
 Apply the latest governance hardening to an ALREADY-RUNNING workspace without destructive overwrites:
@@ -11,6 +11,19 @@ Apply the latest governance hardening to an ALREADY-RUNNING workspace without de
   - `gov_migrate` / `gov_audit` / `gov_apply <NN>` (backed by `skills/gov_migrate/`, `skills/gov_audit/`, `skills/gov_apply/`).
   - Slash commands should be invoked as standalone command messages.
   - If slash command is unavailable or name-collided, use `/skill <name> [input]` fallback.
+
+RUNTIME MODES (Hard)
+- Mode A (Conversation): casual or stylistic chat; no persistence, no system claims.
+- Mode B (Verified Answer): no writes, but factual answer required.
+  - Mode B1 (General facts): verify evidence before answering.
+  - Mode B2 (OpenClaw system topics): MUST read relevant local skills/docs AND verify using official docs at `https://docs.openclaw.ai` before answering.
+  - Mode B3 (Date/time topics): MUST verify current time context first (use runtime session status), then answer with explicit absolute date when relevant.
+- Mode C (Governance change): any write/update/save/persist operation; MUST run PLAN → READ → CHANGE → QC → PERSIST.
+
+PATH COMPATIBILITY CONTRACT (Hard)
+- Treat workspace root as runtime-resolved `<workspace-root>`.
+- Do NOT hardcode home-based paths such as `~/.openclaw/workspace/...` in logic or evidence claims.
+- Official defaults are allowed in documentation examples only, with explicit note that deployments may override them.
 
 NON-GOALS (hard)
 - Do NOT re-run the one-shot bootstrap procedure.
@@ -88,6 +101,12 @@ HARD ORDER (NO SKIP)
      - `skills/gov_audit/SKILL.md` (if present)
      - `skills/gov_apply/SKILL.md` (if present)
      - Relevant Brain Docs when the task implies persistence/user-profile/timezone: `USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`
+   - If task content includes OpenClaw system topics (commands/config/plugins/skills/hooks/path defaults):
+     - Read relevant local skill docs first (`skills/*/SKILL.md` that map to the operation).
+     - Verify claims against official docs at `https://docs.openclaw.ai` and record source URLs in the run report.
+   - If task content includes date/time statements (e.g., today/current year/current month):
+     - Verify runtime current time context first (session status).
+     - Record the observed absolute date/time in the run report before making conclusions.
 
 4) CHANGE GATE (patch-only)
    4.1 Create backup tree:
@@ -128,6 +147,11 @@ HARD ORDER (NO SKIP)
      - Confirm `_control/GOVERNANCE_BOOTSTRAP.md` contains the learning loop rule (Guards + Lessons) and the 5-gate lifecycle.
      - Confirm `_control/REGRESSION_CHECK.md` still has 12 items + fixed denominator rule.
      - Confirm `_control/WORKSPACE_INDEX.md` includes Active Guards + Lessons + Boot audit + Migration kit + Boot+Apply runner + governance command shortcuts (`/gov_migrate`, `/gov_audit`, `/gov_apply <NN>`).
+   - System-truth self-check (Fail-Closed):
+     - If this run makes OpenClaw system claims, run report must include source URLs from `https://docs.openclaw.ai`.
+     - If this run makes date/time claims, run report must include runtime-verified absolute date/time evidence (from session status).
+   - Path-compatibility self-check (Fail-Closed):
+     - No hardcoded `~/.openclaw/workspace/...` path assumptions in changed content.
    - Canonical equality check (Fail-Closed):
      - Extract the three deployed AUTOGEN blocks: `AGENTS_CORE_v1`, `GOV_CORE_v1`, `REGRESSION_12_v1`.
      - Extract the three canonical contents from `prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md` using the mapping rules above.
@@ -137,7 +161,7 @@ HARD ORDER (NO SKIP)
 
 6) PERSIST GATE
    - Write run report under `_runs/` named:
-     `migrate_governance_rev5_<ts>.md`
+     `migrate_governance_rev6_<ts>.md`
    - Run report must include:
      - summary + `<ts>`
      - backup paths created
