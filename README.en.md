@@ -1,57 +1,126 @@
 # OpenClaw WORKSPACE_GOVERNANCE
 
-> A beginner-friendly governance kit for OpenClaw workspaces.  
-> Goal: clear first-time setup, simple day-to-day operations, and traceable changes.
+> A workspace governance solution for OpenClaw users.  
+> Purpose: manage Bootstrap, Migration, Audit, and BOOT apply with a repeatable, verifiable, and traceable workflow.
 
 [中文版本](./README.md)
 
-[![OpenClaw](https://img.shields.io/badge/OpenClaw-Compatible-0ea5e9)](https://docs.openclaw.ai/) [![Mode](https://img.shields.io/badge/Workflow-Bootstrap%20%2F%20Migrate%20%2F%20Apply-22c55e)](#which-scenario-are-you-in) [![Audience](https://img.shields.io/badge/For-Beginners-f59e0b)](#60-second-quick-start)
+[![OpenClaw](https://img.shields.io/badge/OpenClaw-Compatible-0ea5e9)](https://docs.openclaw.ai/) [![Distribution](https://img.shields.io/badge/Distribution-Plugin%20%2B%20ClawHub-22c55e)](#installation-options) [![Audience](https://img.shields.io/badge/Audience-Beginners-f59e0b)](#first-deployment)
 
 ---
 
-## Remember Just 2 Things
+## Project Positioning
 
-1. First-time setup: run `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md` once.
-2. After setup, daily maintenance should use 3 commands:
-   - `/gov_migrate`
-   - `/gov_audit`
-   - `/gov_apply <NN>`
+This project provides a complete governance workflow for OpenClaw workspaces:
 
----
+1. Bootstrap for first-time governance baseline.
+2. Migration for running workspaces.
+3. Audit for fixed-checklist consistency validation.
+4. Controlled BOOT item apply after explicit approval.
 
-## 60-Second Quick Start
+The distribution model is now `Plugin + ClawHub Installer`:
 
-1. Put this folder at `<workspace-root>/prompts/governance/`
-2. In OpenClaw chat, run: `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`
-3. After it finishes, run: `/gov_audit`
-
-If slash command is unavailable, use: `/skill gov_audit`
+1. Plugin: authoritative runtime package with `gov_*` skills.
+2. ClawHub Installer: discovery and guided installation entry.
 
 ---
 
-## Which Scenario Are You In?
+## Installation Options
 
-| Your situation | What to do | Entry point |
-|---|---|---|
-| A. Brand-new OpenClaw / brand-new workspace | Build governance foundation | `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md` |
-| B. Running OpenClaw, not yet using this kit | First-time adoption, keep existing work safe | `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md` |
-| C. Already using this kit | Ongoing upgrades and maintenance | `/gov_migrate` + `/gov_audit` |
+### Option A (Recommended): Install Plugin Directly
 
----
-
-## Command Cheatsheet
+1. Install plugin:
 
 ```text
-/gov_migrate     # Upgrade governance baseline
-/gov_audit       # Validate health and consistency
-/gov_apply <NN>  # Apply BOOT recommendation item by number
+openclaw plugins install @adamchanadam/openclaw-workspace-governance@0.1.0
 ```
 
-Recommended: send slash commands as standalone messages (one line `/...`).
-
-If slash commands fail or are name-collided:
+2. Enable plugin:
 
 ```text
+openclaw plugins enable openclaw-workspace-governance
+```
+
+3. Verify load status:
+
+```text
+openclaw plugins list
+openclaw skills list --eligible
+```
+
+### Option B: Install via ClawHub Installer
+
+If you install from GitHub path, run:
+
+```text
+clawhub inspect Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/clawhub/openclaw-workspace-governance-installer
+clawhub install Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/clawhub/openclaw-workspace-governance-installer
+```
+
+After installer setup, follow its instructions to install and enable the plugin.
+
+---
+
+## First Deployment
+
+After plugin/installer setup, run in OpenClaw chat:
+
+```text
+/gov_setup install
+```
+
+`/gov_setup` deploys governance prompt assets into the current workspace at `prompts/governance/`.
+
+If slash command is unavailable or name-collided, use:
+
+```text
+/skill gov_setup install
+```
+
+---
+
+## Three Usage Scenarios
+
+| Scenario | When to use | Recommended entry |
+|---|---|---|
+| A | Brand-new OpenClaw / brand-new workspace | `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md` |
+| B | Running OpenClaw, governance not yet installed | `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md` |
+| C | Governance already installed, ongoing maintenance required | `/gov_migrate` + `/gov_audit` |
+
+### Scenario A: Brand-New OpenClaw / Brand-New Workspace
+
+1. Complete installation and deployment (`/gov_setup install`).
+2. Run `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`.
+3. Run `/gov_audit` to confirm baseline integrity.
+
+### Scenario B: Running OpenClaw, First-Time Governance Adoption
+
+1. Complete installation and deployment (`/gov_setup install`).
+2. Run `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`.
+3. Run `/gov_audit`.
+4. If workspace is already initialized, run `/gov_migrate` first, then `/gov_audit`.
+
+### Scenario C: Governance Already Installed (Daily Maintenance)
+
+1. Run `/gov_migrate`.
+2. Run `/gov_audit`.
+3. When BOOT provides numbered proposals, run `/gov_apply <NN>`, then run `/gov_audit` again.
+
+---
+
+## Command Reference
+
+```text
+/gov_setup install   # Deploy or upgrade governance prompt assets
+/gov_migrate         # Apply governance upgrades
+/gov_audit           # Run consistency checks
+/gov_apply <NN>      # Apply BOOT numbered proposal
+```
+
+If slash command is unavailable or name-collided, use:
+
+```text
+/skill gov_setup install
 /skill gov_migrate
 /skill gov_audit
 /skill gov_apply 01
@@ -59,149 +128,76 @@ If slash commands fail or are name-collided:
 
 ---
 
-## What Is Inside This Folder?
+## BOOT Upgrade Mechanism
+
+When `boot-md` is enabled, the recommended flow is:
+
+1. `BOOT.md` performs read-only checks at startup.
+2. It outputs numbered recommendations (for example `01`, `02`, `03`).
+3. The user approves one specific item.
+4. `/gov_apply <NN>` performs controlled application.
+5. `/gov_migrate` and `/gov_audit` converge the workspace to a consistent state.
+
+---
+
+## Repository Structure (GitHub Root)
 
 ```text
-prompts/governance/
+.
+├─ openclaw.plugin.json
+├─ package.json
+├─ index.ts
 ├─ OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md
 ├─ WORKSPACE_GOVERNANCE_MIGRATION.md
 ├─ APPLY_UPGRADE_FROM_BOOT.md
+├─ WORKSPACE_GOVERNANCE_README.md
 ├─ README.md
 ├─ README.en.md
-└─ manual_prompt/
-   ├─ MIGRATION_prompt_for_RUNNING_OpenClaw.md
-   └─ POST_MIGRATION_AUDIT_prompt_for_RUNNING_OpenClaw.md
+├─ manual_prompt/
+│  ├─ MIGRATION_prompt_for_RUNNING_OpenClaw.md
+│  └─ POST_MIGRATION_AUDIT_prompt_for_RUNNING_OpenClaw.md
+├─ skills/
+│  ├─ gov_setup/SKILL.md
+│  ├─ gov_migrate/SKILL.md
+│  ├─ gov_audit/SKILL.md
+│  └─ gov_apply/SKILL.md
+└─ clawhub/
+   └─ openclaw-workspace-governance-installer/SKILL.md
 ```
 
-Usage:
-- `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`: first installation / first adoption
-- `WORKSPACE_GOVERNANCE_MIGRATION.md`: governance upgrades
-- `APPLY_UPGRADE_FROM_BOOT.md`: controlled apply for BOOT numbered suggestions
-- `manual_prompt/*`: fallback entry when slash commands are unavailable
-
 ---
 
-## Scenario A: Brand-New OpenClaw / Brand-New Workspace
+## Deployment Mapping (OpenClaw Workspace)
 
-### Step 1
-Place files at:
-- `<workspace-root>/prompts/governance/`
+`/gov_setup install` deploys:
 
-### Step 2
-In OpenClaw chat, run:
-- `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`
-
-### Step 3
-After completion, confirm these exist:
-- `_control/`
-- `_runs/`
-- `skills/gov_migrate/`
-- `skills/gov_audit/`
-- `skills/gov_apply/`
-- `BOOT.md` (optional but recommended)
-
-### Step 4
-Run health check:
-- `/gov_audit`
-
----
-
-## Scenario B: Running OpenClaw, Not Yet Using This Kit
-
-### Step 1
-Place files at:
-- `<workspace-root>/prompts/governance/`
-
-### Step 2
-Run:
-- `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`
-
-### Step 3
-Then validate:
-- `/gov_audit`
-
-### Step 4 (if system says workspace is already initialized)
-- Run `/gov_migrate`
-- Then run `/gov_audit`
-
----
-
-## Scenario C: Already Using WORKSPACE_GOVERNANCE (Daily Maintenance)
-
-### Step 1
-Upgrade baseline:
-- `/gov_migrate`
-
-### Step 2
-Validate:
-- `/gov_audit`
-
-### Step 3 (when BOOT provides numbered recommendations)
-Example: BOOT shows 01/02/03
-- `/gov_apply 01`
-- After apply, run `/gov_audit` again
-
----
-
-## BOOT Learning Loop (Core Feature)
-
-When `boot-md` is enabled, the typical flow is:
-1. On startup, `BOOT.md` performs read-only checks
-2. It outputs numbered recommendations (for example 01)
-3. You approve one item
-4. You apply it with `/gov_apply <NN>`
-5. The workflow converges with migration/audit
-
-Key points:
-- Startup stage is read-only recommendation
-- Real writes happen only after explicit approval
-
----
-
-## If Slash Commands Do Not Work
-
-Try:
-- `/skill gov_migrate`
-- `/skill gov_audit`
-- `/skill gov_apply 01`
-
-If still unavailable, use manual fallback prompts:
-- `prompts/governance/manual_prompt/MIGRATION_prompt_for_RUNNING_OpenClaw.md`
-- `prompts/governance/manual_prompt/POST_MIGRATION_AUDIT_prompt_for_RUNNING_OpenClaw.md`
+1. Core governance prompt files -> `<workspace-root>/prompts/governance/`
+2. `manual_prompt/` files -> `<workspace-root>/prompts/governance/manual_prompt/`
 
 ---
 
 ## FAQ
 
-### Q1. If I only copy this folder, does everything auto-run?
-No. You still need to execute the prompt or command in OpenClaw chat.
+### Q1. Can users still install by manual copy?
+Yes. Manual copy remains supported, but Plugin + `/gov_setup` is recommended to reduce deployment drift.
 
-### Q2. Do I need to run full prompts every time?
-No. Full bootstrap is mainly for first-time setup. After that, use skills commands for operations.
+### Q2. Is Bootstrap required every time?
+No. Bootstrap is for first-time adoption. Daily operations should use `gov_*` commands.
 
-### Q3. Will this delete my existing project data?
-This workflow is designed to be non-destructive, with backups and traceability.
+### Q3. When should `/gov_apply <NN>` be used?
+When BOOT provides numbered proposals and approval is completed.
 
-### Q4. When should I use `/gov_apply <NN>`?
-When BOOT provides a numbered recommendation and you want to approve and apply it.
-
----
-
-## GitHub Packaging Recommendation
-
-Minimum recommended publish set:
-- Entire `prompts/governance/` folder
-- This README (and Chinese README)
-
-This allows new users to follow scenario-based onboarding directly.
+### Q4. What if command names collide?
+Use direct `/skill <name>` invocation.
 
 ---
 
 ## Official References
 
 - Skills: https://docs.openclaw.ai/tools/skills
+- ClawHub: https://docs.openclaw.ai/tools/clawhub
 - Slash Commands: https://docs.openclaw.ai/tools/slash-commands
-- Hooks: https://docs.openclaw.ai/automation/hooks
-- Hooks CLI: https://docs.openclaw.ai/cli/hooks
-- Config Reference: https://docs.openclaw.ai/gateway/configuration-reference
-- Memory Concepts: https://docs.openclaw.ai/concepts/memory
+- Plugin: https://docs.openclaw.ai/plugins
+- Plugin Manifest: https://docs.openclaw.ai/plugins/manifest
+- CLI Plugins: https://docs.openclaw.ai/cli/plugins
+- CLI Skills: https://docs.openclaw.ai/cli/skills

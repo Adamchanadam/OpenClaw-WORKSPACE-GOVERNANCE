@@ -1,57 +1,126 @@
 # OpenClaw WORKSPACE_GOVERNANCE
 
-> 給非技術背景用戶的 OpenClaw 工作區治理方案。  
-> 目標：第一次安裝清楚、之後維護簡單、每次改動可追溯。
+> 面向 OpenClaw 使用者的工作區治理方案。  
+> 目的：以可重複、可驗證、可追溯的方式管理 Bootstrap、Migration、Audit 與 BOOT 升級套用。
 
 [English Version](./README.en.md)
 
-[![OpenClaw](https://img.shields.io/badge/OpenClaw-Compatible-0ea5e9)](https://docs.openclaw.ai/) [![Mode](https://img.shields.io/badge/Workflow-Bootstrap%20%2F%20Migrate%20%2F%20Apply-22c55e)](#-三種使用場景你是哪一種) [![Audience](https://img.shields.io/badge/For-Beginners-f59e0b)](#-60-秒快速開始)
+[![OpenClaw](https://img.shields.io/badge/OpenClaw-Compatible-0ea5e9)](https://docs.openclaw.ai/) [![Distribution](https://img.shields.io/badge/Distribution-Plugin%20%2B%20ClawHub-22c55e)](#安裝方式) [![Audience](https://img.shields.io/badge/Audience-Beginners-f59e0b)](#首次部署)
 
 ---
 
-## 你先記住 2 句
+## 專案定位
 
-1. 第一次導入：跑一次 `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`
-2. 之後日常維護：主要用 3 個指令
-   - `/gov_migrate`
-   - `/gov_audit`
-   - `/gov_apply <NN>`
+本專案提供完整的 OpenClaw 工作區治理能力，包括：
 
----
+1. 首次導入治理骨架（Bootstrap）。
+2. 已運作工作區的升級對齊（Migration）。
+3. 固定檢查清單的一致性核對（Audit）。
+4. BOOT 編號提案的批准後受控套用（Apply）。
 
-## 60 秒快速開始
+目前採用「Plugin 主體 + ClawHub Installer」雙層發佈模式：
 
-1. 把整個 `prompts/governance/` 放到 `<workspace-root>/prompts/governance/`
-2. 在 OpenClaw 對話中執行：`OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`
-3. 完成後送出：`/gov_audit`
-
-如果 slash command 不可用，改用：`/skill gov_audit`
+1. Plugin：承載正式功能與 `gov_*` skills。
+2. ClawHub Installer：提供發現、安裝與啟用導引。
 
 ---
 
-## 三種使用場景（你是哪一種）
+## 安裝方式
 
-| 你的狀況 | 你要做什麼 | 用哪個入口 |
-|---|---|---|
-| A. 全新 OpenClaw / 全新 workspace | 建立治理骨架 | `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md` |
-| B. 已運作 OpenClaw，但未導入本方案 | 首次導入，不破壞既有資料 | `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md` |
-| C. 已導入本方案 | 日常升級與維護 | `/gov_migrate` + `/gov_audit` |
+### 方式 A（推薦）：直接安裝 Plugin
 
----
-
-## 指令速查（每天會用）
+1. 安裝 plugin：
 
 ```text
-/gov_migrate     # 升級治理規則
-/gov_audit       # 健康檢查與一致性核對
-/gov_apply <NN>  # 套用 BOOT 建議的編號項目
+openclaw plugins install @adamchanadam/openclaw-workspace-governance@0.1.0
 ```
 
-建議：命令用「獨立訊息」送出（只打一行 `/...`）。
-
-如指令不可用或撞名，改用：
+2. 啟用 plugin：
 
 ```text
+openclaw plugins enable openclaw-workspace-governance
+```
+
+3. 驗證載入：
+
+```text
+openclaw plugins list
+openclaw skills list --eligible
+```
+
+### 方式 B：使用 ClawHub Installer
+
+若以 GitHub 路徑安裝 installer skill，可使用：
+
+```text
+clawhub inspect Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/clawhub/openclaw-workspace-governance-installer
+clawhub install Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/clawhub/openclaw-workspace-governance-installer
+```
+
+安裝 installer 後，請依其指引完成 plugin 安裝與啟用。
+
+---
+
+## 首次部署
+
+Plugin/Installer 安裝完成後，在 OpenClaw 對話中執行：
+
+```text
+/gov_setup install
+```
+
+`/gov_setup` 會將治理核心 prompt 部署到當前 workspace 的 `prompts/governance/`。
+
+若 slash command 不可用或撞名，請改用：
+
+```text
+/skill gov_setup install
+```
+
+---
+
+## 三種使用場景
+
+| 場景 | 適用情況 | 建議入口 |
+|---|---|---|
+| A | 全新 OpenClaw / 全新工作區 | `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md` |
+| B | 已運作 OpenClaw，但尚未導入治理方案 | `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md` |
+| C | 已導入治理方案，需持續維護 | `/gov_migrate` + `/gov_audit` |
+
+### 場景 A：全新 OpenClaw / 全新工作區
+
+1. 完成安裝與部署（先執行 `/gov_setup install`）。
+2. 執行 `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`。
+3. 執行 `/gov_audit` 確認基線一致。
+
+### 場景 B：已運作 OpenClaw，首次導入治理
+
+1. 完成安裝與部署（先執行 `/gov_setup install`）。
+2. 執行 `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`。
+3. 執行 `/gov_audit`。
+4. 若系統提示已初始化，改為先執行 `/gov_migrate`，再執行 `/gov_audit`。
+
+### 場景 C：已導入治理方案（日常維護）
+
+1. 執行 `/gov_migrate`。
+2. 執行 `/gov_audit`。
+3. 當 BOOT 提供編號提案時，執行 `/gov_apply <NN>`，完成後再次執行 `/gov_audit`。
+
+---
+
+## 命令速查
+
+```text
+/gov_setup install   # 部署或升級治理 prompt 資產
+/gov_migrate         # 套用治理升級
+/gov_audit           # 執行一致性核對
+/gov_apply <NN>      # 套用 BOOT 編號提案
+```
+
+若 slash command 不可用或撞名，請改用：
+
+```text
+/skill gov_setup install
 /skill gov_migrate
 /skill gov_audit
 /skill gov_apply 01
@@ -59,150 +128,76 @@
 
 ---
 
-## 這個資料夾有什麼
+## BOOT 升級機制
+
+啟用 `boot-md` 後，建議流程如下：
+
+1. `BOOT.md` 啟動時執行只讀檢查。
+2. 輸出編號建議（例如 `01`、`02`、`03`）。
+3. 由使用者批准指定項目。
+4. 透過 `/gov_apply <NN>` 進行受控套用。
+5. 以 `/gov_migrate` 與 `/gov_audit` 收斂至一致狀態。
+
+---
+
+## Repository 結構（GitHub 根目錄）
 
 ```text
-prompts/governance/
+.
+├─ openclaw.plugin.json
+├─ package.json
+├─ index.ts
 ├─ OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md
 ├─ WORKSPACE_GOVERNANCE_MIGRATION.md
 ├─ APPLY_UPGRADE_FROM_BOOT.md
+├─ WORKSPACE_GOVERNANCE_README.md
 ├─ README.md
 ├─ README.en.md
-└─ manual_prompt/
-   ├─ MIGRATION_prompt_for_RUNNING_OpenClaw.md
-   └─ POST_MIGRATION_AUDIT_prompt_for_RUNNING_OpenClaw.md
+├─ manual_prompt/
+│  ├─ MIGRATION_prompt_for_RUNNING_OpenClaw.md
+│  └─ POST_MIGRATION_AUDIT_prompt_for_RUNNING_OpenClaw.md
+├─ skills/
+│  ├─ gov_setup/SKILL.md
+│  ├─ gov_migrate/SKILL.md
+│  ├─ gov_audit/SKILL.md
+│  └─ gov_apply/SKILL.md
+└─ clawhub/
+   └─ openclaw-workspace-governance-installer/SKILL.md
 ```
 
-用途：
-- `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`：首次安裝 / 首次導入
-- `WORKSPACE_GOVERNANCE_MIGRATION.md`：升級治理規則
-- `APPLY_UPGRADE_FROM_BOOT.md`：按 BOOT 編號受控套用
-- `manual_prompt/*`：slash command 失效時的後備入口
-
 ---
 
-## 詳細步驟 A：全新 OpenClaw / 全新工作區
+## 部署路徑對照（OpenClaw Workspace）
 
-### Step 1
-放好檔案：
-- `<workspace-root>/prompts/governance/`
+`/gov_setup install` 會部署以下內容到 workspace：
 
-### Step 2
-在 OpenClaw 對話中執行：
-- `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`
-
-### Step 3
-完成後檢查有沒有以下項目：
-- `_control/`
-- `_runs/`
-- `skills/gov_migrate/`
-- `skills/gov_audit/`
-- `skills/gov_apply/`
-- `BOOT.md`（可選但建議）
-
-### Step 4
-送出健康檢查：
-- `/gov_audit`
-
----
-
-## 詳細步驟 B：已運作 OpenClaw，但未導入本方案
-
-### Step 1
-同樣先放：
-- `<workspace-root>/prompts/governance/`
-
-### Step 2
-執行：
-- `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`
-
-### Step 3
-完成後做檢查：
-- `/gov_audit`
-
-### Step 4（如遇到提示已初始化）
-如果系統說「不要重跑 bootstrap」：
-- 先跑 `/gov_migrate`
-- 再跑 `/gov_audit`
-
----
-
-## 詳細步驟 C：已導入 WORKSPACE_GOVERNANCE（日常維護）
-
-### Step 1
-升級：
-- `/gov_migrate`
-
-### Step 2
-核對：
-- `/gov_audit`
-
-### Step 3（當 BOOT 有編號建議）
-例如 BOOT 顯示 01/02/03：
-- `/gov_apply 01`
-- 完成後再 `/gov_audit`
-
----
-
-## BOOT 成長機制（本方案特色）
-
-你已啟用 `boot-md` 時，典型流程是：
-1. 啟動時 `BOOT.md` 做只讀檢查
-2. 產生編號建議（例如 01）
-3. 你批准一個編號
-4. 用 `/gov_apply <NN>` 受控套用
-5. 系統再走 migration / audit，保持一致
-
-重點：
-- 啟動階段是只讀提案
-- 真正寫入必須有你批准
-
----
-
-## 如果 slash command 失效
-
-先試：
-- `/skill gov_migrate`
-- `/skill gov_audit`
-- `/skill gov_apply 01`
-
-還是不行就用手動後備：
-- `prompts/governance/manual_prompt/MIGRATION_prompt_for_RUNNING_OpenClaw.md`
-- `prompts/governance/manual_prompt/POST_MIGRATION_AUDIT_prompt_for_RUNNING_OpenClaw.md`
+1. 核心 prompt 檔案 -> `<workspace-root>/prompts/governance/`
+2. `manual_prompt/` -> `<workspace-root>/prompts/governance/manual_prompt/`
 
 ---
 
 ## 常見問題
 
-### Q1. 只放這個資料夾就會自動全部生效嗎？
-不會。你要在對話中執行對應 prompt 或指令，流程才會開始。
+### Q1. 仍可手動 copy 嗎？
+可以。手動 copy 仍可用，但建議改為 Plugin + `/gov_setup`，可降低部署偏差。
 
-### Q2. 每次都要跑完整 prompt 嗎？
-不用。完整 bootstrap prompt 主要是第一次。之後以 skills 指令為主。
+### Q2. 是否每次都要執行 Bootstrap？
+不需要。Bootstrap 主要用於首次導入；日常請使用 `gov_*` 命令。
 
-### Q3. 會不會刪我原本專案資料？
-這套流程是非破壞式設計，重點是備份和可追溯。
+### Q3. 何時使用 `/gov_apply <NN>`？
+當 BOOT 報告提供編號提案且完成批准後使用。
 
-### Q4. 我什麼時候用 `/gov_apply <NN>`？
-當 BOOT 報告給你明確編號建議，而且你批准時。
-
----
-
-## 對外發佈（GitHub）建議
-
-最小建議保留：
-- `prompts/governance/` 全部內容
-- 本 README
-
-這樣新用戶可以直接按 A/B/C 場景照做。
+### Q4. 指令撞名時怎麼辦？
+使用 `/skill <name>` 形式直接呼叫對應 skill。
 
 ---
 
-## 官方文件（對照）
+## 官方參考
 
 - Skills: https://docs.openclaw.ai/tools/skills
+- ClawHub: https://docs.openclaw.ai/tools/clawhub
 - Slash Commands: https://docs.openclaw.ai/tools/slash-commands
-- Hooks: https://docs.openclaw.ai/automation/hooks
-- Hooks CLI: https://docs.openclaw.ai/cli/hooks
-- Config Reference: https://docs.openclaw.ai/gateway/configuration-reference
-- Memory Concepts: https://docs.openclaw.ai/concepts/memory
+- Plugin: https://docs.openclaw.ai/plugins
+- Plugin Manifest: https://docs.openclaw.ai/plugins/manifest
+- CLI Plugins: https://docs.openclaw.ai/cli/plugins
+- CLI Skills: https://docs.openclaw.ai/cli/skills
