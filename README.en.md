@@ -77,7 +77,7 @@ To reduce risks like incorrect commands, date/time mistakes, and path drift, WG 
 1. Install:
 
 ```text
-openclaw plugins install @adamchanadam/openclaw-workspace-governance@0.1.0
+openclaw plugins install @adamchanadam/openclaw-workspace-governance@0.1.1
 ```
 
 2. Enable:

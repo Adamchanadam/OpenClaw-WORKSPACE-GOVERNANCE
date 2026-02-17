@@ -77,7 +77,7 @@ OpenClaw WORKSPACE_GOVERNANCE 是一套面向 OpenClaw 的工作區治理框架�
 1. 安裝：
 
 ```text
-openclaw plugins install @adamchanadam/openclaw-workspace-governance@0.1.0
+openclaw plugins install @adamchanadam/openclaw-workspace-governance@0.1.1
 ```
 
 2. 啟用：
