@@ -1,7 +1,7 @@
 # OpenClaw WORKSPACE_GOVERNANCE
 
-> A workspace governance solution for OpenClaw users.  
-> Purpose: manage Bootstrap, Migration, Audit, and BOOT apply with a repeatable, verifiable, and traceable workflow.
+> A workspace governance solution for OpenClaw (Plugin + ClawHub).  
+> It standardizes governance operations to improve stability, reduce rework, and maintain traceable change records.
 
 [中文版本](./README.md)
 
@@ -9,19 +9,45 @@
 
 ---
 
-## Project Positioning
+## What Is OpenClaw WORKSPACE_GOVERNANCE
 
-This project provides a complete governance workflow for OpenClaw workspaces:
+OpenClaw WORKSPACE_GOVERNANCE is a governance framework for OpenClaw workspaces.  
+It organizes operations into a fixed lifecycle:
 
-1. Bootstrap for first-time governance baseline.
-2. Migration for running workspaces.
-3. Audit for fixed-checklist consistency validation.
-4. Controlled BOOT item apply after explicit approval.
+1. Bootstrap: establish governance baseline for first-time setup.
+2. Migration: apply governance upgrades to running workspaces.
+3. Audit: validate consistency with a fixed checklist.
+4. Apply: perform controlled BOOT proposal application after approval.
 
-The distribution model is now `Plugin + ClawHub Installer`:
+The project uses a dual distribution model:
 
-1. Plugin: authoritative runtime package with `gov_*` skills.
-2. ClawHub Installer: discovery and guided installation entry.
+1. Plugin as the primary runtime package with `gov_*` skills.
+2. ClawHub Installer as the standard discovery and onboarding entry.
+
+---
+
+## Why Use This Solution
+
+In long-running OpenClaw workspaces, common risks include:
+
+1. Inconsistent modification flow causing governance drift.
+2. Repeated governance gaps across new sessions.
+3. Scattered evidence that increases review and rollback cost.
+
+Core value delivered by this solution:
+
+1. Standardized lifecycle: `Bootstrap -> Migrate -> Audit -> Apply`.
+2. BOOT proposal + explicit approval + controlled apply to reduce write risk.
+3. Stable entry points and traceable outputs for better team operations.
+
+---
+
+## Core Capabilities
+
+1. First adoption: `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`
+2. Daily operations: `/gov_migrate`, `/gov_audit`
+3. BOOT upgrades: `/gov_apply <NN>`
+4. Asset deployment: `/gov_setup install`
 
 ---
 
@@ -29,19 +55,19 @@ The distribution model is now `Plugin + ClawHub Installer`:
 
 ### Option A (Recommended): Install Plugin Directly
 
-1. Install plugin:
+1. Install:
 
 ```text
 openclaw plugins install @adamchanadam/openclaw-workspace-governance@0.1.0
 ```
 
-2. Enable plugin:
+2. Enable:
 
 ```text
 openclaw plugins enable openclaw-workspace-governance
 ```
 
-3. Verify load status:
+3. Verify:
 
 ```text
 openclaw plugins list
@@ -50,26 +76,24 @@ openclaw skills list --eligible
 
 ### Option B: Install via ClawHub Installer
 
-If you install from GitHub path, run:
-
 ```text
 clawhub inspect Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/clawhub/openclaw-workspace-governance-installer
 clawhub install Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/clawhub/openclaw-workspace-governance-installer
 ```
 
-After installer setup, follow its instructions to install and enable the plugin.
+After installer setup, follow its guidance to install and enable the plugin.
 
 ---
 
 ## First Deployment
 
-After plugin/installer setup, run in OpenClaw chat:
+After installation, run in OpenClaw chat:
 
 ```text
 /gov_setup install
 ```
 
-`/gov_setup` deploys governance prompt assets into the current workspace at `prompts/governance/`.
+This command deploys governance prompt assets to: `<workspace-root>/prompts/governance/`.
 
 If slash command is unavailable or name-collided, use:
 
@@ -84,21 +108,21 @@ If slash command is unavailable or name-collided, use:
 | Scenario | When to use | Recommended entry |
 |---|---|---|
 | A | Brand-new OpenClaw / brand-new workspace | `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md` |
-| B | Running OpenClaw, governance not yet installed | `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md` |
+| B | Running OpenClaw, governance not yet adopted | `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md` |
 | C | Governance already installed, ongoing maintenance required | `/gov_migrate` + `/gov_audit` |
 
 ### Scenario A: Brand-New OpenClaw / Brand-New Workspace
 
-1. Complete installation and deployment (`/gov_setup install`).
+1. Run `/gov_setup install`.
 2. Run `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`.
-3. Run `/gov_audit` to confirm baseline integrity.
+3. Run `/gov_audit` to validate baseline consistency.
 
 ### Scenario B: Running OpenClaw, First-Time Governance Adoption
 
-1. Complete installation and deployment (`/gov_setup install`).
+1. Run `/gov_setup install`.
 2. Run `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`.
 3. Run `/gov_audit`.
-4. If workspace is already initialized, run `/gov_migrate` first, then `/gov_audit`.
+4. If the workspace is already initialized, run `/gov_migrate` first, then `/gov_audit`.
 
 ### Scenario C: Governance Already Installed (Daily Maintenance)
 
@@ -133,8 +157,8 @@ If slash command is unavailable or name-collided, use:
 When `boot-md` is enabled, the recommended flow is:
 
 1. `BOOT.md` performs read-only checks at startup.
-2. It outputs numbered recommendations (for example `01`, `02`, `03`).
-3. The user approves one specific item.
+2. The system outputs numbered recommendations (for example `01`, `02`, `03`).
+3. The user approves one item.
 4. `/gov_apply <NN>` performs controlled application.
 5. `/gov_migrate` and `/gov_audit` converge the workspace to a consistent state.
 
@@ -171,24 +195,33 @@ When `boot-md` is enabled, the recommended flow is:
 
 `/gov_setup install` deploys:
 
-1. Core governance prompt files -> `<workspace-root>/prompts/governance/`
-2. `manual_prompt/` files -> `<workspace-root>/prompts/governance/manual_prompt/`
+1. Core prompt files -> `<workspace-root>/prompts/governance/`
+2. `manual_prompt/` -> `<workspace-root>/prompts/governance/manual_prompt/`
 
 ---
 
-## FAQ
+## FAQ (Decision-Focused)
 
-### Q1. Can users still install by manual copy?
-Yes. Manual copy remains supported, but Plugin + `/gov_setup` is recommended to reduce deployment drift.
+### Q1. Who should use this solution?
+It is designed for individuals and teams operating OpenClaw workspaces long-term and requiring lower drift risk with higher operational consistency.
 
-### Q2. Is Bootstrap required every time?
-No. Bootstrap is for first-time adoption. Daily operations should use `gov_*` commands.
+### Q2. Will adoption impact existing project content?
+The design principle is non-destructive governance. The target is governance alignment, not overwriting existing `projects/` deliverables.
 
-### Q3. When should `/gov_apply <NN>` be used?
-When BOOT provides numbered proposals and approval is completed.
+### Q3. How do I choose the correct startup scenario?
+If governance has never been adopted in the workspace, use Scenario A or B. If governance is already installed, use Scenario C for daily operations.
 
-### Q4. What if command names collide?
-Use direct `/skill <name>` invocation.
+### Q4. How can I reduce upgrade risk?
+Run `/gov_audit` first for baseline visibility, then `/gov_migrate`, and run `/gov_audit` again to validate post-change consistency.
+
+### Q5. What if `/gov_*` commands are unavailable?
+Use `/skill gov_setup install`, `/skill gov_migrate`, `/skill gov_audit`, and `/skill gov_apply <NN>`.
+
+### Q6. When should `/gov_apply <NN>` be used?
+Only after BOOT has produced numbered proposals and the approval step is complete.
+
+### Q7. How do I roll back to a previous stable version?
+Reinstall a pinned plugin version, then run `/gov_setup install` and `/gov_audit` to restore and verify consistency.
 
 ---
 
