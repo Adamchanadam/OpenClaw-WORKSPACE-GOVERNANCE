@@ -47,7 +47,7 @@ Core value delivered by this solution:
 1. First adoption: `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`
 2. Daily operations: `/gov_migrate`, `/gov_audit`
 3. BOOT upgrades: `/gov_apply <NN>`
-4. Asset deployment: `/gov_setup install` (or `/gov_install install`)
+4. Asset deployment: `/gov_setup install`
 
 ---
 
@@ -110,7 +110,6 @@ After installation, run in OpenClaw chat:
 
 ```text
 /gov_setup install
-/gov_install install
 ```
 
 This command deploys governance prompt assets to: `<workspace-root>/prompts/governance/`.
@@ -119,7 +118,6 @@ If slash command is unavailable or name-collided, use:
 
 ```text
 /skill gov_setup install
-/skill gov_install install
 ```
 
 ---
@@ -134,13 +132,13 @@ If slash command is unavailable or name-collided, use:
 
 ### Scenario A: Brand-New OpenClaw / Brand-New Workspace
 
-1. Run `/gov_setup install` (or `/gov_install install`).
+1. Run `/gov_setup install`.
 2. Run `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`.
 3. Run `/gov_audit` to validate baseline consistency.
 
 ### Scenario B: Running OpenClaw, First-Time Governance Adoption
 
-1. Run `/gov_setup install` (or `/gov_install install`).
+1. Run `/gov_setup install`.
 2. Run `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`.
 3. Run `/gov_audit`.
 4. If the workspace is already initialized, run `/gov_migrate` first, then `/gov_audit`.
@@ -157,7 +155,6 @@ If slash command is unavailable or name-collided, use:
 
 ```text
 /gov_setup install   # Deploy or upgrade governance prompt assets
-/gov_install install # Install alias (recommended if gov_setup is name-collided)
 /gov_migrate         # Apply governance upgrades
 /gov_audit           # Run consistency checks
 /gov_apply <NN>      # Apply BOOT numbered proposal
@@ -167,13 +164,12 @@ If slash command is unavailable or name-collided, use:
 
 ```text
 /skill gov_setup install
-/skill gov_install install
 /skill gov_migrate
 /skill gov_audit
 /skill gov_apply 01
 ```
 
-Naming note: this plugin provides two equivalent install entries: `gov_setup` and `gov_install`. If `/gov_setup` is unavailable due to name collision, use `/gov_install install`.
+Naming note: this plugin keeps a single install/deploy entry: `gov_setup`.
 
 ---
 
@@ -208,7 +204,6 @@ When `boot-md` is enabled, the recommended flow is:
 │  └─ POST_MIGRATION_AUDIT_prompt_for_RUNNING_OpenClaw.md
 ├─ skills/
 │  ├─ gov_setup/SKILL.md
-│  ├─ gov_install/SKILL.md
 │  ├─ gov_migrate/SKILL.md
 │  ├─ gov_audit/SKILL.md
 │  └─ gov_apply/SKILL.md
@@ -220,7 +215,7 @@ When `boot-md` is enabled, the recommended flow is:
 
 ## Deployment Mapping (OpenClaw Workspace)
 
-`/gov_setup install` (or `/gov_install install`) deploys:
+`/gov_setup install` deploys:
 
 1. Core prompt files -> `<workspace-root>/prompts/governance/`
 2. `manual_prompt/` -> `<workspace-root>/prompts/governance/manual_prompt/`
@@ -242,13 +237,13 @@ If governance has never been adopted in the workspace, use Scenario A or B. If g
 Run `/gov_audit` first for baseline visibility, then `/gov_migrate`, and run `/gov_audit` again to validate post-change consistency.
 
 ### Q5. What if `/gov_*` commands are unavailable?
-Use `/skill gov_setup install`, `/skill gov_install install`, `/skill gov_migrate`, `/skill gov_audit`, and `/skill gov_apply <NN>`.
+Use `/skill gov_setup install`, `/skill gov_migrate`, `/skill gov_audit`, and `/skill gov_apply <NN>`.
 
 ### Q6. When should `/gov_apply <NN>` be used?
 Only after BOOT has produced numbered proposals and the approval step is complete.
 
 ### Q7. How do I roll back to a previous stable version?
-Reinstall a pinned plugin version, then run `/gov_setup install` (or `/gov_install install`) and `/gov_audit` to restore and verify consistency.
+Reinstall a pinned plugin version, then run `/gov_setup install` and `/gov_audit` to restore and verify consistency.
 
 ### Q8. Why must OpenClaw system questions be verified against official docs?
 Because these are system-truth claims (commands, config, hooks, skills, plugins). v1.1 requires `docs.openclaw.ai` verification to prevent invalid instructions from entering runtime configuration.
@@ -257,7 +252,7 @@ Because these are system-truth claims (commands, config, hooks, skills, plugins)
 OpenClaw supports configurable workspaces. v1.1 uses runtime workspace semantics so both default and customized deployments remain compatible.
 
 ### Q10. Why can't I find `/gov_setup`?
-This is usually a naming collision (another source already owns `gov_setup`). Use `/gov_install install` or `/skill gov_install install`.
+Confirm you are sending a command-only message (first character must be `/`, no leading spaces, no `run` prefix). If slash routing still fails, continue with the manual prompt entrypoints under `manual_prompt/`.
 
 ---
 
