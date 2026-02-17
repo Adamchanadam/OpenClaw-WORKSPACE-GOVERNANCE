@@ -174,6 +174,8 @@ WG Core v1.1 將常見失誤收斂為可執行規則：
 
 🔎 最大升級：日常操作改為三條 skills 指令（新手只需記住：**migrate / audit / apply**）。
 
+命名說明：安裝/部署入口是 `gov_setup`（例如 `/gov_setup install`），不是 `gov_install`。
+
 > 補充（可驗證）：
 >
 > * `/gov_*` 是否可用＝取決於 該 skill 是否 `user-invocable` 並成功載入；撞名時會自動加 `_2` 後綴，仍可用 `/skill <name>` 直接呼叫。 ([OpenClaw][1])

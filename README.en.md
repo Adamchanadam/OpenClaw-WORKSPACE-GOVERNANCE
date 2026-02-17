@@ -169,6 +169,8 @@ If slash command is unavailable or name-collided, use:
 /skill gov_apply 01
 ```
 
+Naming note: this plugin uses `gov_setup` as the install/deploy entry, not `gov_install`.
+
 ---
 
 ## BOOT Upgrade Mechanism
@@ -248,6 +250,9 @@ Because these are system-truth claims (commands, config, hooks, skills, plugins)
 
 ### Q9. Why is `<workspace-root>` emphasized instead of a fixed path?
 OpenClaw supports configurable workspaces. v1.1 uses runtime workspace semantics so both default and customized deployments remain compatible.
+
+### Q10. Why can't I find `/gov_install`?
+The correct command in this plugin is `/gov_setup install`. `/gov_install` is not a skill name defined in this repository.
 
 ---
 

@@ -169,6 +169,8 @@ clawhub install Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/clawhub/openclaw-work
 /skill gov_apply 01
 ```
 
+命名說明：本插件的安裝/部署入口是 `gov_setup`，不是 `gov_install`。
+
 ---
 
 ## BOOT 升級機制
@@ -248,6 +250,9 @@ clawhub install Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/clawhub/openclaw-work
 
 ### Q9. 為何強調 `<workspace-root>` 而不是固定路徑？
 OpenClaw 支援可配置工作區。v1.1 以 runtime workspace 為準，兼容官方預設與自訂部署，避免在不同環境出現路徑衝突。
+
+### Q10. 為何我看不到 `/gov_install`？
+此插件的正確命令是 `/gov_setup install`。`/gov_install` 不是本 repo 定義的 skill 名稱。
 
 ---
 
