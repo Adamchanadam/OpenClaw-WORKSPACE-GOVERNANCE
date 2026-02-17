@@ -61,6 +61,24 @@ OpenClaw 預設使用單一工作區目錄作為代理的工作目錄（workspac
 
 > 重點：此流程的目的不是「更技術」，而是把「先後次序」寫死，令工作區在長期使用下仍然可控、可驗證。
 
+### 3.1 v1.1 補強（防虛構、防時間誤判、防路徑漂移）
+
+WG Core v1.1 將常見失誤收斂為可執行規則：
+
+1. Mode A / B / C 分流：
+   - Mode A：一般對話（不寫檔、不作系統事實宣稱）
+   - Mode B：需事實依據的回答（不寫檔）
+   - Mode C：任何寫入/更新/保存（必走 PLAN->READ->CHANGE->QC->PERSIST）
+2. Mode B2（OpenClaw 系統題）：
+   - 先讀相關本地 skills，再核對官方文檔 `https://docs.openclaw.ai`，不足依據時不可猜測。
+3. Mode B3（日期時間題）：
+   - 先核對 runtime 當前時間（session status），再以絕對日期表達結論，避免「今日/今年」漂移誤判。
+4. 路徑相容契約：
+   - 一律以 runtime `<workspace-root>` 為準。
+   - `~/.openclaw/workspace` 只是常見預設，不是硬編碼依據。
+5. BOOT 套用成效：
+   - `/gov_apply <NN>` 後必須記錄前後指標；若沒有可衡量改善，結果只能標記 `PARTIAL`，不可宣稱完全解決。
+
 ---
 
 ## 4) 本套件是甚麼（實際檔案＋精確路徑）
@@ -234,6 +252,7 @@ OpenClaw 預設使用單一工作區目錄作為代理的工作目錄（workspac
 * 用戶只需提供編號：`01`（例如輸入「我批准 01」）
 * 觸發方式：以獨立訊息送出 `/gov_apply 01`；如不可用，改用 `/skill gov_apply 01`。
 * runner 會引導套用該條建議（受控、可追溯），並在需要時串接 migration + audit（以保持治理一致性）
+* 套用後需比對前後指標；若改善未達可衡量門檻，應標記為 `PARTIAL` 並安排下一輪修正。
 
 > `/gov_apply` 來自 user-invocable skill；若撞名或平台限制，仍可用 `/skill gov_apply 01`。 ([OpenClaw][1])
 

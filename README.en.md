@@ -51,6 +51,25 @@ Core value delivered by this solution:
 
 ---
 
+## v1.1 Reliability Contract (Important)
+
+To reduce risks like incorrect commands, date/time mistakes, and path drift, WG Core v1.1 adds these hard rules:
+
+1. Three runtime modes:
+   - Mode A: conversational only (no writes, no system-truth claims)
+   - Mode B: evidence-based answers (no writes)
+   - Mode C: any write/update/save action (must run the full governance lifecycle)
+2. OpenClaw system topics (Mode B2):
+   - Verify local skills and official docs (`https://docs.openclaw.ai`) before answering.
+3. Date/time topics (Mode B3):
+   - Verify runtime current time context first (session status), then answer with absolute dates.
+4. Path compatibility:
+   - Use runtime `<workspace-root>`; treat `~/.openclaw/workspace` as a common default, not a fixed assumption.
+5. BOOT apply effectiveness:
+   - After `/gov_apply <NN>`, record before/after indicators; if no measurable improvement is shown, mark outcome as `PARTIAL` and keep follow-up actions.
+
+---
+
 ## Installation Options
 
 ### Option A (Recommended): Install Plugin Directly
@@ -161,6 +180,7 @@ When `boot-md` is enabled, the recommended flow is:
 3. The user approves one item.
 4. `/gov_apply <NN>` performs controlled application.
 5. `/gov_migrate` and `/gov_audit` converge the workspace to a consistent state.
+6. Compare pre/post indicators; if there is no measurable improvement, mark it `PARTIAL` and continue iteration.
 
 ---
 
@@ -222,6 +242,12 @@ Only after BOOT has produced numbered proposals and the approval step is complet
 
 ### Q7. How do I roll back to a previous stable version?
 Reinstall a pinned plugin version, then run `/gov_setup install` and `/gov_audit` to restore and verify consistency.
+
+### Q8. Why must OpenClaw system questions be verified against official docs?
+Because these are system-truth claims (commands, config, hooks, skills, plugins). v1.1 requires `docs.openclaw.ai` verification to prevent invalid instructions from entering runtime configuration.
+
+### Q9. Why is `<workspace-root>` emphasized instead of a fixed path?
+OpenClaw supports configurable workspaces. v1.1 uses runtime workspace semantics so both default and customized deployments remain compatible.
 
 ---
 

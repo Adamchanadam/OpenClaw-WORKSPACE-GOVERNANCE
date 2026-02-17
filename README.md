@@ -51,6 +51,25 @@ OpenClaw WORKSPACE_GOVERNANCE 是一套面向 OpenClaw 的工作區治理框架�
 
 ---
 
+## v1.1 可靠性契約（重要）
+
+為降低「答錯指令／誤判日期／路徑漂移」風險，WG Core v1.1 增加了以下硬規則：
+
+1. 三種運行模式：
+   - Mode A：一般對話（不寫檔、不作系統事實宣稱）
+   - Mode B：需事實依據的回答（不寫檔）
+   - Mode C：任何寫入/更新/保存（必走完整治理流程）
+2. OpenClaw 系統題（Mode B2）：
+   - 回答前必須先核對本地 skills 與官方文檔（`https://docs.openclaw.ai`），不可直接推理。
+3. 日期時間題（Mode B3）：
+   - 回答前必須先核對 runtime 當前時間（session status），並以絕對日期表達結論。
+4. 路徑相容：
+   - 以 runtime 的 `<workspace-root>` 為準；`~/.openclaw/workspace` 只視為常見預設，不可硬編碼假設。
+5. BOOT 套用成效：
+   - `/gov_apply <NN>` 後要記錄前後指標；若無可衡量改善，結果應標記為 `PARTIAL`，並保留後續修正動作。
+
+---
+
 ## 安裝方式
 
 ### 方式 A（推薦）：直接安裝 Plugin
@@ -161,6 +180,7 @@ clawhub install Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/clawhub/openclaw-work
 3. 使用者批准指定項目。
 4. 透過 `/gov_apply <NN>` 受控套用。
 5. 以 `/gov_migrate` 與 `/gov_audit` 收斂至一致狀態。
+6. 比對前後指標；如未見可衡量改善，標記為 `PARTIAL` 並持續迭代。
 
 ---
 
@@ -222,6 +242,12 @@ clawhub install Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/clawhub/openclaw-work
 
 ### Q7. 如何回退到上一個穩定版本？
 可重新安裝指定 plugin 版本（pin version），再執行 `/gov_setup install` 與 `/gov_audit` 完成回退與一致性確認。
+
+### Q8. 回答 OpenClaw 系統問題時，為何要先查官方文檔？
+因為此類問題屬於系統事實（例如指令、設定、hooks、skills、plugins），v1.1 要求先核對 `docs.openclaw.ai`，避免把錯誤指令寫入系統配置。
+
+### Q9. 為何強調 `<workspace-root>` 而不是固定路徑？
+OpenClaw 支援可配置工作區。v1.1 以 runtime workspace 為準，兼容官方預設與自訂部署，避免在不同環境出現路徑衝突。
 
 ---
 
