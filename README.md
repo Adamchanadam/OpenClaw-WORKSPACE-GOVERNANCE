@@ -47,7 +47,7 @@ OpenClaw WORKSPACE_GOVERNANCE 是一套面向 OpenClaw 的工作區治理框架�
 1. 首次導入：`OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`
 2. 日常維護：`/gov_migrate`、`/gov_audit`
 3. BOOT 升級：`/gov_apply <NN>`
-4. 資產部署：`/gov_setup install`
+4. 資產部署：`/gov_setup install`（或 `/gov_install install`）
 
 ---
 
@@ -110,6 +110,7 @@ clawhub install Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/clawhub/openclaw-work
 
 ```text
 /gov_setup install
+/gov_install install
 ```
 
 此命令會把治理核心 prompt 部署到：`<workspace-root>/prompts/governance/`。
@@ -118,6 +119,7 @@ clawhub install Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/clawhub/openclaw-work
 
 ```text
 /skill gov_setup install
+/skill gov_install install
 ```
 
 ---
@@ -132,13 +134,13 @@ clawhub install Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/clawhub/openclaw-work
 
 ### 場景 A：全新 OpenClaw / 全新工作區
 
-1. 執行 `/gov_setup install`。
+1. 執行 `/gov_setup install`（或 `/gov_install install`）。
 2. 執行 `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`。
 3. 執行 `/gov_audit` 驗證基線一致。
 
 ### 場景 B：已運作 OpenClaw，首次導入治理
 
-1. 執行 `/gov_setup install`。
+1. 執行 `/gov_setup install`（或 `/gov_install install`）。
 2. 執行 `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`。
 3. 執行 `/gov_audit`。
 4. 若系統提示已初始化，先執行 `/gov_migrate`，再執行 `/gov_audit`。
@@ -155,6 +157,7 @@ clawhub install Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/clawhub/openclaw-work
 
 ```text
 /gov_setup install   # 部署或升級治理 prompt 資產
+/gov_install install # 安裝入口別名（建議在 gov_setup 被佔名時使用）
 /gov_migrate         # 套用治理升級
 /gov_audit           # 執行一致性核對
 /gov_apply <NN>      # 套用 BOOT 編號提案
@@ -164,12 +167,13 @@ clawhub install Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/clawhub/openclaw-work
 
 ```text
 /skill gov_setup install
+/skill gov_install install
 /skill gov_migrate
 /skill gov_audit
 /skill gov_apply 01
 ```
 
-命名說明：本插件的安裝/部署入口是 `gov_setup`，不是 `gov_install`。
+命名說明：本插件提供兩個等效安裝入口：`gov_setup` 與 `gov_install`。若 `/gov_setup` 因命名衝突不可用，請改用 `/gov_install install`。
 
 ---
 
@@ -204,6 +208,7 @@ clawhub install Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/clawhub/openclaw-work
 │  └─ POST_MIGRATION_AUDIT_prompt_for_RUNNING_OpenClaw.md
 ├─ skills/
 │  ├─ gov_setup/SKILL.md
+│  ├─ gov_install/SKILL.md
 │  ├─ gov_migrate/SKILL.md
 │  ├─ gov_audit/SKILL.md
 │  └─ gov_apply/SKILL.md
@@ -215,7 +220,7 @@ clawhub install Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/clawhub/openclaw-work
 
 ## 部署路徑對照（OpenClaw Workspace）
 
-`/gov_setup install` 會部署：
+`/gov_setup install`（或 `/gov_install install`）會部署：
 
 1. 核心 prompt 檔案 -> `<workspace-root>/prompts/governance/`
 2. `manual_prompt/` -> `<workspace-root>/prompts/governance/manual_prompt/`
@@ -237,13 +242,13 @@ clawhub install Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/clawhub/openclaw-work
 建議先執行 `/gov_audit` 取得基線，再執行 `/gov_migrate`，完成後再次執行 `/gov_audit` 驗證變更結果。
 
 ### Q5. 如果 `/gov_*` 指令不可用？
-請改用 `/skill gov_setup install`、`/skill gov_migrate`、`/skill gov_audit`、`/skill gov_apply <NN>`。
+請改用 `/skill gov_setup install`、`/skill gov_install install`、`/skill gov_migrate`、`/skill gov_audit`、`/skill gov_apply <NN>`。
 
 ### Q6. 何時使用 `/gov_apply <NN>`？
 僅在 BOOT 已產生編號提案且完成批准時使用；不建議在缺少 BOOT 編號上下文時直接執行。
 
 ### Q7. 如何回退到上一個穩定版本？
-可重新安裝指定 plugin 版本（pin version），再執行 `/gov_setup install` 與 `/gov_audit` 完成回退與一致性確認。
+可重新安裝指定 plugin 版本（pin version），再執行 `/gov_setup install`（或 `/gov_install install`）與 `/gov_audit` 完成回退與一致性確認。
 
 ### Q8. 回答 OpenClaw 系統問題時，為何要先查官方文檔？
 因為此類問題屬於系統事實（例如指令、設定、hooks、skills、plugins），v1.1 要求先核對 `docs.openclaw.ai`，避免把錯誤指令寫入系統配置。
@@ -251,8 +256,8 @@ clawhub install Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/clawhub/openclaw-work
 ### Q9. 為何強調 `<workspace-root>` 而不是固定路徑？
 OpenClaw 支援可配置工作區。v1.1 以 runtime workspace 為準，兼容官方預設與自訂部署，避免在不同環境出現路徑衝突。
 
-### Q10. 為何我看不到 `/gov_install`？
-此插件的正確命令是 `/gov_setup install`。`/gov_install` 不是本 repo 定義的 skill 名稱。
+### Q10. 為何我看不到 `/gov_setup`？
+這通常是命名衝突（另一個來源已佔用 `gov_setup`）。請改用 `/gov_install install` 或 `/skill gov_install install`。
 
 ---
 

@@ -20,6 +20,7 @@ Use a dual-channel release model:
    - `openclaw.plugin.json`
    - `index.ts`
    - `skills/gov_setup/SKILL.md`
+   - `skills/gov_install/SKILL.md`
    - `skills/gov_migrate/SKILL.md`
    - `skills/gov_audit/SKILL.md`
    - `skills/gov_apply/SKILL.md`
@@ -73,6 +74,7 @@ clawhub inspect ./clawhub/openclaw-workspace-governance-installer
 2. Fresh environment install via ClawHub installer path.
 3. Run:
    - `/gov_setup install`
+   - `/gov_install install` (fallback when `gov_setup` is name-collided)
    - `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md` (new workspace case)
    - `/gov_migrate` and `/gov_audit` (running workspace case)
 4. Confirm BOOT flow:
