@@ -42,6 +42,31 @@ OpenClaw WORKSPACE_GOVERNANCE 是一套面向 OpenClaw 的工作區治理框架�
 
 ---
 
+## 核心流程（最重要）
+
+OpenClaw WORKSPACE_GOVERNANCE 的核心，不是多幾條命令，而是固定執行次序。
+
+任何涉及寫入、更新、保存的任務，都必須按以下 5 個關卡執行：
+
+1. `PLAN`：先列目標、風險、將讀/將改文件。
+2. `READ`：先讀治理依據與目標文件，再動手。
+3. `CHANGE`：只做授權範圍內的最小改動。
+4. `QC`：以固定清單逐項核對（12/12）。
+5. `PERSIST`：留下 run report 與索引追蹤證據。
+
+Fail-Closed 原則：
+
+1. 缺文件、缺依據、路徑不明確時，流程必須停止，不可猜測執行。
+2. 任一 QC 項目未通過，不可宣稱完成。
+
+v1.1 模式分流（避免混亂）：
+
+1. Mode A：一般對話（不寫檔、不作系統事實宣稱）。
+2. Mode B：需證據的回答（先核對，不寫檔）。
+3. Mode C：任何寫入/更新/保存（必走完整 5 Gates）。
+
+---
+
 ## 核心能力
 
 1. 首次導入：`OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`
@@ -142,6 +167,43 @@ clawhub install Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/clawhub/openclaw-work
 1. `gov_setup upgrade`
 2. `gov_migrate`
 3. `gov_audit`
+
+---
+
+## 新手 UAT：5 分鐘確認治理正在運作（無 slash）
+
+若你的 TUI slash command 有路由問題，可用以下「無 slash」方法驗證。
+
+### Step 1：主機側確認插件和 skills 已載入
+
+```text
+openclaw plugins info openclaw-workspace-governance
+openclaw skills list --eligible
+openclaw skills info gov_setup
+openclaw skills info gov_migrate
+openclaw skills info gov_audit
+openclaw skills info gov_apply
+```
+
+### Step 2：在 OpenClaw TUI 送出自然語言（非 slash）
+
+```text
+請使用 gov_setup skill 執行 check 模式（只讀，不可修改任何檔案）。
+請回覆：
+1) 偵測到的 workspace root
+2) governance prompts 是否已安裝齊全
+3) 是否需要 upgrade（如需要，列出原因）
+```
+
+### Step 3：判定是否通過
+
+`gov_setup check` 回覆需同時滿足以下三點：
+
+1. 有明確 `workspace root` 路徑
+2. 顯示 6 個治理 prompts 狀態為「已安裝」
+3. 明確說明「是否需要 upgrade」及原因
+
+若以上三點都滿足，即可判定 governance 已正常運作；之後可繼續執行 `gov_migrate` + `gov_audit` 做完整維護流程。
 
 ---
 

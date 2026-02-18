@@ -42,6 +42,31 @@ Core value delivered by this solution:
 
 ---
 
+## Core Workflow (Most Important)
+
+The core of OpenClaw WORKSPACE_GOVERNANCE is not just more commands. It is a fixed execution order.
+
+Any task that writes, updates, or saves content must pass these 5 gates:
+
+1. `PLAN`: define objective, risks, and exact files to read/change.
+2. `READ`: read governance evidence and target files before editing.
+3. `CHANGE`: apply minimal authorized changes only.
+4. `QC`: run the fixed checklist item by item (12/12).
+5. `PERSIST`: keep run report and index traceability evidence.
+
+Fail-Closed principle:
+
+1. If required files/evidence are missing or paths are ambiguous, stop and do not guess.
+2. If any QC item fails, do not claim completion.
+
+v1.1 mode routing (to avoid confusion):
+
+1. Mode A: conversational only (no writes, no system-truth claims).
+2. Mode B: evidence-based answers (verify first, no writes).
+3. Mode C: any write/update/save action (must run full 5-gate lifecycle).
+
+---
+
 ## Core Capabilities
 
 1. First adoption: `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`
@@ -142,6 +167,43 @@ Recommended update flow (after plugin version upgrade):
 1. `gov_setup upgrade`
 2. `gov_migrate`
 3. `gov_audit`
+
+---
+
+## Beginner UAT: 5-Minute Verification (No Slash)
+
+If your TUI slash routing is unstable, use this no-slash validation flow.
+
+### Step 1: Confirm plugin and skills are loaded (host shell)
+
+```text
+openclaw plugins info openclaw-workspace-governance
+openclaw skills list --eligible
+openclaw skills info gov_setup
+openclaw skills info gov_migrate
+openclaw skills info gov_audit
+openclaw skills info gov_apply
+```
+
+### Step 2: Send a natural-language request in OpenClaw TUI (not slash)
+
+```text
+Please use the gov_setup skill in check mode (read-only; do not modify any files).
+Please return:
+1) detected workspace root
+2) whether governance prompts are fully installed
+3) whether upgrade is needed (if yes, explain why)
+```
+
+### Step 3: Pass criteria
+
+Your `gov_setup check` response should include all three:
+
+1. A clear `workspace root` path
+2. The 6 governance prompt files shown as installed
+3. A clear upgrade decision with reason
+
+If all three are present, governance is running correctly. You can then proceed with `gov_migrate` + `gov_audit` for full maintenance validation.
 
 ---
 

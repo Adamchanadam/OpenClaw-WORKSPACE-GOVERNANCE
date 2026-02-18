@@ -190,6 +190,23 @@ WG Core v1.1 將常見失誤收斂為可執行規則：
 > * `/gov_*` 是否可用＝取決於 該 skill 是否 `user-invocable` 並成功載入；撞名時會自動加 `_2` 後綴，仍可用 `/skill <name>` 直接呼叫。 ([OpenClaw][1])
 > * 主機側亦可用 `openclaw skills list --eligible` / `openclaw skills check` 核對是否有效(eligible)。 ([OpenClaw][1])
 
+### UAT 快速驗證（無 slash，適合新手）
+
+若 TUI 的 slash command 路由不穩，建議用以下方式先驗證 governance 是否已運作：
+
+1. 主機側先確認 plugin/skills 已載入：
+   - `openclaw plugins info openclaw-workspace-governance`
+   - `openclaw skills list --eligible`
+   - `openclaw skills info gov_setup`
+2. 在 OpenClaw 對話貼上自然語言（非 slash）：
+   - 「請使用 gov_setup skill 執行 check 模式（只讀，不可修改任何檔案）。請回覆：1) workspace root、2) governance prompts 是否已安裝齊全、3) 是否需要 upgrade（如需要請說明原因）。」
+3. 判定通過標準（3 項都要有）：
+   - 有明確 workspace root 路徑
+   - 顯示治理 prompts（含 `manual_prompt/`）已安裝
+   - 明確說明 upgrade 決策與原因
+
+通過後再進入 Migration/Audit 日常流程，可有效降低誤判與跳步風險。
+
 ### A) 全新 OpenClaw／全新工作區（新開局：Bootstrap）
 
 最短流程：
