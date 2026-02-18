@@ -56,7 +56,7 @@ OpenClaw WORKSPACE_GOVERNANCE 是一套面向 OpenClaw 的工作區治理框架�
 
 安裝/升級對照畫面：
 
-![gov_setup upgrade 畫面](./ref_doc/screen_gov_setup_upg.png)
+![gov_setup install 畫面](./ref_doc/screen_gov_setup_inst.png)
 
 逐頁對照圖（Page 1-6）：
 
@@ -330,7 +330,7 @@ openclaw skills info gov_apply
 ├─ README.en.md
 ├─ ref_doc/
 │  ├─ infograp_eng.png
-│  ├─ screen_gov_setup_upg.png
+│  ├─ screen_gov_setup_inst.png
 │  └─ page_1.jpg ... page_6.jpg
 ├─ manual_prompt/
 │  ├─ MIGRATION_prompt_for_RUNNING_OpenClaw.md

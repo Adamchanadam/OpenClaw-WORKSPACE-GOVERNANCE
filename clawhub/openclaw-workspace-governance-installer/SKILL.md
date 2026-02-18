@@ -60,3 +60,6 @@ For user value, official baseline differences, and scenario guidance:
 2. `README.zh-HK.md`
 3. `WORKSPACE_GOVERNANCE_README.en.md`
 4. `VALUE_POSITIONING_AND_FACTORY_GAP.en.md`
+
+Read full docs and updates on GitHub:
+`https://github.com/Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`

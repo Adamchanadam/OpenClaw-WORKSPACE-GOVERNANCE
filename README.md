@@ -3,7 +3,7 @@
 > Turn OpenClaw's persona-and-memory-first factory setup into a controllable, verifiable, and traceable workspace governance system.  
 > Keep your flexibility, but put high-risk changes behind a fixed workflow to reduce repeated rework and manual cleanup.
 
-[Traditional Chinese](./README.zh-HK.md)
+[繁體中文版](./README.zh-HK.md)
 
 [![OpenClaw](https://img.shields.io/badge/OpenClaw-Compatible-0ea5e9)](https://docs.openclaw.ai/) [![Distribution](https://img.shields.io/badge/Distribution-Plugin%20%2B%20ClawHub-22c55e)](#installation-options) [![Audience](https://img.shields.io/badge/Audience-Beginners-f59e0b)](#first-deployment)
 
@@ -56,7 +56,7 @@ Overview infographic:
 
 Setup/upgrade reference screen:
 
-![gov_setup upgrade screen](./ref_doc/screen_gov_setup_upg.png)
+![gov_setup install screen](./ref_doc/screen_gov_setup_inst.png)
 
 Step-by-step visual pages:
 
@@ -330,7 +330,7 @@ When `boot-md` is enabled, the recommended flow is:
 ├─ README.en.md
 ├─ ref_doc/
 │  ├─ infograp_eng.png
-│  ├─ screen_gov_setup_upg.png
+│  ├─ screen_gov_setup_inst.png
 │  └─ page_1.jpg ... page_6.jpg
 ├─ manual_prompt/
 │  ├─ MIGRATION_prompt_for_RUNNING_OpenClaw.md
