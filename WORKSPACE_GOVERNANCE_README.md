@@ -10,7 +10,11 @@
 建議安裝順序：
 
 1. 安裝並啟用 Plugin。
-2. 在 OpenClaw 對話中執行 `/gov_setup install`，由技能自動部署治理 prompt 至 `<workspace-root>/prompts/governance/`。
+2. 在 OpenClaw 對話中執行 `gov_setup` 模式：
+   - `/gov_setup install`（首次部署）
+   - `/gov_setup upgrade`（升級既有治理資產）
+   - `/gov_setup check`（只檢查，不寫入）
+   由技能自動處理 `<workspace-root>/prompts/governance/`。
 3. 依工作區狀態執行 Bootstrap 或 Migration/Audit。
 
 ---
@@ -176,6 +180,11 @@ WG Core v1.1 將常見失誤收斂為可執行規則：
 
 命名說明：安裝/部署入口只保留 `gov_setup`，避免多入口造成混淆。
 
+`gov_setup` 模式說明（對外推薦）：
+- `install`：首次導入（建立目標資料夾並部署治理 prompts）
+- `upgrade`：升級既有治理 prompts（先備份再更新）
+- `check`：檢查來源與目標檔案狀態（不寫檔）
+
 > 補充（可驗證）：
 >
 > * `/gov_*` 是否可用＝取決於 該 skill 是否 `user-invocable` 並成功載入；撞名時會自動加 `_2` 後綴，仍可用 `/skill <name>` 直接呼叫。 ([OpenClaw][1])
@@ -225,7 +234,8 @@ WG Core v1.1 將常見失誤收斂為可執行規則：
 
 **Step 1：Migration（套用升級）**
 
-* 執行：以獨立訊息送出 `/gov_migrate`；如不可用，改用 `/skill gov_migrate`。
+* 若剛更新 plugin 版本，先執行 `/gov_setup upgrade`（或 `/skill gov_setup upgrade`）。
+* 然後執行：以獨立訊息送出 `/gov_migrate`；如不可用，改用 `/skill gov_migrate`。
 
 **Step 2：Audit（只讀核對是否一致）**
 

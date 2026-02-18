@@ -47,7 +47,7 @@ Core value delivered by this solution:
 1. First adoption: `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`
 2. Daily operations: `/gov_migrate`, `/gov_audit`
 3. BOOT upgrades: `/gov_apply <NN>`
-4. Asset deployment: `/gov_setup install`
+4. Asset deployment and updates: `/gov_setup install|upgrade|check`
 
 ---
 
@@ -120,6 +120,29 @@ If slash command is unavailable or name-collided, use:
 /skill gov_setup install
 ```
 
+## `gov_setup` Modes (Important)
+
+`gov_setup` is used for both first setup and later upgrades:
+
+```text
+/gov_setup install   # First-time deployment of prompts/governance assets
+/gov_setup upgrade   # Upgrade existing assets (backup first, then update)
+/gov_setup check     # Read-only check of source/target file status
+```
+
+If slash command is unavailable, use:
+
+```text
+/skill gov_setup install
+/skill gov_setup upgrade
+/skill gov_setup check
+```
+
+Recommended update flow (after plugin version upgrade):
+1. `gov_setup upgrade`
+2. `gov_migrate`
+3. `gov_audit`
+
 ---
 
 ## Three Usage Scenarios
@@ -145,16 +168,19 @@ If slash command is unavailable or name-collided, use:
 
 ### Scenario C: Governance Already Installed (Daily Maintenance)
 
-1. Run `/gov_migrate`.
-2. Run `/gov_audit`.
-3. When BOOT provides numbered proposals, run `/gov_apply <NN>`, then run `/gov_audit` again.
+1. If plugin was just updated, run `/gov_setup upgrade` first.
+2. Run `/gov_migrate`.
+3. Run `/gov_audit`.
+4. When BOOT provides numbered proposals, run `/gov_apply <NN>`, then run `/gov_audit` again.
 
 ---
 
 ## Command Reference
 
 ```text
-/gov_setup install   # Deploy or upgrade governance prompt assets
+/gov_setup install   # First-time deploy governance prompt assets
+/gov_setup upgrade   # Upgrade governance prompt assets (backup first)
+/gov_setup check     # Read-only check (no write)
 /gov_migrate         # Apply governance upgrades
 /gov_audit           # Run consistency checks
 /gov_apply <NN>      # Apply BOOT numbered proposal
@@ -164,6 +190,8 @@ If slash command is unavailable or name-collided, use:
 
 ```text
 /skill gov_setup install
+/skill gov_setup upgrade
+/skill gov_setup check
 /skill gov_migrate
 /skill gov_audit
 /skill gov_apply 01
@@ -245,13 +273,16 @@ Only after BOOT has produced numbered proposals and the approval step is complet
 ### Q7. How do I roll back to a previous stable version?
 Reinstall a pinned plugin version, then run `/gov_setup install` and `/gov_audit` to restore and verify consistency.
 
-### Q8. Why must OpenClaw system questions be verified against official docs?
+### Q8. After upgrading plugin version, how do I apply changes to workspace?
+Use this flow: `/gov_setup upgrade` -> `/gov_migrate` -> `/gov_audit`. The `upgrade` mode creates backup first, then updates governance prompts.
+
+### Q9. Why must OpenClaw system questions be verified against official docs?
 Because these are system-truth claims (commands, config, hooks, skills, plugins). v1.1 requires `docs.openclaw.ai` verification to prevent invalid instructions from entering runtime configuration.
 
-### Q9. Why is `<workspace-root>` emphasized instead of a fixed path?
+### Q10. Why is `<workspace-root>` emphasized instead of a fixed path?
 OpenClaw supports configurable workspaces. v1.1 uses runtime workspace semantics so both default and customized deployments remain compatible.
 
-### Q10. Why can't I find `/gov_setup`?
+### Q11. Why can't I find `/gov_setup`?
 Confirm you are sending a command-only message (first character must be `/`, no leading spaces, no `run` prefix). If slash routing still fails, continue with the manual prompt entrypoints under `manual_prompt/`.
 
 ---

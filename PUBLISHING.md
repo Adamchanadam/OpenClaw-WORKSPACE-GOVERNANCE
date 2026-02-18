@@ -72,7 +72,8 @@ clawhub inspect ./clawhub/openclaw-workspace-governance-installer
 1. Fresh environment install via npm plugin command.
 2. Fresh environment install via ClawHub installer path.
 3. Run:
-   - `/gov_setup install`
+   - `/gov_setup check`
+   - `/gov_setup install` (first adoption) OR `/gov_setup upgrade` (existing workspace)
    - `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md` (new workspace case)
    - `/gov_migrate` and `/gov_audit` (running workspace case)
 4. Confirm BOOT flow:

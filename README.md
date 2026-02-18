@@ -47,7 +47,7 @@ OpenClaw WORKSPACE_GOVERNANCE 是一套面向 OpenClaw 的工作區治理框架�
 1. 首次導入：`OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`
 2. 日常維護：`/gov_migrate`、`/gov_audit`
 3. BOOT 升級：`/gov_apply <NN>`
-4. 資產部署：`/gov_setup install`
+4. 資產部署與更新：`/gov_setup install|upgrade|check`
 
 ---
 
@@ -120,6 +120,29 @@ clawhub install Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/clawhub/openclaw-work
 /skill gov_setup install
 ```
 
+## `gov_setup` 三種模式（重要）
+
+`gov_setup` 不只用於首次安裝，亦是後續升級入口：
+
+```text
+/gov_setup install   # 首次部署 prompts/governance 資產
+/gov_setup upgrade   # 升級已存在資產（先做備份再覆蓋）
+/gov_setup check     # 只檢查來源/目標檔案狀態，不寫入
+```
+
+若 slash command 不可用，對應 fallback：
+
+```text
+/skill gov_setup install
+/skill gov_setup upgrade
+/skill gov_setup check
+```
+
+建議升級路線（plugin 更新後）：
+1. `gov_setup upgrade`
+2. `gov_migrate`
+3. `gov_audit`
+
 ---
 
 ## 三種使用場景
@@ -145,16 +168,19 @@ clawhub install Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/clawhub/openclaw-work
 
 ### 場景 C：已導入治理方案（日常維護）
 
-1. 執行 `/gov_migrate`。
-2. 執行 `/gov_audit`。
-3. 當 BOOT 提供編號提案時，執行 `/gov_apply <NN>`，並在完成後再次執行 `/gov_audit`。
+1. 若剛更新 plugin 版本，先執行 `/gov_setup upgrade`。
+2. 執行 `/gov_migrate`。
+3. 執行 `/gov_audit`。
+4. 當 BOOT 提供編號提案時，執行 `/gov_apply <NN>`，並在完成後再次執行 `/gov_audit`。
 
 ---
 
 ## 命令速查
 
 ```text
-/gov_setup install   # 部署或升級治理 prompt 資產
+/gov_setup install   # 首次部署治理 prompt 資產
+/gov_setup upgrade   # 升級治理 prompt 資產（先備份）
+/gov_setup check     # 只檢查，不寫入
 /gov_migrate         # 套用治理升級
 /gov_audit           # 執行一致性核對
 /gov_apply <NN>      # 套用 BOOT 編號提案
@@ -164,6 +190,8 @@ clawhub install Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/clawhub/openclaw-work
 
 ```text
 /skill gov_setup install
+/skill gov_setup upgrade
+/skill gov_setup check
 /skill gov_migrate
 /skill gov_audit
 /skill gov_apply 01
@@ -245,13 +273,16 @@ clawhub install Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/clawhub/openclaw-work
 ### Q7. 如何回退到上一個穩定版本？
 可重新安裝指定 plugin 版本（pin version），再執行 `/gov_setup install` 與 `/gov_audit` 完成回退與一致性確認。
 
-### Q8. 回答 OpenClaw 系統問題時，為何要先查官方文檔？
+### Q8. 更新到新 plugin 版本後，應如何套用到 workspace？
+建議固定流程：`/gov_setup upgrade` -> `/gov_migrate` -> `/gov_audit`。其中 `upgrade` 會先建立備份，再更新 governance prompts。
+
+### Q9. 回答 OpenClaw 系統問題時，為何要先查官方文檔？
 因為此類問題屬於系統事實（例如指令、設定、hooks、skills、plugins），v1.1 要求先核對 `docs.openclaw.ai`，避免把錯誤指令寫入系統配置。
 
-### Q9. 為何強調 `<workspace-root>` 而不是固定路徑？
+### Q10. 為何強調 `<workspace-root>` 而不是固定路徑？
 OpenClaw 支援可配置工作區。v1.1 以 runtime workspace 為準，兼容官方預設與自訂部署，避免在不同環境出現路徑衝突。
 
-### Q10. 為何我看不到 `/gov_setup`？
+### Q11. 為何我看不到 `/gov_setup`？
 先確認你送出的是 command-only 訊息（第一個字就是 `/`，前面不能有空格，也不要加 `run`）。若 slash 仍無法路由，改用手動 prompt 入口（`manual_prompt/`）繼續治理流程。
 
 ---

@@ -23,6 +23,9 @@ Guide the operator through plugin installation, enablement, and first setup vali
 ## First-run setup
 1. In OpenClaw chat, run:
    - `/gov_setup install`
+   - Optional maintenance modes:
+     - `/gov_setup upgrade` (upgrade existing prompts with backup)
+     - `/gov_setup check` (read-only check)
 2. Then select scenario:
    - New workspace: run `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`
    - Existing workspace: run `/gov_migrate` then `/gov_audit`
@@ -30,5 +33,7 @@ Guide the operator through plugin installation, enablement, and first setup vali
 ## Safety checks
 - If command names are suffixed due collision, use:
   - `/skill gov_setup install`
+  - `/skill gov_setup upgrade`
+  - `/skill gov_setup check`
   - `/skill gov_migrate`
   - `/skill gov_audit`
