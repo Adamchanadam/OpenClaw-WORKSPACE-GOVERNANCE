@@ -40,6 +40,13 @@ OpenClaw WORKSPACE_GOVERNANCE 是一套面向 OpenClaw 的工作區治理框架�
 2. 以 BOOT 提案 + 人工批准 + 受控套用，降低誤寫風險。
 3. 以固定入口與可追溯輸出，提升團隊協作與維護效率。
 
+### 定位深讀（建議先讀）
+
+若你想快速理解「為何 OpenClaw 出廠後仍需要 WORKSPACE_GOVERNANCE」，先讀以下兩份文件：
+
+1. `VALUE_POSITIONING_AND_FACTORY_GAP.md`：說明本方案原意、用戶價值、與官方 baseline 的關係與邊界。
+2. `WORKSPACE_GOVERNANCE_README.md`：完整治理手冊（三種場景、核心流程、風險控制）。
+
 ---
 
 ## 核心流程（最重要）
@@ -289,6 +296,7 @@ openclaw skills info gov_apply
 ├─ WORKSPACE_GOVERNANCE_MIGRATION.md
 ├─ APPLY_UPGRADE_FROM_BOOT.md
 ├─ WORKSPACE_GOVERNANCE_README.md
+├─ VALUE_POSITIONING_AND_FACTORY_GAP.md
 ├─ README.md
 ├─ README.en.md
 ├─ manual_prompt/

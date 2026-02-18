@@ -51,6 +51,19 @@ OpenClaw 預設使用單一工作區目錄作為代理的工作目錄（workspac
 * `memory/`、`canvas/` 等：治理目的在於「分工位置＋可追溯流程」，一般不會觸碰其內既有內容。
 * `skills/`、`prompts/`：一般只在治理流程文件**明確授權**的範圍內建立/更新治理入口（例如 `gov_*` skills 與 governance prompts），並以「衝突即停止」方式避免覆蓋用戶自訂內容。
 
+### 2.1 定位與價值差異（建議先讀）
+
+為避免把本方案誤解為「只是多幾條命令」，建議先閱讀：
+
+1. `VALUE_POSITIONING_AND_FACTORY_GAP.md`
+2. 本文第 3 節至第 7 節（核心流程、場景落地、BOOT 受控升級）
+
+上述內容會清楚說明：
+
+1. 本方案不是替代 OpenClaw 官方能力，而是補上治理控制面。
+2. 本方案重點是「先後次序固定 + 證據化輸出」，以降低長期運作中的重工與回退成本。
+3. 本方案有邊界，不過度承諾「零錯誤」。
+
 ---
 
 ## 3) 核心流程
@@ -125,6 +138,9 @@ OpenClaw 預設使用單一工作區目錄作為代理的工作目錄（workspac
 **D. 可選（fallback／救援入口：仍可用但不再是日常主要入口）**
 8. `manual_prompt/MIGRATION_prompt_for_RUNNING_OpenClaw.md`（已運作工作區：手動執行 Migration 的入口指令，供無 skills/slash command 或故障時使用）
 9. `manual_prompt/POST_MIGRATION_AUDIT_prompt_for_RUNNING_OpenClaw.md`（Migration 後：手動只讀核對入口，供無 skills/slash command 或故障時使用）
+
+**E. 可選（對外說明／新手導讀）**
+10. `VALUE_POSITIONING_AND_FACTORY_GAP.md`（說明方案原意、官方 baseline 差異與用戶價值）
 
 ---
 

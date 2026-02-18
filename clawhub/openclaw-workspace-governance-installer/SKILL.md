@@ -7,25 +7,26 @@ metadata: {"openclaw":{"emoji":"🚀","homepage":"https://github.com/Adamchanada
 ---
 # OpenClaw Workspace Governance Installer
 
-Make OpenClaw reliable from day one.
-This installer gives new users a clear path to install governance, validate setup, and start using a repeatable workflow instead of ad-hoc edits.
+This installer is for users who want OpenClaw to stay reliable after day one, not only at first setup.
 
-## Why install this
-1. Stop costly mistakes from skipped steps and guess-based changes.
-2. Use one consistent flow for setup, upgrade, migration, and audit.
-3. Keep workspace changes traceable and easier to review.
-4. Get beginner-friendly commands without learning complex internals first.
+## Why users install this
+Many users face the same pattern:
+1. The agent starts changing files too quickly.
+2. The same mistakes return in new sessions.
+3. Upgrades are hard to verify and hard to explain to teammates.
 
-## What you get
-1. Single setup entrypoint: `gov_setup` with `install | upgrade | check`.
-2. Daily maintenance commands: `gov_migrate` and `gov_audit`.
-3. Controlled BOOT apply path: `gov_apply <NN>`.
-4. Governance prompt assets deployed into your workspace.
+This installer helps you move to a safer, repeatable workflow.
 
-## Quick start (about 3 minutes)
-1. Install plugin package:
+## What value you get
+1. A fixed governance lifecycle: `PLAN -> READ -> CHANGE -> QC -> PERSIST`.
+2. One setup entrypoint: `gov_setup` (`install | upgrade | check`).
+3. Ongoing maintenance commands: `gov_migrate`, `gov_audit`, `gov_apply <NN>`.
+4. Traceable evidence via run reports and index updates.
+
+## 3-minute start
+1. Install:
    - `openclaw plugins install @adamchanadam/openclaw-workspace-governance@latest`
-2. Enable plugin:
+2. Enable:
    - `openclaw plugins enable openclaw-workspace-governance`
 3. Verify:
    - `openclaw plugins list`
@@ -34,25 +35,19 @@ This installer gives new users a clear path to install governance, validate setu
    - `/gov_setup install`
    - `/gov_audit`
 
-## Recommended usage path
-1. New workspace:
-   - `/gov_setup install`
-   - Run `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`
-   - `/gov_audit`
-2. Running workspace:
-   - `/gov_setup upgrade` (or `/gov_setup check`)
-   - `/gov_migrate`
-   - `/gov_audit`
+## If slash commands are unstable
+Use skill fallback:
+1. `/skill gov_setup install`
+2. `/skill gov_setup check`
+3. `/skill gov_migrate`
+4. `/skill gov_audit`
 
-## Good fit for
-1. OpenClaw users who want fewer regressions and clearer operations.
-2. Teams that need repeatable governance and easy handover.
-3. Users moving from manual prompt-only flow to skill-driven maintenance.
+You can also ask in natural language:  
+`Please use gov_setup in check mode (read-only) and return workspace root + install status + upgrade decision.`
 
-## Safety checks
-- If command names are suffixed due collision, use:
-  - `/skill gov_setup install`
-  - `/skill gov_setup upgrade`
-  - `/skill gov_setup check`
-  - `/skill gov_migrate`
-  - `/skill gov_audit`
+## Learn the full story
+For user value, official baseline differences, and scenario guidance:
+1. `README.md`
+2. `README.en.md`
+3. `WORKSPACE_GOVERNANCE_README.md`
+4. `VALUE_POSITIONING_AND_FACTORY_GAP.md`

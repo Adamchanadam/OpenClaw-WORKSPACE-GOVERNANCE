@@ -40,6 +40,13 @@ Core value delivered by this solution:
 2. BOOT proposal + explicit approval + controlled apply to reduce write risk.
 3. Stable entry points and traceable outputs for better team operations.
 
+### Positioning Deep Dive (Recommended)
+
+If you want to quickly understand why this is needed on top of OpenClaw factory defaults, read these first:
+
+1. `VALUE_POSITIONING_AND_FACTORY_GAP.md`: purpose, user value, and boundaries against official baseline behavior.
+2. `WORKSPACE_GOVERNANCE_README.md`: full governance playbook (3 scenarios, core workflow, risk controls).
+
 ---
 
 ## Core Workflow (Most Important)
@@ -289,6 +296,7 @@ When `boot-md` is enabled, the recommended flow is:
 ├─ WORKSPACE_GOVERNANCE_MIGRATION.md
 ├─ APPLY_UPGRADE_FROM_BOOT.md
 ├─ WORKSPACE_GOVERNANCE_README.md
+├─ VALUE_POSITIONING_AND_FACTORY_GAP.md
 ├─ README.md
 ├─ README.en.md
 ├─ manual_prompt/
