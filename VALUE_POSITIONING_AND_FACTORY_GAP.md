@@ -106,9 +106,9 @@ OpenClaw 官方出廠設定重點是「快速可用、個人助手體驗、可�
 為保持文件可維護性，本文件只處理「定位、價值、邊界、出廠差異」。  
 以下內容以 README 系列為準，不在本文重複展開：
 
-1. 三種安裝/導入場景：見 [README.md](./README.md)。
+1. 三種安裝/導入場景：見 [README.zh-HK.md](./README.zh-HK.md)。
 2. 完整操作手冊與步驟：見 [WORKSPACE_GOVERNANCE_README.md](./WORKSPACE_GOVERNANCE_README.md)。
-3. 指令與 UAT 路徑：見 [README.md](./README.md) 與 [README.en.md](./README.en.md)。
+3. 指令與 UAT 路徑：見 [README.zh-HK.md](./README.zh-HK.md) 與 [README.md](./README.md)。
 
 ---
 

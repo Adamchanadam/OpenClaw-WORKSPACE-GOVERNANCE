@@ -56,7 +56,7 @@ OpenClaw 預設使用單一工作區目錄作為代理的工作目錄（workspac
 為避免把本方案誤解為「只是多幾條命令」，建議先閱讀：
 
 1. [VALUE_POSITIONING_AND_FACTORY_GAP.md](./VALUE_POSITIONING_AND_FACTORY_GAP.md)
-2. [README.md](./README.md)（對外主軸說明）
+2. [README.zh-HK.md](./README.zh-HK.md)（繁中主軸說明）
 3. 本文第 3 節至第 7 節（核心流程、場景落地、BOOT 受控升級）
 
 上述內容會清楚說明：
@@ -65,7 +65,7 @@ OpenClaw 預設使用單一工作區目錄作為代理的工作目錄（workspac
 2. 本方案重點是「先後次序固定 + 證據化輸出」，以降低長期運作中的重工與回退成本。
 3. 本方案有邊界，不過度承諾「零錯誤」。
 
-本文定位：以操作與落地流程為主；定位論述以 `README.md` + `VALUE_POSITIONING_AND_FACTORY_GAP.md` 為主，避免重複。
+本文定位：以操作與落地流程為主；定位論述以 `README.zh-HK.md` + `VALUE_POSITIONING_AND_FACTORY_GAP.md` 為主，避免重複。
 
 ---
 

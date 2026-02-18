@@ -57,6 +57,6 @@ You can also ask in natural language:
 ## Learn the full story
 For user value, official baseline differences, and scenario guidance:
 1. `README.md`
-2. `README.en.md`
-3. `WORKSPACE_GOVERNANCE_README.md`
-4. `VALUE_POSITIONING_AND_FACTORY_GAP.md`
+2. `README.zh-HK.md`
+3. `WORKSPACE_GOVERNANCE_README.en.md`
+4. `VALUE_POSITIONING_AND_FACTORY_GAP.en.md`
