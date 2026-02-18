@@ -1,7 +1,6 @@
 ---
 name: openclaw-workspace-governance-installer
 description: Install OpenClaw Workspace Governance plugin and run first-time setup checks.
-version: 0.1.2
 author: Adam Chan
 user-invocable: true
 metadata: {"openclaw":{"emoji":"🚀","homepage":"https://github.com/Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE","requires":{"bins":["openclaw"]}}}
@@ -13,7 +12,7 @@ Guide the operator through plugin installation, enablement, and first setup vali
 
 ## Installation path
 1. Install plugin package:
-   - `openclaw plugins install @adamchanadam/openclaw-workspace-governance@0.1.2`
+   - `openclaw plugins install @adamchanadam/openclaw-workspace-governance@latest`
 2. Enable plugin:
    - `openclaw plugins enable openclaw-workspace-governance`
 3. Verify:

@@ -59,7 +59,7 @@ Fail-Closed 原則：
 1. 缺文件、缺依據、路徑不明確時，流程必須停止，不可猜測執行。
 2. 任一 QC 項目未通過，不可宣稱完成。
 
-v1.1 模式分流（避免混亂）：
+模式分流（避免混亂）：
 
 1. Mode A：一般對話（不寫檔、不作系統事實宣稱）。
 2. Mode B：需證據的回答（先核對，不寫檔）。
@@ -76,9 +76,9 @@ v1.1 模式分流（避免混亂）：
 
 ---
 
-## v1.1 可靠性契約（重要）
+## 可靠性契約（重要）
 
-為降低「答錯指令／誤判日期／路徑漂移」風險，WG Core v1.1 增加了以下硬規則：
+為降低「答錯指令／誤判日期／路徑漂移」風險，本方案採用以下硬規則：
 
 1. 三種運行模式：
    - Mode A：一般對話（不寫檔、不作系統事實宣稱）
@@ -104,7 +104,7 @@ v1.1 模式分流（避免混亂）：
 1. 安裝：
 
 ```text
-openclaw plugins install @adamchanadam/openclaw-workspace-governance@0.1.2
+openclaw plugins install @adamchanadam/openclaw-workspace-governance@latest
 ```
 
 2. 啟用：
@@ -341,10 +341,10 @@ openclaw skills info gov_apply
 建議固定流程：`/gov_setup upgrade` -> `/gov_migrate` -> `/gov_audit`。其中 `upgrade` 會先建立備份，再更新 governance prompts。
 
 ### Q9. 回答 OpenClaw 系統問題時，為何要先查官方文檔？
-因為此類問題屬於系統事實（例如指令、設定、hooks、skills、plugins）。v1.1 要求先核對 `docs.openclaw.ai`；如涉及最新版本或版本差異，還要核對官方 Releases，避免把過時或錯誤指令寫入系統配置。
+因為此類問題屬於系統事實（例如指令、設定、hooks、skills、plugins）。回答前要先核對 `docs.openclaw.ai`；如涉及最新版本或版本差異，還要核對官方 Releases，避免把過時或錯誤指令寫入系統配置。
 
 ### Q10. 為何強調 `<workspace-root>` 而不是固定路徑？
-OpenClaw 支援可配置工作區。v1.1 以 runtime workspace 為準，兼容官方預設與自訂部署，避免在不同環境出現路徑衝突。
+OpenClaw 支援可配置工作區。治理流程以 runtime workspace 為準，兼容官方預設與自訂部署，避免在不同環境出現路徑衝突。
 
 ### Q11. 為何我看不到 `/gov_setup`？
 先確認你送出的是 command-only 訊息（第一個字就是 `/`，前面不能有空格，也不要加 `run`）。若 slash 仍無法路由，改用手動 prompt 入口（`manual_prompt/`）繼續治理流程。

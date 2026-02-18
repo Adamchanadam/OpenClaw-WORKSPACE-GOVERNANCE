@@ -59,7 +59,7 @@ Fail-Closed principle:
 1. If required files/evidence are missing or paths are ambiguous, stop and do not guess.
 2. If any QC item fails, do not claim completion.
 
-v1.1 mode routing (to avoid confusion):
+Mode routing (to avoid confusion):
 
 1. Mode A: conversational only (no writes, no system-truth claims).
 2. Mode B: evidence-based answers (verify first, no writes).
@@ -76,9 +76,9 @@ v1.1 mode routing (to avoid confusion):
 
 ---
 
-## v1.1 Reliability Contract (Important)
+## Reliability Contract (Important)
 
-To reduce risks like incorrect commands, date/time mistakes, and path drift, WG Core v1.1 adds these hard rules:
+To reduce risks like incorrect commands, date/time mistakes, and path drift, this solution enforces these hard rules:
 
 1. Three runtime modes:
    - Mode A: conversational only (no writes, no system-truth claims)
@@ -104,7 +104,7 @@ To reduce risks like incorrect commands, date/time mistakes, and path drift, WG 
 1. Install:
 
 ```text
-openclaw plugins install @adamchanadam/openclaw-workspace-governance@0.1.2
+openclaw plugins install @adamchanadam/openclaw-workspace-governance@latest
 ```
 
 2. Enable:
@@ -341,10 +341,10 @@ Reinstall a pinned plugin version, then run `/gov_setup install` and `/gov_audit
 Use this flow: `/gov_setup upgrade` -> `/gov_migrate` -> `/gov_audit`. The `upgrade` mode creates backup first, then updates governance prompts.
 
 ### Q9. Why must OpenClaw system questions be verified against official docs?
-Because these are system-truth claims (commands, config, hooks, skills, plugins). v1.1 requires verification against `docs.openclaw.ai`; for latest/version-sensitive claims, it also requires verification against official releases, to prevent outdated or invalid instructions from entering runtime configuration.
+Because these are system-truth claims (commands, config, hooks, skills, plugins). Verify against `docs.openclaw.ai` first; for latest/version-sensitive claims, also verify official releases, to prevent outdated or invalid instructions from entering runtime configuration.
 
 ### Q10. Why is `<workspace-root>` emphasized instead of a fixed path?
-OpenClaw supports configurable workspaces. v1.1 uses runtime workspace semantics so both default and customized deployments remain compatible.
+OpenClaw supports configurable workspaces. The governance flow uses runtime workspace semantics so both default and customized deployments remain compatible.
 
 ### Q11. Why can't I find `/gov_setup`?
 Confirm you are sending a command-only message (first character must be `/`, no leading spaces, no `run` prefix). If slash routing still fails, continue with the manual prompt entrypoints under `manual_prompt/`.
