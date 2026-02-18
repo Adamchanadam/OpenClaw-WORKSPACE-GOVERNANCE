@@ -85,7 +85,9 @@ v1.1 模式分流（避免混亂）：
    - Mode B：需事實依據的回答（不寫檔）
    - Mode C：任何寫入/更新/保存（必走完整治理流程）
 2. OpenClaw 系統題（Mode B2）：
-   - 回答前必須先核對本地 skills 與官方文檔（`https://docs.openclaw.ai`），不可直接推理。
+   - 回答前必須先核對本地 skills 與官方文檔（`https://docs.openclaw.ai`）。
+   - 若屬「最新版本／最近變更／版本差異」題目，必須再核對官方 Releases（`https://github.com/openclaw/openclaw/releases`）。
+   - 若無法完成驗證，必須明確回覆不確定與下一步查證，不可直接推理。
 3. 日期時間題（Mode B3）：
    - 回答前必須先核對 runtime 當前時間（session status），並以絕對日期表達結論。
 4. 路徑相容：
@@ -102,7 +104,7 @@ v1.1 模式分流（避免混亂）：
 1. 安裝：
 
 ```text
-openclaw plugins install @adamchanadam/openclaw-workspace-governance@0.1.1
+openclaw plugins install @adamchanadam/openclaw-workspace-governance@0.1.2
 ```
 
 2. 啟用：
@@ -339,7 +341,7 @@ openclaw skills info gov_apply
 建議固定流程：`/gov_setup upgrade` -> `/gov_migrate` -> `/gov_audit`。其中 `upgrade` 會先建立備份，再更新 governance prompts。
 
 ### Q9. 回答 OpenClaw 系統問題時，為何要先查官方文檔？
-因為此類問題屬於系統事實（例如指令、設定、hooks、skills、plugins），v1.1 要求先核對 `docs.openclaw.ai`，避免把錯誤指令寫入系統配置。
+因為此類問題屬於系統事實（例如指令、設定、hooks、skills、plugins）。v1.1 要求先核對 `docs.openclaw.ai`；如涉及最新版本或版本差異，還要核對官方 Releases，避免把過時或錯誤指令寫入系統配置。
 
 ### Q10. 為何強調 `<workspace-root>` 而不是固定路徑？
 OpenClaw 支援可配置工作區。v1.1 以 runtime workspace 為準，兼容官方預設與自訂部署，避免在不同環境出現路徑衝突。
@@ -358,3 +360,4 @@ OpenClaw 支援可配置工作區。v1.1 以 runtime workspace 為準，兼容�
 - Plugin Manifest: https://docs.openclaw.ai/plugins/manifest
 - CLI Plugins: https://docs.openclaw.ai/cli/plugins
 - CLI Skills: https://docs.openclaw.ai/cli/skills
+- OpenClaw Releases: https://github.com/openclaw/openclaw/releases

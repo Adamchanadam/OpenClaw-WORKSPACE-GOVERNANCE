@@ -74,7 +74,9 @@ WG Core v1.1 將常見失誤收斂為可執行規則：
    - Mode B：需事實依據的回答（不寫檔）
    - Mode C：任何寫入/更新/保存（必走 PLAN->READ->CHANGE->QC->PERSIST）
 2. Mode B2（OpenClaw 系統題）：
-   - 先讀相關本地 skills，再核對官方文檔 `https://docs.openclaw.ai`，不足依據時不可猜測。
+   - 先讀相關本地 skills，再核對官方文檔 `https://docs.openclaw.ai`。
+   - 若屬「最新版本／最近變更／版本差異」題目，必須再核對官方 Releases：`https://github.com/openclaw/openclaw/releases`。
+   - 不足依據時必須回覆不確定與下一步查證，不可猜測。
 3. Mode B3（日期時間題）：
    - 先核對 runtime 當前時間（session status），再以絕對日期表達結論，避免「今日/今年」漂移誤判。
 4. 路徑相容契約：
@@ -324,6 +326,7 @@ WG Core v1.1 將常見失誤收斂為可執行規則：
 - Hooks CLI（啟用 boot-md 等 hooks）：[OpenClaw][4]
 - Configuration Reference（常見設定與對照）：[OpenClaw][5]
 - ClawHub（技能註冊庫／分享與版本管理）：[OpenClaw][6]
+- OpenClaw Releases（官方版本與更新紀錄）：[OpenClaw][7]
 
 [1]: https://docs.openclaw.ai/tools/skills
 [2]: https://docs.openclaw.ai/tools/slash-commands
@@ -331,6 +334,7 @@ WG Core v1.1 將常見失誤收斂為可執行規則：
 [4]: https://docs.openclaw.ai/cli/hooks
 [5]: https://docs.openclaw.ai/gateway/configuration-reference
 [6]: https://docs.openclaw.ai/tools/clawhub
+[7]: https://github.com/openclaw/openclaw/releases
 
 
 

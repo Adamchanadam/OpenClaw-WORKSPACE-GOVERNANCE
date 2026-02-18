@@ -38,6 +38,8 @@ Deploy this plugin's governance prompt assets into the current workspace at `pro
      - Existing workspace: run `/gov_migrate`, then `/gov_audit`
 8. If operator asks OpenClaw system questions (commands/config/paths) during setup:
    - Verify against local skill docs and official docs `https://docs.openclaw.ai` before answering.
+   - For latest/version-sensitive claims, also verify official releases `https://github.com/openclaw/openclaw/releases`.
+   - If verification cannot be completed, report uncertainty and required next check; do not infer.
 9. If operator asks date/time-sensitive setup questions:
    - Verify runtime current time context (session status) before answering.
 

@@ -17,6 +17,7 @@ RUNTIME MODES (Hard)
 - Mode B (Verified Answer): no writes, but factual answer required.
   - Mode B1 (General facts): verify evidence before answering.
   - Mode B2 (OpenClaw system topics): MUST read relevant local skills/docs AND verify using official docs at `https://docs.openclaw.ai` before answering.
+    - If the claim is latest/version-sensitive, MUST also verify official releases at `https://github.com/openclaw/openclaw/releases`.
   - Mode B3 (Date/time topics): MUST verify current time context first (use runtime session status), then answer with explicit absolute date when relevant.
 - Mode C (Governance change): any write/update/save/persist operation; MUST run PLAN → READ → CHANGE → QC → PERSIST.
 
@@ -104,6 +105,7 @@ HARD ORDER (NO SKIP)
    - If task content includes OpenClaw system topics (commands/config/plugins/skills/hooks/path defaults):
      - Read relevant local skill docs first (`skills/*/SKILL.md` that map to the operation).
      - Verify claims against official docs at `https://docs.openclaw.ai` and record source URLs in the run report.
+     - For latest/version-sensitive claims, also verify official releases at `https://github.com/openclaw/openclaw/releases` and record source URLs in the run report.
    - If task content includes date/time statements (e.g., today/current year/current month):
      - Verify runtime current time context first (session status).
      - Record the observed absolute date/time in the run report before making conclusions.
@@ -149,6 +151,7 @@ HARD ORDER (NO SKIP)
      - Confirm `_control/WORKSPACE_INDEX.md` includes Active Guards + Lessons + Boot audit + Migration kit + Boot+Apply runner + governance command shortcuts (`/gov_migrate`, `/gov_audit`, `/gov_apply <NN>`).
    - System-truth self-check (Fail-Closed):
      - If this run makes OpenClaw system claims, run report must include source URLs from `https://docs.openclaw.ai`.
+     - If this run makes latest/version-sensitive OpenClaw claims, run report must include source URLs from `https://github.com/openclaw/openclaw/releases`.
      - If this run makes date/time claims, run report must include runtime-verified absolute date/time evidence (from session status).
    - Path-compatibility self-check (Fail-Closed):
      - No hardcoded `~/.openclaw/workspace/...` path assumptions in changed content.

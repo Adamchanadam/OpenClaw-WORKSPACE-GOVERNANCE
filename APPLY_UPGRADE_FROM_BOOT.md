@@ -11,6 +11,7 @@ RUNTIME MODES (Hard)
 - Mode A (Conversation): casual chat only; no persistence and no system claims.
 - Mode B (Verified Answer): no writes, but factual answer required.
   - Mode B2 (OpenClaw system topics): MUST verify against local skill docs and `https://docs.openclaw.ai` before answering.
+    - If the claim is latest/version-sensitive, MUST also verify official releases at `https://github.com/openclaw/openclaw/releases`.
   - Mode B3 (Date/time topics): MUST verify runtime current time context first (session status), then answer using absolute dates when relevant.
 - Mode C (Governance change): any write/update/save/persist operation; MUST run PLAN → READ → CHANGE → QC → PERSIST.
 
@@ -74,6 +75,7 @@ READ GATE (Required reads)
 - If the selected BOOT item touches OpenClaw system behavior:
   - Read relevant local skill docs (`skills/*/SKILL.md`) first.
   - Verify commands/config claims against `https://docs.openclaw.ai` and list source URLs in the run report.
+  - For latest/version-sensitive claims, also verify official releases at `https://github.com/openclaw/openclaw/releases` and list source URLs in the run report.
 - If reasoning involves date/time:
   - Verify runtime current time context first (session status).
   - Record absolute date/time in the run report.

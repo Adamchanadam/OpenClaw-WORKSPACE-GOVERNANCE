@@ -18,7 +18,7 @@ SCOPE (Hard)
 NON-GOALS (hard)
 - Do NOT redesign or restructure existing `projects/` or `skills/`.
 - Do NOT delete any existing file; use backup + archive only.
-- Do NOT create additional “parallel governance systems”.
+- Do NOT create additional ?arallel governance systems??
 
 AUTHORIZED ACTIONS (explicit permission granted)
 A) Create/ensure canonical folders (non-destructive):
@@ -55,36 +55,36 @@ D) Any other file/folder not mentioned above:
 
 TARGET STRUCTURE (must exist after run)
 .
-├─ AGENTS.md
-├─ README.md                      (optional)
-├─ BOOT.md                        (optional; startup read-only audit; for boot-md hook)
-├─ _control/
-│  ├─ GOVERNANCE_BOOTSTRAP.md
-│  ├─ PRESETS.md
-│  ├─ REGRESSION_CHECK.md
-│  ├─ WORKSPACE_INDEX.md
-│  ├─ ACTIVE_GUARDS.md            (LOG; operational guard register; optional but recommended)
-│  ├─ DECISIONS.md
-│  ├─ LESSONS.md
-│  └─ RULES.md
-├─ _runs/
-├─ docs/
-│  ├─ AGENT_PLAYBOOK.md           (pointer; authorized to overwrite)
-│  └─ AGENT_PLAYBOOK_legacy_<ts>.md (only if old AGENTS existed)
-├─ projects/
-├─ skills/
-├─ prompts/
-│  └─ governance/
-│     ├─ WORKSPACE_GOVERNANCE_MIGRATION.md
-│     └─ APPLY_UPGRADE_FROM_BOOT.md
-├─ memory/
-├─ canvas/
-├─ .openclaw/                     (optional; OpenClaw internal; e.g., `.openclaw/extensions/`)
-├─ .git/                          (optional; VCS metadata)
-├─ .gitignore                     (optional)
-└─ archive/
-   └─ _bootstrap_backup_<ts>/
-      └─ _control/ (backups only)
+?? AGENTS.md
+?? README.md                      (optional)
+?? BOOT.md                        (optional; startup read-only audit; for boot-md hook)
+?? _control/
+?? ?? GOVERNANCE_BOOTSTRAP.md
+?? ?? PRESETS.md
+?? ?? REGRESSION_CHECK.md
+?? ?? WORKSPACE_INDEX.md
+?? ?? ACTIVE_GUARDS.md            (LOG; operational guard register; optional but recommended)
+?? ?? DECISIONS.md
+?? ?? LESSONS.md
+?? ?? RULES.md
+?? _runs/
+?? docs/
+?? ?? AGENT_PLAYBOOK.md           (pointer; authorized to overwrite)
+?? ?? AGENT_PLAYBOOK_legacy_<ts>.md (only if old AGENTS existed)
+?? projects/
+?? skills/
+?? prompts/
+?? ?? governance/
+??    ?? WORKSPACE_GOVERNANCE_MIGRATION.md
+??    ?? APPLY_UPGRADE_FROM_BOOT.md
+?? memory/
+?? canvas/
+?? .openclaw/                     (optional; OpenClaw internal; e.g., `.openclaw/extensions/`)
+?? .git/                          (optional; VCS metadata)
+?? .gitignore                     (optional)
+?? archive/
+   ?? _bootstrap_backup_<ts>/
+      ?? _control/ (backups only)
 
 HARD ORDER (NO SKIP)
 1) PLAN GATE
@@ -140,7 +140,7 @@ CANONICAL FILE PAYLOADS
 ========================
 
 <<BEGIN FILE: AGENTS.md>>
-# Workspace Agent Loader — Governance Router
+# Workspace Agent Loader ??Governance Router
 > This file is intentionally short to avoid context truncation.
 > Governance SSOT: `_control/GOVERNANCE_BOOTSTRAP.md`
 > Presets SSOT: `_control/PRESETS.md`
@@ -151,7 +151,7 @@ CANONICAL FILE PAYLOADS
 ## Non-negotiable rules
 PERSISTENCE Trigger (Hard):
 - Any request implying write/save/update/remember/record into documents is ALWAYS a governance task.
-- Governance tasks MUST run: PLAN → READ → CHANGE → QC → PERSIST.
+- Governance tasks MUST run: PLAN ??READ ??CHANGE ??QC ??PERSIST.
 - "Test/demo" tasks are NOT exemptions if they write files.
 
 PLAN-first rule (Hard):
@@ -164,9 +164,9 @@ No-Write Guardrail (Hard):
 Evidence modes (Hard):
 - Mode A (Conversation): casual interaction; no persistence and no system claims.
 - Mode B (Verified Answer): factual answer required, no writes.
-  - Mode B2 (OpenClaw system topics): MUST verify using relevant local skill docs + official docs at `https://docs.openclaw.ai` before answering.
+  - Mode B2 (OpenClaw system topics): MUST verify using relevant local skill docs + official docs at `https://docs.openclaw.ai` before answering. For latest/version-sensitive claims, MUST also verify official releases at `https://github.com/openclaw/openclaw/releases`.
   - Mode B3 (Date/time topics): MUST verify runtime current time context first (session status), then answer with explicit absolute date when relevant.
-- Mode C (Governance change): any write/update/save/persist operation; MUST run PLAN → READ → CHANGE → QC → PERSIST.
+- Mode C (Governance change): any write/update/save/persist operation; MUST run PLAN ??READ ??CHANGE ??QC ??PERSIST.
 - If verification cannot be completed, do not guess; report uncertainty and required next check.
 
 Workspace boundary (Hard):
@@ -196,7 +196,7 @@ Platform Channel (Control Plane) exception (Hard):
   - workspace-local backup created first under `archive/_platform_backup_<ts>/...`,
   - before/after excerpts of the changed keys/sections,
   - rollback instructions (restore from backup) if apply/validation fails.
-- Any Platform change is a governance task: PLAN → READ → CHANGE → QC → PERSIST still applies, with the stricter Platform backup/evidence requirements above.
+- Any Platform change is a governance task: PLAN ??READ ??CHANGE ??QC ??PERSIST still applies, with the stricter Platform backup/evidence requirements above.
 
 Completion claim threshold (Hard):
 - Do NOT claim completion unless QC passes 12/12 and evidence is shown (paths + before/after excerpts when applicable).
@@ -222,6 +222,7 @@ Before making any change, you MUST read:
 9) If task includes OpenClaw system claims (commands/config/plugins/skills/hooks/path defaults):
    - relevant local skill docs (from `skills/`)
    - official docs evidence from `https://docs.openclaw.ai`
+   - for latest/version-sensitive claims, official releases evidence from `https://github.com/openclaw/openclaw/releases`
 10) If task includes date/time-sensitive claims:
    - verify runtime current time context first (session status), then use explicit absolute dates in conclusions
 
@@ -254,7 +255,7 @@ See `_control/WORKSPACE_INDEX.md` for navigation.
 <<END FILE>>
 
 <<BEGIN FILE: BOOT.md>>
-# BOOT.md — Startup Audit (Read-only)
+# BOOT.md ??Startup Audit (Read-only)
 > Trigger: boot-md hook runs this file on gateway start (after channels start). See OpenClaw hooks docs.
 > If the task sends a message, use the message tool and then reply with NO_REPLY.
 > Hard rule: READ-ONLY. Do NOT write/edit/move/delete any file. Do NOT make Platform changes.
@@ -273,14 +274,14 @@ See `_control/WORKSPACE_INDEX.md` for navigation.
 3) Quick integrity checks (no edits):
    - Confirm required folders exist: `_control/`, `_runs/`, `docs/`, `projects/`, `prompts/`, `archive/`
    - Confirm SSOT pointers exist in `AGENTS.md` and `_control/WORKSPACE_INDEX.md`
-   - Confirm governance lifecycle is present: PLAN → READ → CHANGE → QC → PERSIST
+   - Confirm governance lifecycle is present: PLAN ??READ ??CHANGE ??QC ??PERSIST
    - Confirm QC rule: fixed 12/12 denominator
 4) Recent failure surface (no edits):
    - If `_runs/` exists: inspect the latest 5 run reports (filenames only + QC 12/12 PASS/FAIL line if present).
    - If `_control/ACTIVE_GUARDS.md` exists: inspect the latest 10 entries (timestamps + Guard IDs only).
 5) Detect recurrence triggers (no edits):
-   - Trigger type A (QC recurrence): same QC item FAIL appears ≥ 3 times within the latest 5 run reports.
-   - Trigger type B (Guard recurrence): same Guard ID appears ≥ 3 times within the latest 10 guard entries.
+   - Trigger type A (QC recurrence): same QC item FAIL appears ??3 times within the latest 5 run reports.
+   - Trigger type B (Guard recurrence): same Guard ID appears ??3 times within the latest 10 guard entries.
 6) Output:
    - `BOOT AUDIT REPORT` (status + drift + next action)
    - Optional: `BOOT UPGRADE MENU (BOOT+APPLY v1)` with numbered items (operator can approve by replying with the item number).
@@ -306,11 +307,11 @@ See `_control/WORKSPACE_INDEX.md` for navigation.
 
 
 <<BEGIN FILE: BOOTSTRAP.md>>
-# BOOTSTRAP.md — First-run Seed (one-shot)
+# BOOTSTRAP.md ??First-run Seed (one-shot)
 > Fresh workspace bootstrapping. No prior memory is assumed.
 > When finished, this file should be deleted (bootstrap script no longer needed).
 
-## Phase A — Identity + User (required)
+## Phase A ??Identity + User (required)
 1) Start a short, human conversation (do not interrogate):
    - Confirm the assistant name / vibe / signature emoji.
    - Confirm the user name, preferred form of address, and timezone.
@@ -320,7 +321,7 @@ See `_control/WORKSPACE_INDEX.md` for navigation.
 3) Open `SOUL.md` together and record:
    - What matters, boundaries, and preferences (write to `SOUL.md`)
 
-## Phase B — Governance kit seed (required)
+## Phase B ??Governance kit seed (required)
 1) Identify workspace root (folder containing `AGENTS.md`).
 2) Safety check (Fail-Closed):
    - If `_control/` exists AND `_control/GOVERNANCE_BOOTSTRAP.md` exists, do NOT run bootstrap.
@@ -336,14 +337,14 @@ See `_control/WORKSPACE_INDEX.md` for navigation.
    - Confirm `prompts/governance/APPLY_UPGRADE_FROM_BOOT.md` exists.
    - Write a run report under `_runs/` if not already created by the task.
 
-## Phase C — Clean up (required)
+## Phase C ??Clean up (required)
 - Delete this `BOOTSTRAP.md` file after successful bootstrap.
 <<END FILE>>
 
 <<BEGIN FILE: docs/AGENT_PLAYBOOK.md>>
 # Agent Playbook (Operational, non-SSOT)
 - Read `_control/WORKSPACE_INDEX.md` first.
-- For governance tasks, follow PLAN → READ → CHANGE → QC → PERSIST.
+- For governance tasks, follow PLAN ??READ ??CHANGE ??QC ??PERSIST.
 - Keep `_runs/` for run reports; keep `_control/` small and stable.
 <<END FILE>>
 
@@ -361,6 +362,7 @@ RUNTIME MODES (Hard)
 - Mode A (Conversation): casual chat only; no persistence and no system claims.
 - Mode B (Verified Answer): no writes, but factual answer required.
   - Mode B2 (OpenClaw system topics): MUST verify against local skill docs and `https://docs.openclaw.ai` before answering.
+    - If the claim is latest/version-sensitive, MUST also verify official releases at `https://github.com/openclaw/openclaw/releases`.
   - Mode B3 (Date/time topics): MUST verify runtime current time context first (session status), then answer using absolute dates when relevant.
 - Mode C (Governance change): any write/update/save/persist operation; MUST run PLAN → READ → CHANGE → QC → PERSIST.
 
@@ -424,6 +426,7 @@ READ GATE (Required reads)
 - If the selected BOOT item touches OpenClaw system behavior:
   - Read relevant local skill docs (`skills/*/SKILL.md`) first.
   - Verify commands/config claims against `https://docs.openclaw.ai` and list source URLs in the run report.
+  - For latest/version-sensitive claims, also verify official releases at `https://github.com/openclaw/openclaw/releases` and list source URLs in the run report.
 - If reasoning involves date/time:
   - Verify runtime current time context first (session status).
   - Record absolute date/time in the run report.
@@ -530,6 +533,7 @@ RUNTIME MODES (Hard)
 - Mode B (Verified Answer): no writes, but factual answer required.
   - Mode B1 (General facts): verify evidence before answering.
   - Mode B2 (OpenClaw system topics): MUST read relevant local skills/docs AND verify using official docs at `https://docs.openclaw.ai` before answering.
+    - If the claim is latest/version-sensitive, MUST also verify official releases at `https://github.com/openclaw/openclaw/releases`.
   - Mode B3 (Date/time topics): MUST verify current time context first (use runtime session status), then answer with explicit absolute date when relevant.
 - Mode C (Governance change): any write/update/save/persist operation; MUST run PLAN → READ → CHANGE → QC → PERSIST.
 
@@ -617,6 +621,7 @@ HARD ORDER (NO SKIP)
    - If task content includes OpenClaw system topics (commands/config/plugins/skills/hooks/path defaults):
      - Read relevant local skill docs first (`skills/*/SKILL.md` that map to the operation).
      - Verify claims against official docs at `https://docs.openclaw.ai` and record source URLs in the run report.
+     - For latest/version-sensitive claims, also verify official releases at `https://github.com/openclaw/openclaw/releases` and record source URLs in the run report.
    - If task content includes date/time statements (e.g., today/current year/current month):
      - Verify runtime current time context first (session status).
      - Record the observed absolute date/time in the run report before making conclusions.
@@ -662,6 +667,7 @@ HARD ORDER (NO SKIP)
      - Confirm `_control/WORKSPACE_INDEX.md` includes Active Guards + Lessons + Boot audit + Migration kit + Boot+Apply runner + governance command shortcuts (`/gov_migrate`, `/gov_audit`, `/gov_apply <NN>`).
    - System-truth self-check (Fail-Closed):
      - If this run makes OpenClaw system claims, run report must include source URLs from `https://docs.openclaw.ai`.
+     - If this run makes latest/version-sensitive OpenClaw claims, run report must include source URLs from `https://github.com/openclaw/openclaw/releases`.
      - If this run makes date/time claims, run report must include runtime-verified absolute date/time evidence (from session status).
    - Path-compatibility self-check (Fail-Closed):
      - No hardcoded `~/.openclaw/workspace/...` path assumptions in changed content.
@@ -736,8 +742,8 @@ END TASK
 - Any new/moved file requires `_control/WORKSPACE_INDEX.md` update.
 - Path compatibility rule: resolve runtime `<workspace-root>`; never hardcode `~/.openclaw/workspace/...` as an absolute assumption.
 
-### 1.3 Platform Channel (Control Plane) — OpenClaw global state
-- Scope: `~/.openclaw/` is OUTSIDE the workspace root. It is OpenClaw’s platform control-plane state (global config/state).
+### 1.3 Platform Channel (Control Plane) ??OpenClaw global state
+- Scope: `~/.openclaw/` is OUTSIDE the workspace root. It is OpenClaw? platform control-plane state (global config/state).
 - Minimal allowlist (targets):
   - `~/.openclaw/openclaw.json` (global config)
   - `~/.openclaw/extensions/` (only if plugins/extensions are explicitly used)
@@ -762,7 +768,7 @@ Rule:
 ### 2.1 Evidence routing modes (A/B/C)
 - Mode A (Conversation): no persistence; style/persona interaction allowed.
 - Mode B (Verified Answer): no writes; factual answer must be evidence-backed.
-  - Mode B2 (OpenClaw system topics): read relevant local skill docs and verify against official docs `https://docs.openclaw.ai` before answering.
+  - Mode B2 (OpenClaw system topics): read relevant local skill docs and verify against official docs `https://docs.openclaw.ai` before answering. For latest/version-sensitive claims, also verify official releases at `https://github.com/openclaw/openclaw/releases`.
   - Mode B3 (Date/time topics): verify runtime current time context first (session status), then answer with explicit absolute date where needed.
 - Mode C (Governance change): any write/update/save/persist operation; full 5-gate workflow is mandatory.
 - If evidence is missing, answer with uncertainty + next check, never by guessing.
@@ -777,13 +783,13 @@ These are NOT governance SSOT; they are operational LOGs that make repeated fail
 
 Hard rules:
 - READ GATE MUST read `_control/ACTIVE_GUARDS.md` (if present) and `_control/LESSONS.md` (if present), and the run report MUST list read evidence.
-- New/updated Guards MUST go through governance gates (PLAN → READ → CHANGE → QC → PERSIST), and each Guard MUST have a matching Lesson entry with:
+- New/updated Guards MUST go through governance gates (PLAN ??READ ??CHANGE ??QC ??PERSIST), and each Guard MUST have a matching Lesson entry with:
   - Guard ID,
   - root cause,
   - recurrence test (how to prove the same failure will not repeat).
 
 Anti-pattern (forbidden):
-- Do NOT invent a parallel “new governance system” document when Guards + Lessons already cover the need.
+- Do NOT invent a parallel ?ew governance system??document when Guards + Lessons already cover the need.
 
 ---
 
@@ -803,7 +809,7 @@ Hard rule:
 ## 5) Mandatory Task Lifecycle (5 Gates)
 PERSISTENCE Trigger (Hard):
 - Any request implying writing/saving/updating/remembering into documents is ALWAYS a governance task.
-- Governance tasks MUST run: PLAN → READ → CHANGE → QC → PERSIST.
+- Governance tasks MUST run: PLAN ??READ ??CHANGE ??QC ??PERSIST.
 
 PLAN-first rule (Hard):
 - For any governance task, the FIRST output line MUST be a PLAN GATE header.
@@ -838,6 +844,7 @@ Must read:
 - If task involves OpenClaw system claims (commands/config/plugins/skills/hooks/path defaults):
   - relevant local skill docs in `skills/`
   - official docs evidence from `https://docs.openclaw.ai`
+  - for latest/version-sensitive claims, official releases evidence from `https://github.com/openclaw/openclaw/releases`
 - If task involves date/time-sensitive conclusions:
   - verify runtime current time context first (session status)
   - use explicit absolute date in conclusions to avoid relative-date drift
@@ -846,7 +853,7 @@ Must read:
 Classify every change:
 1) LOG update (append allowed): only `_runs/`, `memory/`, and designated LOG files (`_control/ACTIVE_GUARDS.md`, `_control/LESSONS.md`).
 2) SSOT update (append forbidden): must edit via AUTOGEN anchored replacement.
-3) PLATFORM update (control-plane outside workspace): only allowed under the Platform Channel rules (see §1.3) and must be audited with backups + before/after evidence.
+3) PLATFORM update (control-plane outside workspace): only allowed under the Platform Channel rules (see 禮1.3) and must be audited with backups + before/after evidence.
 
 SSOT (AUTOGEN) standard:
 - `<!-- AUTOGEN:BEGIN <id> -->` ... `<!-- AUTOGEN:END <id> -->`
@@ -855,7 +862,7 @@ SSOT (AUTOGEN) standard:
 PLATFORM update protocol (Fail-Closed, minimal):
 - Read current state first (e.g., `~/.openclaw/openclaw.json` relevant keys/sections).
 - Backup BEFORE change into workspace: `archive/_platform_backup_<ts>/...` (exact path recorded).
-- Apply change using OpenClaw’s supported control-plane pathway.
+- Apply change using OpenClaw? supported control-plane pathway.
 - Verify apply/validation succeeded; if not, rollback from backup and STOP with Blocked/Remediation.
 - Record before/after excerpts of the changed keys/sections + backup path in the run report.
 
@@ -866,7 +873,7 @@ PLATFORM update protocol (Fail-Closed, minimal):
 ### 5.5 PERSIST GATE
 - Write one run report under `_runs/`.
 - Update `_control/WORKSPACE_INDEX.md` on any file create/move/archive.
-- If error/redo/conflict: update `_control/LESSONS.md` (symptom → root cause → prevention → regression).
+- If error/redo/conflict: update `_control/LESSONS.md` (symptom ??root cause ??prevention ??regression).
 
 ---
 
@@ -878,7 +885,7 @@ PLATFORM update protocol (Fail-Closed, minimal):
 ---
 
 ## 7) Bootstrap, Migration, Audit (Three-piece workflow)
-This workspace uses a three-piece workflow to avoid “re-run bootstrap overwrites” and to make learning automatic:
+This workspace uses a three-piece workflow to avoid ?e-run bootstrap overwrites??and to make learning automatic:
 
 1) Bootstrap (new workspace only)
 - Purpose: create the canonical folder structure and SSOT control-plane files.
@@ -911,7 +918,7 @@ Must include:
 <<END FILE>>
 
 <<BEGIN FILE: _control/REGRESSION_CHECK.md>>
-# Regression Checklist (SSOT) — QC Gate Requirements
+# Regression Checklist (SSOT) ??QC Gate Requirements
 > Completion threshold.
 > Fixed denominator: ALWAYS report 12/12. Never output reduced denominators (e.g., "11/11").
 > If an item is not applicable, mark "PASS (N/A)" but keep it within 12/12.
@@ -923,7 +930,7 @@ Must include:
    plus relevant Brain Docs (e.g., `USER.md`) when the task implies persistence/user-profile changes.
    If `_control/ACTIVE_GUARDS.md` and/or `_control/LESSONS.md` exist, the run report shows they were read as part of READ GATE.
    If a PLATFORM update occurred, the run report also shows read evidence for the relevant Platform control-plane target(s) (e.g., `~/.openclaw/openclaw.json`).
-   If task output includes OpenClaw system claims, run report includes source URLs from `https://docs.openclaw.ai`.
+   If task output includes OpenClaw system claims, run report includes source URLs from `https://docs.openclaw.ai`. If task output includes latest/version-sensitive OpenClaw claims, run report includes source URLs from `https://github.com/openclaw/openclaw/releases`.
    If task output includes date/time conclusions, run report includes runtime current time evidence (session status + absolute date/time).
 2) ROOT SPRAWL:
    No new files/folders created in root except allowed whitelist (includes `AGENTS.md`, `README.md` (optional), `projects/`, `skills/`, `prompts/`, `memory/`, `canvas/`, `BOOT.md` (optional), optional `.openclaw/`, optional `.git/`, optional `.gitignore`).
@@ -945,10 +952,10 @@ Must include:
 9) NO DUP TOPIC SSOT:
    No parallel SSOT doc created without replace/retire linkage in index.
 10) LESSONS LOOP:
-   If errors/conflicts happened, `_control/LESSONS.md` updated and regression recorded (symptom → root cause → prevention → recurrence test).
+   If errors/conflicts happened, `_control/LESSONS.md` updated and regression recorded (symptom ??root cause ??prevention ??recurrence test).
 11) CONSOLIDATION:
    Governance switches/rules are not duplicated elsewhere; reference SSOT docs only.
-   Do NOT invent parallel “new governance systems” when `_control/ACTIVE_GUARDS.md` + `_control/LESSONS.md` already cover the need.
+   Do NOT invent parallel ?ew governance systems??when `_control/ACTIVE_GUARDS.md` + `_control/LESSONS.md` already cover the need.
    Path assumptions are runtime-compatible (`<workspace-root>` semantics) and do not hardcode `~/.openclaw/workspace/...`.
 12) COMPLETION LANGUAGE:
    If any item FAILS, do NOT say "completed/updated"; output Blocked/Remediation instead.
@@ -970,8 +977,8 @@ Must include:
 - Lessons (LOG): `./LESSONS.md`
 - Projects (persistent): `../projects/`
 - Skills (tool-managed): `../skills/`
-- Governance Commands: `gov_migrate` · `gov_audit` · `gov_apply <NN>` (TUI: `/gov_migrate` · `/gov_audit` · `/gov_apply <NN>`; slash command as standalone message; fallback: `/skill <name> [input]`)
-- Skills inventory (CLI): `openclaw skills list --eligible` · `openclaw skills check`
+- Governance Commands: `gov_migrate` 繚 `gov_audit` 繚 `gov_apply <NN>` (TUI: `/gov_migrate` 繚 `/gov_audit` 繚 `/gov_apply <NN>`; slash command as standalone message; fallback: `/skill <name> [input]`)
+- Skills inventory (CLI): `openclaw skills list --eligible` 繚 `openclaw skills check`
 - Hooks inventory (CLI): `openclaw hooks list --verbose`
 - Prompts (assets): `../prompts/`
 - Boot audit (optional): `../BOOT.md`
@@ -985,7 +992,7 @@ Must include:
 ## Migration Kits (prompts/)
 - Workspace governance migration: `../prompts/governance/WORKSPACE_GOVERNANCE_MIGRATION.md`
 - Boot+Apply Upgrade Apply (v1): `../prompts/governance/APPLY_UPGRADE_FROM_BOOT.md`
-- Governance Commands: `gov_migrate` · `gov_audit` · `gov_apply <NN>` (TUI: `/gov_migrate` · `/gov_audit` · `/gov_apply <NN>`; slash command as standalone message; skills: `../skills/gov_migrate/`, `../skills/gov_audit/`, `../skills/gov_apply/`; fallback: `/skill <name> [input]`)
+- Governance Commands: `gov_migrate` 繚 `gov_audit` 繚 `gov_apply <NN>` (TUI: `/gov_migrate` 繚 `/gov_audit` 繚 `/gov_apply <NN>`; slash command as standalone message; skills: `../skills/gov_migrate/`, `../skills/gov_audit/`, `../skills/gov_apply/`; fallback: `/skill <name> [input]`)
 
 
 
@@ -1001,21 +1008,21 @@ Must include:
 > Purpose: Operational Guard Register (LOG; NOT governance SSOT).
 > Hard rules:
 > 1) READ GATE of every governance task MUST read this file (if present) and list read evidence in the run report.
-> 2) Adding/updating a Guard MUST go through governance gates (PLAN → READ → CHANGE → QC → PERSIST) and MUST be paired with a Lesson entry in `_control/LESSONS.md` that includes the Guard ID + a recurrence test.
+> 2) Adding/updating a Guard MUST go through governance gates (PLAN ??READ ??CHANGE ??QC ??PERSIST) and MUST be paired with a Lesson entry in `_control/LESSONS.md` that includes the Guard ID + a recurrence test.
 > 3) Appends MUST use a real timestamp (no future dates). Use the timezone defined in `USER.md`.
 
 ## Guard log (append-only)
-- YYYY-MM-DD HH:MM (TZ) — Guard #NNN — Symptom — Root cause — Prevention — Recurrence test reference (link to Lesson)
+- YYYY-MM-DD HH:MM (TZ) ??Guard #NNN ??Symptom ??Root cause ??Prevention ??Recurrence test reference (link to Lesson)
 <<END FILE>>
 
 <<BEGIN FILE: _control/DECISIONS.md>>
 # Decisions (LOG; non-SSOT)
-- YYYY-MM-DD — Decision — Rationale — Impact — Follow-up
+- YYYY-MM-DD ??Decision ??Rationale ??Impact ??Follow-up
 <<END FILE>>
 
 <<BEGIN FILE: _control/LESSONS.md>>
 # Lessons Learned (LOG; non-SSOT)
-- YYYY-MM-DD — Symptom — Root Cause — Prevention — Recurrence Test — Linked Guard ID (if any)
+- YYYY-MM-DD ??Symptom ??Root Cause ??Prevention ??Recurrence Test ??Linked Guard ID (if any)
 <<END FILE>>
 
 <<BEGIN FILE: _control/PRESETS.md>>
@@ -1036,90 +1043,99 @@ Must include:
 <<BEGIN FILE: skills/gov_migrate/SKILL.md>>
 ---
 name: gov_migrate
-description: Workspace governance migration (PATCH-only, reentrant, fail-closed).
+description: Run workspace governance migration for an already-running OpenClaw workspace.
 user-invocable: true
 metadata: {"openclaw":{"emoji":"🛡️"}}
 ---
 # /gov_migrate
 
 ## Purpose
-Run the workspace governance migration kit for an already-running workspace.
-
-## What to execute (SSOT)
+Execute the migration workflow defined by:
 - `prompts/governance/WORKSPACE_GOVERNANCE_MIGRATION.md`
 
 ## Hard contract
-- Fail-closed: if `_control/GOVERNANCE_BOOTSTRAP.md` is missing, STOP and instruct to run the one-shot bootstrap task instead.
-- Follow the migration SSOT exactly (no paraphrase, no skipped gates).
-- Create backups under `archive/_migration_backup_<ts>/...` before modifying any file.
-- After completion, instruct the operator to run `/gov_audit`.
-- Treat workspace root as runtime-resolved `<workspace-root>`; do not hardcode `~/.openclaw/workspace`.
-- For OpenClaw system claims (commands/config/plugins/skills/hooks), verify using relevant local skill docs and official docs at `https://docs.openclaw.ai`.
-- For date/time-sensitive claims, verify runtime current time context first (session status).
+1. If `_control/GOVERNANCE_BOOTSTRAP.md` is missing, stop and instruct the operator to run bootstrap first.
+2. Follow the migration prompt exactly (no skipped gates).
+3. Preserve non-target user files.
+4. After migration, instruct operator to run `/gov_audit`.
+5. Treat workspace root as runtime-resolved `<workspace-root>`; do not hardcode `~/.openclaw/workspace`.
+6. For OpenClaw system claims (commands/config/plugins/skills/hooks), verify using:
+   - relevant local skill docs under `skills/`
+   - official docs at `https://docs.openclaw.ai`
+   - official releases at `https://github.com/openclaw/openclaw/releases` for latest/version-sensitive claims
+   - if verification cannot be completed, report uncertainty and required next check; do not infer
+7. For date/time-sensitive claims, verify runtime current time context first (session status).
 
-## Notes
-- If the slash command name is suffixed (collision), use `/skill gov_migrate`.
+## Fallback
+- If slash command is unavailable or name-collided, use:
+  - `/skill gov_migrate`
 <<END FILE>>
 
 <<BEGIN FILE: skills/gov_audit/SKILL.md>>
 ---
 name: gov_audit
-description: Post-migration governance audit (12/12; canonical equality checks).
+description: Run post-bootstrap or post-migration governance audit.
 user-invocable: true
 metadata: {"openclaw":{"emoji":"✅"}}
 ---
 # /gov_audit
 
 ## Purpose
-Verify governance integrity after bootstrap or migration (read-only audit; fail-closed).
+Perform governance integrity checks after bootstrap, migration, or apply.
 
-## What to verify (SSOT)
-- `_control/REGRESSION_CHECK.md` (run 12 items; fixed denominator)
-- Canonical equality for:
-  - `AGENTS_CORE_v1`
-  - `GOV_CORE_v1`
-  - `REGRESSION_12_v1`
-  using `prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md` mapping rules.
-- Path compatibility: governance content uses runtime `<workspace-root>` semantics and does not hardcode `~/.openclaw/workspace`.
-- System-truth evidence: OpenClaw system claims cite `https://docs.openclaw.ai`; date/time claims include runtime current time evidence (session status).
+## Required checks
+1. Run the checklist in `_control/REGRESSION_CHECK.md` with fixed denominator 12/12.
+2. Verify governance anchor consistency required by your active migration baseline.
+3. Produce a clear PASS/FAIL result and remediation if any item fails.
+4. Verify path compatibility:
+   - governance content must use runtime `<workspace-root>` semantics
+   - no hardcoded `~/.openclaw/workspace` assumptions in changed governance content
+5. Verify system-truth evidence:
+   - OpenClaw system claims must cite `https://docs.openclaw.ai` sources
+   - latest/version-sensitive OpenClaw claims must also cite `https://github.com/openclaw/openclaw/releases` sources
+   - date/time claims must include runtime current time evidence (session status)
 
-## Output
-- Write a run report under `_runs/`:
-  - `post_migration_audit_<ts>.md`
-- Update `_control/WORKSPACE_INDEX.md` to link the new report.
+## Persistence
+- Write audit result into `_runs/` when the active governance flow requires persistence.
+- Ensure `_control/WORKSPACE_INDEX.md` is updated when a new run report is added.
 
-## Notes
-- If the slash command name is suffixed (collision), use `/skill gov_audit`.
+## Fallback
+- If slash command is unavailable or name-collided, use:
+  - `/skill gov_audit`
 <<END FILE>>
 
 <<BEGIN FILE: skills/gov_apply/SKILL.md>>
 ---
 name: gov_apply
-description: Apply a BOOT upgrade menu item by number (guided; runs migration + audit).
+description: Apply an approved BOOT upgrade item by number using the guided apply runner.
 user-invocable: true
 metadata: {"openclaw":{"emoji":"🧩"}}
 ---
 # /gov_apply <NN>
 
 ## Input
-- `<NN>` must be a two-digit upgrade item number (e.g., `01`).
+- `<NN>` must be a two-digit item number, for example `01`.
 
 ## Purpose
-Apply an approved BOOT upgrade item by running the guided apply runner, then ensure the workspace is migrated and audited.
-
-## What to execute (SSOT)
+Execute:
 - `prompts/governance/APPLY_UPGRADE_FROM_BOOT.md`
 
 ## Hard contract
-- If `<NN>` is missing or not two digits, STOP and ask for the correct number.
-- If the BOOT upgrade menu is not available in the current conversation context, STOP and ask the operator to paste the latest BOOT report section that contains the numbered menu.
-- Do not write outside allowlisted targets in the apply runner.
-- For OpenClaw system claims during apply, verify against relevant local skill docs and `https://docs.openclaw.ai`.
-- For date/time-sensitive claims during apply, verify runtime current time context first (session status).
-- Use runtime `<workspace-root>` semantics; do not assume fixed home paths.
+1. If `<NN>` is missing or invalid, stop and request a two-digit number.
+2. If BOOT menu context is missing, stop and request the latest BOOT menu section.
+3. Apply only the approved item.
+4. After apply, run migration/audit flow as required by the apply runner.
+5. For OpenClaw system claims during apply, verify against local skill docs and `https://docs.openclaw.ai`.
+   - For latest/version-sensitive claims, also verify official releases `https://github.com/openclaw/openclaw/releases`.
+   - If verification cannot be completed, report uncertainty and required next check; do not infer.
+6. For date/time-sensitive claims during apply, verify runtime current time context first (session status).
+7. Use runtime `<workspace-root>` semantics; do not assume fixed home paths.
 
-## Notes
-- If the slash command name is suffixed (collision), use `/skill gov_apply <NN>`.
+## Fallback
+- If slash command is unavailable or name-collided, use:
+  - `/skill gov_apply <NN>`
 <<END FILE>>
 
 END TASK
+
+

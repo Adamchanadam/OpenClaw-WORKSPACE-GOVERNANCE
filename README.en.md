@@ -86,6 +86,8 @@ To reduce risks like incorrect commands, date/time mistakes, and path drift, WG 
    - Mode C: any write/update/save action (must run the full governance lifecycle)
 2. OpenClaw system topics (Mode B2):
    - Verify local skills and official docs (`https://docs.openclaw.ai`) before answering.
+   - For latest/version-sensitive claims, also verify official releases (`https://github.com/openclaw/openclaw/releases`).
+   - If verification cannot be completed, explicitly report uncertainty and the next check; do not infer.
 3. Date/time topics (Mode B3):
    - Verify runtime current time context first (session status), then answer with absolute dates.
 4. Path compatibility:
@@ -102,7 +104,7 @@ To reduce risks like incorrect commands, date/time mistakes, and path drift, WG 
 1. Install:
 
 ```text
-openclaw plugins install @adamchanadam/openclaw-workspace-governance@0.1.1
+openclaw plugins install @adamchanadam/openclaw-workspace-governance@0.1.2
 ```
 
 2. Enable:
@@ -339,7 +341,7 @@ Reinstall a pinned plugin version, then run `/gov_setup install` and `/gov_audit
 Use this flow: `/gov_setup upgrade` -> `/gov_migrate` -> `/gov_audit`. The `upgrade` mode creates backup first, then updates governance prompts.
 
 ### Q9. Why must OpenClaw system questions be verified against official docs?
-Because these are system-truth claims (commands, config, hooks, skills, plugins). v1.1 requires `docs.openclaw.ai` verification to prevent invalid instructions from entering runtime configuration.
+Because these are system-truth claims (commands, config, hooks, skills, plugins). v1.1 requires verification against `docs.openclaw.ai`; for latest/version-sensitive claims, it also requires verification against official releases, to prevent outdated or invalid instructions from entering runtime configuration.
 
 ### Q10. Why is `<workspace-root>` emphasized instead of a fixed path?
 OpenClaw supports configurable workspaces. v1.1 uses runtime workspace semantics so both default and customized deployments remain compatible.
@@ -358,3 +360,4 @@ Confirm you are sending a command-only message (first character must be `/`, no 
 - Plugin Manifest: https://docs.openclaw.ai/plugins/manifest
 - CLI Plugins: https://docs.openclaw.ai/cli/plugins
 - CLI Skills: https://docs.openclaw.ai/cli/skills
+- OpenClaw Releases: https://github.com/openclaw/openclaw/releases

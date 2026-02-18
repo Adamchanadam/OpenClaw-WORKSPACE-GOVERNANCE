@@ -19,6 +19,8 @@ Execute the migration workflow defined by:
 6. For OpenClaw system claims (commands/config/plugins/skills/hooks), verify using:
    - relevant local skill docs under `skills/`
    - official docs at `https://docs.openclaw.ai`
+   - official releases at `https://github.com/openclaw/openclaw/releases` for latest/version-sensitive claims
+   - if verification cannot be completed, report uncertainty and required next check; do not infer
 7. For date/time-sensitive claims, verify runtime current time context first (session status).
 
 ## Fallback
