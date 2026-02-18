@@ -35,6 +35,15 @@ This installer helps you move to a safer, repeatable workflow.
    - `/gov_setup install`
    - `/gov_audit`
 
+## First install status check
+Run:
+1. `/gov_setup check`
+
+Interpretation:
+1. `NOT_INSTALLED` -> run `/gov_setup install`
+2. `PARTIAL` -> run `/gov_setup upgrade`
+3. `READY` -> continue with `/gov_migrate` and `/gov_audit`
+
 ## If slash commands are unstable
 Use skill fallback:
 1. `/skill gov_setup install`

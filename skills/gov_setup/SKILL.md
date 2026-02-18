@@ -8,6 +8,7 @@ metadata: {"openclaw":{"emoji":"🧰","requires":{"bins":["openclaw"]}}}
 
 ## Purpose
 Deploy this plugin's governance prompt assets into the current workspace at `prompts/governance/`.
+`check` mode is a read-only diagnostic for first-time setup and upgrade readiness.
 
 ## Inputs
 - Optional mode: `install` (default), `upgrade`, or `check`.
@@ -17,9 +18,10 @@ Deploy this plugin's governance prompt assets into the current workspace at `pro
    - `plugin_root = {baseDir}/../..`
 2. Resolve workspace root as the current OpenClaw workspace directory.
    - Do not assume `~/.openclaw/workspace` as a fixed path.
-3. Ensure target folders exist:
+3. For `install` and `upgrade` only, ensure target folders exist:
    - `prompts/governance/`
    - `prompts/governance/manual_prompt/`
+   For `check`, do not create folders (read-only).
 4. If mode is `upgrade` and target files already exist:
    - Create backup under `archive/_gov_setup_backup_<ts>/prompts/governance/...`
 5. Copy the following source files from `plugin_root` into workspace `prompts/governance/`:
@@ -32,6 +34,14 @@ Deploy this plugin's governance prompt assets into the current workspace at `pro
 6. If mode is `check`:
    - Do not copy files.
    - Only report whether each target file exists and whether source files are discoverable.
+   - Return one status:
+     - `NOT_INSTALLED`: target folder missing or target files absent (common right after plugin install).
+     - `PARTIAL`: target exists but one or more required files are missing/out-of-sync.
+     - `READY`: all required files are present.
+   - Provide next action:
+     - `NOT_INSTALLED` -> run `/gov_setup install`
+     - `PARTIAL` -> run `/gov_setup upgrade`
+     - `READY` -> continue with `/gov_migrate` and `/gov_audit` as needed
 7. After install or upgrade:
    - Print next steps:
      - First adoption: run `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`
@@ -46,3 +56,10 @@ Deploy this plugin's governance prompt assets into the current workspace at `pro
 ## Output requirements
 - Report source root, target root, files copied (or checked), and backup path if created.
 - If any required source file is missing, stop and report missing paths.
+- In `check` mode, include:
+  - `status` (`NOT_INSTALLED` / `PARTIAL` / `READY`)
+  - `next_action`
+  - file lists in code blocks (one path per line) to avoid UI table-wrap ambiguity.
+  - if `status=NOT_INSTALLED`, append a `Quick Start` command block:
+    - `/gov_setup install`
+    - fallback: `/skill gov_setup install`

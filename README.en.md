@@ -1,7 +1,7 @@
 # OpenClaw WORKSPACE_GOVERNANCE
 
-> A workspace governance solution for OpenClaw (Plugin + ClawHub).  
-> It standardizes governance operations to improve stability, reduce rework, and maintain traceable change records.
+> Turn OpenClaw's persona-and-memory-first factory setup into a controllable, verifiable, and traceable workspace governance system.  
+> Keep your flexibility, but put high-risk changes behind a fixed workflow to reduce repeated rework and manual cleanup.
 
 [中文版本](./README.md)
 
@@ -28,24 +28,25 @@ The project uses a dual distribution model:
 
 ## Why Use This Solution
 
-In long-running OpenClaw workspaces, common risks include:
+For most users, the real problem is not missing features. The problem is losing control as complexity grows:
 
-1. Inconsistent modification flow causing governance drift.
-2. Repeated governance gaps across new sessions.
-3. Scattered evidence that increases review and rollback cost.
+1. The agent starts editing too early before planning and evidence checks.
+2. The same failure patterns reappear in new sessions.
+3. Upgrade and fix traces are fragmented across files, making review and rollback difficult.
 
-Core value delivered by this solution:
+This solution does not try to add more commands. It turns risky operations into a manageable workflow:
 
-1. Standardized lifecycle: `Bootstrap -> Migrate -> Audit -> Apply`.
-2. BOOT proposal + explicit approval + controlled apply to reduce write risk.
-3. Stable entry points and traceable outputs for better team operations.
+1. Enforce `PLAN -> READ -> CHANGE -> QC -> PERSIST` so verification happens before edits.
+2. Require fact checks for system/date claims (official docs, release/version context, runtime clock).
+3. Keep every change traceable through run reports and index evidence.
+4. Use `BOOT read-only proposals -> human approval -> controlled apply` to reduce startup write risk.
 
 ### Positioning Deep Dive (Recommended)
 
 If you want to quickly understand why this is needed on top of OpenClaw factory defaults, read these first:
 
-1. `VALUE_POSITIONING_AND_FACTORY_GAP.md`: purpose, user value, and boundaries against official baseline behavior.
-2. `WORKSPACE_GOVERNANCE_README.md`: full governance playbook (3 scenarios, core workflow, risk controls).
+1. [VALUE_POSITIONING_AND_FACTORY_GAP.md](./VALUE_POSITIONING_AND_FACTORY_GAP.md): purpose, user value, and boundaries against official baseline behavior.
+2. [WORKSPACE_GOVERNANCE_README.md](./WORKSPACE_GOVERNANCE_README.md): full governance playbook (3 scenarios, core workflow, risk controls).
 
 ---
 
@@ -154,6 +155,8 @@ If slash command is unavailable or name-collided, use:
 /skill gov_setup install
 ```
 
+Note: `plugins install` only installs the plugin under extensions. Governance prompt assets are deployed to `<workspace-root>/prompts/governance/` only after `gov_setup install`.
+
 ## `gov_setup` Modes (Important)
 
 `gov_setup` is used for both first setup and later upgrades:
@@ -206,13 +209,17 @@ Please return:
 
 ### Step 3: Pass criteria
 
-Your `gov_setup check` response should include all three:
+`gov_setup check` can return 3 states:
 
-1. A clear `workspace root` path
-2. The 6 governance prompt files shown as installed
-3. A clear upgrade decision with reason
+1. `NOT_INSTALLED`: common on a fresh machine before `gov_setup install`.
+2. `PARTIAL`: target path exists but files are missing or out of sync.
+3. `READY`: all required files are installed.
 
-If all three are present, governance is running correctly. You can then proceed with `gov_migrate` + `gov_audit` for full maintenance validation.
+Recommended next action:
+
+1. If `NOT_INSTALLED`: run `gov_setup install`.
+2. If `PARTIAL`: run `gov_setup upgrade`.
+3. If `READY`: continue with `gov_migrate` + `gov_audit`.
 
 ---
 
@@ -356,6 +363,13 @@ OpenClaw supports configurable workspaces. The governance flow uses runtime work
 
 ### Q11. Why can't I find `/gov_setup`?
 Confirm you are sending a command-only message (first character must be `/`, no leading spaces, no `run` prefix). If slash routing still fails, continue with the manual prompt entrypoints under `manual_prompt/`.
+
+### Q12. Why is there no automatic next-step prompt right after `openclaw plugins install ...`?
+OpenClaw plugin install downloads and extracts the package into extensions, then waits for gateway reload. It does not auto-run `/gov_setup install` for your workspace.  
+Fastest path after install:
+1. `/gov_setup check` (detect current status)
+2. If status is `NOT_INSTALLED`: `/gov_setup install`
+3. Then: `/gov_migrate` -> `/gov_audit`
 
 ---
 

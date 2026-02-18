@@ -101,27 +101,18 @@ OpenClaw 官方出廠設定重點是「快速可用、個人助手體驗、可�
 
 ---
 
-## 7) 三種場景如何落地
+## 7) 與 README 的分工（避免重複）
 
-1. 全新工作區：先 `gov_setup install`，再 Bootstrap，最後 `gov_audit`。
-2. 已運作未導入：先部署治理資產，再跑 Bootstrap/Migration + `gov_audit`。
-3. 已導入日常維護：`gov_setup upgrade` -> `gov_migrate` -> `gov_audit`；需要時 `gov_apply <NN>`。
+為保持文件可維護性，本文件只處理「定位、價值、邊界、出廠差異」。  
+以下內容以 README 系列為準，不在本文重複展開：
 
----
-
-## 8) 術語註解（新手友善）
-
-- Workspace：OpenClaw 工作目錄。
-- Bootstrap：首次建立基線。
-- Migration：在既有工作區套用治理升級。
-- Audit：只讀核對，確認是否一致。
-- Run report：本次操作的變更記錄與證據。
-- Fail-Closed：條件不足即停止，不冒險執行。
-- BOOT：啟動時的只讀檢查與提案機制。
+1. 三種安裝/導入場景：見 [README.md](./README.md)。
+2. 完整操作手冊與步驟：見 [WORKSPACE_GOVERNANCE_README.md](./WORKSPACE_GOVERNANCE_README.md)。
+3. 指令與 UAT 路徑：見 [README.md](./README.md) 與 [README.en.md](./README.en.md)。
 
 ---
 
-## 9) 官方參考來源
+## 8) 官方參考來源
 
 - Context（注入檔案與截斷機制）  
   https://docs.openclaw.ai/concepts/context

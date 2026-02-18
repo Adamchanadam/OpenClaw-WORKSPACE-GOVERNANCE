@@ -1,6 +1,6 @@
 {
   "name": "@adamchanadam/openclaw-workspace-governance",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "OpenClaw workspace governance plugin and prompts (bootstrap, migration, audit, boot apply).",
   "license": "MIT",
   "type": "module",
@@ -28,6 +28,7 @@
     "WORKSPACE_GOVERNANCE_MIGRATION.md",
     "APPLY_UPGRADE_FROM_BOOT.md",
     "WORKSPACE_GOVERNANCE_README.md",
+    "VALUE_POSITIONING_AND_FACTORY_GAP.md",
     "README.md",
     "README.en.md",
     "clawhub/**"

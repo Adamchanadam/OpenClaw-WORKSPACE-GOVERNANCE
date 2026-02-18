@@ -1,7 +1,7 @@
 # OpenClaw WORKSPACE_GOVERNANCE
 
-> OpenClaw 工作區治理方案（Plugin + ClawHub）。  
-> 以標準化流程提升穩定性、降低重工、建立可追溯變更紀錄。
+> 把 OpenClaw 的「人格/記憶導向出廠設定」，補強為「可控、可驗證、可追溯」的工作區治理系統。  
+> 不改變你原有的使用彈性，但把高風險變更納入固定流程，降低反覆返工與人手補救成本。
 
 [English Version](./README.en.md)
 
@@ -28,24 +28,25 @@ OpenClaw WORKSPACE_GOVERNANCE 是一套面向 OpenClaw 的工作區治理框架�
 
 ## 為何要使用本方案
 
-在長期運作的 OpenClaw 工作區中，常見風險包括：
+多數使用者的痛點不是「功能不足」，而是「功能越多，越難穩定」：
 
-1. 修改流程不一致，導致規則漂移。
-2. 新 session 重複出現相同治理缺口。
-3. 變更證據分散，事後核對與回溯成本高。
+1. 收到指令即開始改檔，未先計劃與核對依據。
+2. 同一類錯誤在新 session 重複出現，難以真正收斂。
+3. 升級與修正分散在多個檔案，事後難以核對「改了甚麼、為何而改」。
 
-本方案的核心價值：
+本方案提供的價值不是增加命令數量，而是把高風險操作變成可管理流程：
 
-1. 以 `Bootstrap -> Migrate -> Audit -> Apply` 固化治理流程。
-2. 以 BOOT 提案 + 人工批准 + 受控套用，降低誤寫風險。
-3. 以固定入口與可追溯輸出，提升團隊協作與維護效率。
+1. 以 `PLAN -> READ -> CHANGE -> QC -> PERSIST` 固定先後次序，先核對再改動。
+2. 對系統題與時間題先做事實驗證（官方文檔、版本資訊、runtime 時間），降低虛構與誤判。
+3. 每次變更都有 run report 與索引證據，方便回顧、交接與審核。
+4. 以「BOOT 只讀提案 -> 人工批准 -> 受控套用」機制，降低啟動期自動誤寫風險。
 
 ### 定位深讀（建議先讀）
 
 若你想快速理解「為何 OpenClaw 出廠後仍需要 WORKSPACE_GOVERNANCE」，先讀以下兩份文件：
 
-1. `VALUE_POSITIONING_AND_FACTORY_GAP.md`：說明本方案原意、用戶價值、與官方 baseline 的關係與邊界。
-2. `WORKSPACE_GOVERNANCE_README.md`：完整治理手冊（三種場景、核心流程、風險控制）。
+1. [VALUE_POSITIONING_AND_FACTORY_GAP.md](./VALUE_POSITIONING_AND_FACTORY_GAP.md)：說明本方案原意、用戶價值、與官方 baseline 的關係與邊界。
+2. [WORKSPACE_GOVERNANCE_README.md](./WORKSPACE_GOVERNANCE_README.md)：完整治理手冊（三種場景、核心流程、風險控制）。
 
 ---
 
@@ -154,6 +155,8 @@ clawhub install Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/clawhub/openclaw-work
 /skill gov_setup install
 ```
 
+說明：`plugins install` 只安裝 plugin 到 extensions；治理 prompts 需由 `gov_setup install` 部署到 `<workspace-root>/prompts/governance/`。
+
 ## `gov_setup` 三種模式（重要）
 
 `gov_setup` 不只用於首次安裝，亦是後續升級入口：
@@ -206,13 +209,17 @@ openclaw skills info gov_apply
 
 ### Step 3：判定是否通過
 
-`gov_setup check` 回覆需同時滿足以下三點：
+`gov_setup check` 會出現 3 種狀態：
 
-1. 有明確 `workspace root` 路徑
-2. 顯示 6 個治理 prompts 狀態為「已安裝」
-3. 明確說明「是否需要 upgrade」及原因
+1. `NOT_INSTALLED`：新機常見狀態（尚未執行 `gov_setup install`）。
+2. `PARTIAL`：目標路徑存在，但有缺檔或不同步。
+3. `READY`：已安裝齊全。
 
-若以上三點都滿足，即可判定 governance 已正常運作；之後可繼續執行 `gov_migrate` + `gov_audit` 做完整維護流程。
+建議下一步：
+
+1. 若 `NOT_INSTALLED`：先執行 `gov_setup install`。
+2. 若 `PARTIAL`：執行 `gov_setup upgrade`。
+3. 若 `READY`：可直接進入 `gov_migrate` + `gov_audit`。
 
 ---
 
@@ -356,6 +363,13 @@ OpenClaw 支援可配置工作區。治理流程以 runtime workspace 為準，�
 
 ### Q11. 為何我看不到 `/gov_setup`？
 先確認你送出的是 command-only 訊息（第一個字就是 `/`，前面不能有空格，也不要加 `run`）。若 slash 仍無法路由，改用手動 prompt 入口（`manual_prompt/`）繼續治理流程。
+
+### Q12. 為何 `openclaw plugins install ...` 後不會自動彈出下一步？
+OpenClaw 的 plugin 安裝流程會把套件下載並解壓到 extensions，之後等待 gateway 重載；它不會自動替你執行 `/gov_setup install`。  
+最快做法是安裝後立刻執行：
+1. `/gov_setup check`（確認狀態）
+2. 若顯示 `NOT_INSTALLED`：`/gov_setup install`
+3. 完成後：`/gov_migrate` -> `/gov_audit`
 
 ---
 
