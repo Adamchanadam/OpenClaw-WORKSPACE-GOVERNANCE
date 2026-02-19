@@ -17,8 +17,9 @@ This installer gives you a repeatable governance path instead of ad-hoc prompt e
 4. Works for both beginners and production workspaces.
 
 ## 60-second quick start
+First-time install:
 ```bash
-# 1) Install plugin
+# 1) Install plugin (first time only)
 openclaw plugins install @adamchanadam/openclaw-workspace-governance@latest
 
 # 2) Enable plugin
@@ -35,6 +36,21 @@ In OpenClaw chat:
 /gov_audit
 ```
 
+Already installed users (upgrade path):
+```bash
+# Do NOT run install again if plugin already exists
+openclaw plugins update openclaw-workspace-governance
+openclaw gateway restart
+```
+
+Then in OpenClaw chat:
+```text
+/gov_setup check
+/gov_setup upgrade
+/gov_migrate
+/gov_audit
+```
+
 ## What you get
 1. `gov_setup` with `install | upgrade | check`.
 2. `gov_migrate` for governance upgrades.
@@ -47,6 +63,12 @@ After `/gov_setup check`:
 1. `NOT_INSTALLED` -> run `/gov_setup install`
 2. `PARTIAL` -> run `/gov_setup upgrade`
 3. `READY` -> run `/gov_migrate` then `/gov_audit`
+
+## Important update rule
+If `openclaw plugins install ...` returns `plugin already exists`, use:
+1. `openclaw plugins update openclaw-workspace-governance`
+2. `openclaw gateway restart`
+3. `/gov_setup upgrade` -> `/gov_migrate` -> `/gov_audit`
 
 ## If slash routing is unstable
 Use fallback commands:
