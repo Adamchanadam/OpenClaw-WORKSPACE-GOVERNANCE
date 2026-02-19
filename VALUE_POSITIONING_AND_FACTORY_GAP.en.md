@@ -1,85 +1,89 @@
-# OpenClaw WORKSPACE_GOVERNANCE: Positioning, Intent, and Factory-Baseline Gap
+# OpenClaw WORKSPACE_GOVERNANCE: Value Positioning and Factory-Baseline Gap
 
-> Language: English positioning doc. Traditional Chinese counterpart: [`VALUE_POSITIONING_AND_FACTORY_GAP.md`](./VALUE_POSITIONING_AND_FACTORY_GAP.md)
+> This document explains why this project exists.
+> It does not repeat installation or runbook steps.
 
-## 1) Executive Summary
+Related docs:
+1. Homepage: [`README.md`](./README.md)
+2. Operations handbook: [`WORKSPACE_GOVERNANCE_README.en.md`](./WORKSPACE_GOVERNANCE_README.en.md)
+3. Traditional Chinese version: [`VALUE_POSITIONING_AND_FACTORY_GAP.md`](./VALUE_POSITIONING_AND_FACTORY_GAP.md)
 
-WORKSPACE_GOVERNANCE does not replace OpenClaw.
-It adds a governance control plane on top of official runtime capabilities.
+---
 
-Factory baseline emphasizes:
+## 1) One-Sentence Positioning
+
+OpenClaw WORKSPACE_GOVERNANCE adds a governance control plane on top of OpenClaw's runtime, so long-running workspaces remain controllable, verifiable, and traceable.
+
+---
+
+## 2) Factory Baseline vs Governance Layer
+
+Factory baseline is optimized for:
 1. Fast startup
-2. Assistant-like UX
+2. Assistant-style interaction
 3. Extensibility
 
-WORKSPACE_GOVERNANCE emphasizes:
-1. Controllability
-2. Verifiability
-3. Traceability
-4. Continuous quality loop
+Governance layer is optimized for:
+1. Ordered execution on risky tasks
+2. Evidence-first decisions
+3. Consistent audit and rollback readiness
 
-## 2) What Factory Baseline Already Provides
+This is not replacement. It is operational hardening.
 
-OpenClaw baseline can inject core docs/context (when present), for example:
-1. `AGENTS.md`
-2. `SOUL.md`
-3. `TOOLS.md`
-4. `IDENTITY.md`
-5. `USER.md`
-6. `HEARTBEAT.md`
-7. `BOOTSTRAP.md` (for new workspace)
-8. optional `MEMORY.md` / `memory.md`
+---
 
-This is efficient, but context windows and selective reading can still cause execution drift.
+## 3) Why Drift Happens in Practice
 
-## 3) Why "Immediate Action Without Verification" Happens
+Common drift patterns in real usage:
+1. Edit-first behavior before evidence checks
+2. Treating context injection as full file reading
+3. Weak verification on system/date/version claims
+4. Repeated mistakes across sessions
 
-Common failure patterns (especially with lower-cost models):
-1. Speed-first response before evidence checks.
-2. Treating context injection as equivalent to fully reading files.
-3. Skipping local skill/document lookup.
-4. Missing runtime date/time verification.
-5. Making system claims without checking official docs/releases.
+These are workflow-gate problems, not only model-quality problems.
 
-These are governance-gate issues, not just model quality issues.
+---
 
-## 4) Core Intent of WORKSPACE_GOVERNANCE
+## 4) What Governance Adds
 
-The goal is not "more commands".
-The goal is to enforce order for high-risk operations:
-1. `PLAN`
-2. `READ`
-3. `CHANGE`
-4. `QC`
-5. `PERSIST`
+1. Fixed execution order: `PLAN -> READ -> CHANGE -> QC -> PERSIST`
+2. Fail-Closed default when evidence is missing
+3. Mode routing for conversation vs verified-answer vs write tasks
+4. BOOT read-only proposals with human-approved controlled apply
+5. Run-report traceability for review and recurrence reduction
 
-Supporting rules:
-1. Fail-Closed by default.
-2. Runtime path compatibility (`<workspace-root>` semantics).
-3. System/date verification requirements.
-4. BOOT read-only proposals + numbered approval + controlled apply.
+---
 
-## 5) Practical User Value
+## 5) User Value (Non-Technical)
 
-For operators and teams, benefits are direct:
-1. Fewer avoidable breakages and manual cleanup.
-2. Lower recurrence of the same mistakes.
-3. Better handover/review through run-report evidence.
-4. Clearer onboarding path for new users.
+1. Fewer avoidable breakages
+2. Less manual cleanup after wrong edits
+3. Better visibility of what changed and why
+4. Easier team handover and accountability
+
+---
 
 ## 6) Boundaries (No Over-Selling)
 
-WORKSPACE_GOVERNANCE helps reduce risk, but it does not:
-1. Make any model error-free.
-2. Remove the need for human judgment.
-3. Eliminate ongoing maintenance.
+This project helps reduce risk, but it does not:
+1. Make any model error-free
+2. Remove need for human decisions
+3. Eliminate ongoing maintenance work
 
-## 7) Language-Aware Navigation
+Expected outcome:
+- lower operational risk
+- lower repeat-error rate
+- better evidence quality
 
-1. English homepage: [`README.md`](./README.md)
-2. Traditional Chinese homepage: [`README.zh-HK.md`](./README.zh-HK.md)
-3. English handbook: [`WORKSPACE_GOVERNANCE_README.en.md`](./WORKSPACE_GOVERNANCE_README.en.md)
-4. Traditional Chinese handbook: [`WORKSPACE_GOVERNANCE_README.md`](./WORKSPACE_GOVERNANCE_README.md)
+---
+
+## 7) Where to Go Next
+
+1. If you are new: start at [`README.md`](./README.md)
+2. If you need exact steps: use [`WORKSPACE_GOVERNANCE_README.en.md`](./WORKSPACE_GOVERNANCE_README.en.md)
+3. If you need Chinese docs: [`README.zh-HK.md`](./README.zh-HK.md)
+
+---
 
 ## 8) Official References
 
@@ -90,4 +94,4 @@ WORKSPACE_GOVERNANCE helps reduce risk, but it does not:
 5. https://docs.openclaw.ai/start/bootstrapping
 6. https://docs.openclaw.ai/gateway/configuration-reference
 7. https://docs.openclaw.ai/automation/hooks
-8. https://docs.openclaw.ai/AGENTS.default
+8. https://github.com/openclaw/openclaw/releases

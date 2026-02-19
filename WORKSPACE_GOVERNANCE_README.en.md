@@ -1,123 +1,192 @@
-# WORKSPACE_GOVERNANCE Handbook (Bootstrap + Migration + Audit + Skills + BOOT Apply)
+# WORKSPACE_GOVERNANCE Operations Handbook (EN)
 
-> Language: English handbook. Traditional Chinese counterpart: [`WORKSPACE_GOVERNANCE_README.md`](./WORKSPACE_GOVERNANCE_README.md)
+> This is the operations playbook.
+> For homepage overview: [`README.md`](./README.md)
+> For positioning/factory-gap analysis: [`VALUE_POSITIONING_AND_FACTORY_GAP.en.md`](./VALUE_POSITIONING_AND_FACTORY_GAP.en.md)
 
-## 1) What This Is
+---
 
-WORKSPACE_GOVERNANCE is a repeatable workspace governance method for OpenClaw.
-It ensures that any write/update/save task follows a fixed sequence and leaves verifiable evidence.
+## 1) Purpose
 
-This document is operations-focused.
-For value positioning and factory baseline differences, read:
-1. [`README.md`](./README.md)
-2. [`VALUE_POSITIONING_AND_FACTORY_GAP.en.md`](./VALUE_POSITIONING_AND_FACTORY_GAP.en.md)
+Use this handbook when you need exact, repeatable operating steps.
 
-Distribution channels:
-1. Plugin package: `@adamchanadam/openclaw-workspace-governance`
-2. ClawHub installer listing: `https://clawhub.ai/Adamchanadam/openclaw-workspace-governance-installer`
+It covers:
+1. Install and upgrade paths
+2. Daily governance operations
+3. Platform-safe config changes
+4. BOOT controlled apply
+5. UAT and troubleshooting
 
-## 2) Why It Exists
+---
 
-Long-running workspaces commonly degrade due to:
-1. Edit-first behavior before evidence checks.
-2. Repeated mistakes across sessions.
-3. Missing traceability for upgrade and rollback.
+## 2) Before You Start
 
-WORKSPACE_GOVERNANCE addresses this with explicit gates and auditable outputs.
+1. Plugin package:
+   - `@adamchanadam/openclaw-workspace-governance`
+2. Required skills:
+   - `gov_setup`, `gov_migrate`, `gov_audit`, `gov_apply`, `gov_platform_change`
+3. If slash routing is unstable, use `/skill ...` fallback.
 
-## 3) Core Execution Order
+Host-side checks:
 
-All persistence tasks run:
+```text
+openclaw plugins info openclaw-workspace-governance
+openclaw skills list --eligible
+```
+
+---
+
+## 3) Governance Execution Order
+
+Any write/update/save task must run in this order:
 1. `PLAN`
 2. `READ`
 3. `CHANGE`
 4. `QC`
 5. `PERSIST`
 
-Fail-Closed rules:
-1. Missing evidence/path ambiguity -> stop.
-2. Any QC fail -> do not claim completion.
+Fail-Closed:
+1. Missing evidence/path ambiguity -> stop
+2. Any QC fail -> do not claim completion
 
-## 4) Runtime Modes
+---
 
-1. Mode A: conversational only (no write, no system-truth claims).
-2. Mode B: evidence-based answers (no write).
-3. Mode C: write/update/save (must run full governance lifecycle).
+## 4) Mode Map
 
-Extra controls:
-1. System claims: verify local skills + `https://docs.openclaw.ai`.
-2. Latest/version-sensitive claims: also verify `https://github.com/openclaw/openclaw/releases`.
-3. Date/time claims: verify runtime current time context first.
-4. Brain Docs routing:
-   - Read-only questions on `USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, or `memory/*.md` must read exact target files first.
-   - Any Brain Docs write/update is Mode C and run report must include `FILES_READ` + `TARGET_FILES_TO_CHANGE` (missing either field is blocked).
-5. Platform control-plane changes (`~/.openclaw/openclaw.json`) are Mode C and should use `gov_platform_change` as the execution entrypoint.
+1. Mode A: conversational only (no writes, no system-truth claims)
+2. Mode B: evidence-based answer (no writes)
+3. Mode C: any write/update/save (full 5-gate flow)
 
-## 5) Packaging and Entry Points
+Special rules:
+1. OpenClaw system claims: verify local skills + `https://docs.openclaw.ai`
+2. Version-sensitive claims: also verify `https://github.com/openclaw/openclaw/releases`
+3. Date/time claims: verify runtime current time first; answer with explicit dates
+4. Brain Docs read-only asks: read exact target files first
+5. Brain Docs writes: Mode C + run report fields `FILES_READ` + `TARGET_FILES_TO_CHANGE`
 
-Primary plugin skills:
-1. `gov_setup` (`install | upgrade | check`)
-2. `gov_migrate`
-3. `gov_audit`
-4. `gov_apply <NN>`
-5. `gov_platform_change`
+---
 
-Key behavior:
-1. First-time use: `openclaw plugins install ...` installs plugin under extensions.
-2. Already installed: use `openclaw plugins update openclaw-workspace-governance` (do not use install again), then restart gateway.
-3. Governance prompt assets are deployed into workspace only after `gov_setup install` or `gov_setup upgrade`.
-4. `gov_setup check` returns `NOT_INSTALLED` / `PARTIAL` / `READY` with next action.
+## 5) File-Scope Map (Important)
 
-## 6) Three Usage Scenarios
+1. Workspace governance assets:
+   - `<workspace-root>/prompts/governance/`
+   - managed by `gov_setup install|upgrade|check`
+2. Platform control plane:
+   - `~/.openclaw/openclaw.json`
+   - `~/.openclaw/extensions/` (only when explicitly needed)
+   - managed by `gov_platform_change`
+3. Brain Docs:
+   - `USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`
+   - not handled by `gov_platform_change`
 
-1. New OpenClaw / new workspace:
-   - `gov_setup install` -> Bootstrap -> `gov_audit`
-2. Running workspace, first-time governance adoption:
-   - `gov_setup install` -> Bootstrap/Migration path -> `gov_audit`
-3. Running workspace, governance already installed:
-   - `openclaw plugins update openclaw-workspace-governance` -> `openclaw gateway restart`
-   - `gov_setup upgrade` -> `gov_migrate` -> `gov_audit`
-   - when BOOT provides numbered proposals: `gov_apply <NN>`
-   - for platform config edits: `gov_platform_change`
+---
 
-## 7) BOOT Controlled Apply
+## 6) Standard Runbooks
 
-Recommended BOOT behavior:
-1. Startup read-only checks and numbered proposals.
-2. Human approval by number.
-3. Controlled apply via `gov_apply <NN>`.
-4. Post-apply migration/audit and measurable before/after indicators.
+### A) Brand-new OpenClaw / brand-new workspace
 
-## 8) Repo Structure (Language-Aware)
+1. Install plugin
+2. `gov_setup install`
+3. Run bootstrap prompt (`OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`)
+4. `gov_audit`
+
+### B) Running workspace, first governance adoption
+
+1. Install/enable plugin
+2. `gov_setup install`
+3. Run bootstrap prompt
+4. If workspace is already active: `gov_migrate`
+5. `gov_audit`
+
+### C) Governance already installed (daily maintenance)
+
+1. Host side:
 
 ```text
-.
-├─ README.md                              # English homepage
-├─ README.zh-HK.md                        # Traditional Chinese mirror
-├─ README.en.md                           # Backward-compat pointer to README.md
-├─ WORKSPACE_GOVERNANCE_README.en.md      # English handbook (this file)
-├─ WORKSPACE_GOVERNANCE_README.md         # Traditional Chinese handbook
-├─ VALUE_POSITIONING_AND_FACTORY_GAP.en.md
-├─ VALUE_POSITIONING_AND_FACTORY_GAP.md
-├─ ref_doc/
-└─ ... (skills, prompts, plugin files)
+openclaw plugins update openclaw-workspace-governance
+openclaw gateway restart
 ```
 
-## 9) Glossary
+2. In OpenClaw:
 
-1. Workspace: OpenClaw runtime working directory.
-2. Bootstrap: first governance baseline setup.
-3. Migration: governance upgrade for running workspace.
-4. Audit: read-only consistency verification.
-5. Run report: per-run evidence and change record.
-6. Fail-Closed: stop when evidence is insufficient.
+```text
+/gov_setup upgrade
+/gov_migrate
+/gov_audit
+```
 
-## 10) Official References
+---
 
-1. https://docs.openclaw.ai/tools/skills
-2. https://docs.openclaw.ai/tools/slash-commands
-3. https://docs.openclaw.ai/plugins
-4. https://docs.openclaw.ai/cli/plugins
-5. https://docs.openclaw.ai/cli/skills
-6. https://docs.openclaw.ai/tools/clawhub
-7. https://github.com/openclaw/openclaw/releases
+## 7) Platform Config Change Runbook
+
+Use this only for control-plane files.
+
+1. Request via `gov_platform_change`
+2. Create workspace-local backup under `archive/_platform_backup_<ts>/...`
+3. Apply minimal config change
+4. Validate
+5. Roll back from backup if validation fails
+6. Keep run-report evidence (before/after + backup path)
+
+Fallback:
+
+```text
+/skill gov_platform_change
+```
+
+---
+
+## 8) BOOT Controlled Apply Runbook
+
+1. BOOT runs read-only checks and outputs numbered proposals
+2. Human approves one proposal number
+3. Run:
+
+```text
+/gov_apply <NN>
+```
+
+4. Then run:
+
+```text
+/gov_migrate
+/gov_audit
+```
+
+5. Record before/after indicators
+6. If no measurable improvement: mark as `PARTIAL`
+
+---
+
+## 9) UAT Checklist
+
+1. `gov_setup check` returns status + next step
+2. `gov_setup install|upgrade` deploys expected governance assets
+3. `gov_migrate` completes without blocked QC
+4. `gov_audit` reports 12/12 PASS
+5. Platform-change tasks route through `gov_platform_change`
+6. Brain Docs writes require `FILES_READ` + `TARGET_FILES_TO_CHANGE`
+
+---
+
+## 10) Troubleshooting
+
+1. `plugin already exists` during install:
+   - use `openclaw plugins update openclaw-workspace-governance`
+2. Slash not responding:
+   - use `/skill ...` fallback or natural-language request to invoke the skill
+3. `gov_setup check` returns `NOT_INSTALLED`:
+   - run `gov_setup install`
+4. `gov_setup check` returns `PARTIAL`:
+   - run `gov_setup upgrade`
+5. Audit mismatch after update:
+   - run `gov_migrate` then `gov_audit` again
+
+---
+
+## 11) Related Docs
+
+1. Homepage (EN): [`README.md`](./README.md)
+2. Homepage (繁中): [`README.zh-HK.md`](./README.zh-HK.md)
+3. Positioning (EN): [`VALUE_POSITIONING_AND_FACTORY_GAP.en.md`](./VALUE_POSITIONING_AND_FACTORY_GAP.en.md)
+4. Positioning (繁中): [`VALUE_POSITIONING_AND_FACTORY_GAP.md`](./VALUE_POSITIONING_AND_FACTORY_GAP.md)
