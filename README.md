@@ -444,6 +444,15 @@ Fastest path after install:
 No. Treat it as a platform Mode C governance change.  
 Use `/gov_platform_change` (or `/skill gov_platform_change`) so backup, validation, and rollback evidence are recorded.
 
+### Q14. If the AI makes a mistake, what happens next, and how does it improve?
+This governance flow handles mistakes in four layers:
+1. Immediate stop-and-check for the current task: any write task must follow `PLAN -> READ -> CHANGE -> QC -> PERSIST` in order. Skipping steps is not allowed.
+2. Mistake traceability: errors and conflicts must be written into a run report (change record), so operators can see what happened, what changed, and why.
+3. Repeat-failure prevention: when the same problem appears repeatedly, BOOT (startup check) generates a numbered upgrade menu. A human approves one item, then `gov_apply` performs a controlled update and validation.
+4. Better answers even without file edits: for OpenClaw system questions, the agent must verify official docs first; for date/time questions, it must verify current runtime time first and answer with explicit dates.
+
+In short: this solution does not change the model itself; it improves reliability by enforcing process order, evidence, and repeat-failure upgrades.
+
 ---
 
 ## Official References
