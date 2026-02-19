@@ -29,6 +29,15 @@ Perform governance integrity checks after bootstrap, migration, or apply.
 - Write audit result into `_runs/` when the active governance flow requires persistence.
 - Ensure `_control/WORKSPACE_INDEX.md` is updated when a new run report is added.
 
+## Output requirements
+- Always include a final `NEXT STEP (Operator)` section.
+- If audit PASS:
+  - primary: continue normal operation, or run `/gov_apply <NN>` only when an approved BOOT menu item exists.
+  - fallback: `/skill gov_apply <NN>`
+- If audit FAIL:
+  - primary: run `/gov_migrate` after remediation.
+  - fallback: `/skill gov_migrate`
+
 ## Fallback
 - If slash command is unavailable or name-collided, use:
   - `/skill gov_audit`

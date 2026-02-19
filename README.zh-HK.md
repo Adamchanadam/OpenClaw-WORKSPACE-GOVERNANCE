@@ -333,6 +333,7 @@ openclaw skills info gov_platform_change
 ```
 
 命名說明：本插件只保留一個安裝/部署入口：`gov_setup`。
+易用性說明：每個 `gov_*` skill 完成後都應輸出 `NEXT STEP (Operator)`，同時提供主要指令與 `/skill ...` 後備指令。
 
 ---
 

@@ -59,6 +59,9 @@ Deploy this plugin's governance prompt assets into the current workspace at `pro
 ## Output requirements
 - Report source root, target root, files copied (or checked), and backup path if created.
 - If any required source file is missing, stop and report missing paths.
+- Always include a final `NEXT STEP (Operator)` section with:
+  - one primary command
+  - one fallback `/skill ...` command
 - In `check` mode, include:
   - `status` (`NOT_INSTALLED` / `PARTIAL` / `READY`)
   - `next_action`
@@ -66,3 +69,9 @@ Deploy this plugin's governance prompt assets into the current workspace at `pro
   - if `status=NOT_INSTALLED`, append a `Quick Start` command block:
     - `/gov_setup install`
     - fallback: `/skill gov_setup install`
+  - if `status=PARTIAL`, append:
+    - `/gov_setup upgrade`
+    - fallback: `/skill gov_setup upgrade`
+  - if `status=READY`, append:
+    - `/gov_migrate` then `/gov_audit`
+    - fallback: `/skill gov_migrate` then `/skill gov_audit`

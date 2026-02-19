@@ -333,6 +333,7 @@ If slash command is unavailable or name-collided, use:
 ```
 
 Naming note: this plugin keeps a single install/deploy entry: `gov_setup`.
+Usability note: each `gov_*` skill should end with `NEXT STEP (Operator)` and provide a primary command plus `/skill ...` fallback.
 
 ---
 

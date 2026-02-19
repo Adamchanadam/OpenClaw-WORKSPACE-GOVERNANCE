@@ -46,6 +46,9 @@ Always report:
 4. changed key paths
 5. validation result
 6. rollback result (if triggered)
+7. `NEXT STEP (Operator)`:
+   - if PASS: `/gov_audit` (fallback: `/skill gov_audit`)
+   - if FAIL/BLOCKED: one unblock action + retry command
 
 ## Fallback
 - If slash command is unavailable or name-collided, use:

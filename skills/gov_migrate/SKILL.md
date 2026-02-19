@@ -24,6 +24,15 @@ Execute the migration workflow defined by:
 7. For date/time-sensitive claims, verify runtime current time context first (session status).
 8. If the operator asks to change platform control-plane state (for example `~/.openclaw/openclaw.json`), route execution to `gov_platform_change` and do not patch platform files inside `gov_migrate`.
 
+## Output requirements
+- Always include a final `NEXT STEP (Operator)` section.
+- If migration PASS:
+  - primary: `/gov_audit`
+  - fallback: `/skill gov_audit`
+- If migration FAIL or BLOCKED:
+  - primary: `fix blocker, then rerun /gov_migrate`
+  - fallback: `fix blocker, then rerun /skill gov_migrate`
+
 ## Fallback
 - If slash command is unavailable or name-collided, use:
   - `/skill gov_migrate`

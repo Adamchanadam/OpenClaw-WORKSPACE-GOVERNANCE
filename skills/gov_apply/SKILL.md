@@ -24,6 +24,14 @@ Execute:
 6. For date/time-sensitive claims during apply, verify runtime current time context first (session status).
 7. Use runtime `<workspace-root>` semantics; do not assume fixed home paths.
 
+## Output requirements
+- Always include a final `NEXT STEP (Operator)` section.
+- After apply completes:
+  - primary: `/gov_migrate` then `/gov_audit`
+  - fallback: `/skill gov_migrate` then `/skill gov_audit`
+- If apply is BLOCKED:
+  - output one clear unblock action and the exact command to retry.
+
 ## Fallback
 - If slash command is unavailable or name-collided, use:
   - `/skill gov_apply <NN>`
