@@ -12,6 +12,23 @@ ClawHub installer page:
 
 ---
 
+## Start Here (30 Seconds)
+
+Choose your entry path first:
+1. New to this plugin: install plugin, then run `gov_setup install`
+2. Already using this plugin: update plugin, then run `gov_setup upgrade -> gov_migrate -> gov_audit`
+3. Need to change OpenClaw platform config: use `gov_platform_change` (not direct patch)
+
+Minimal command path:
+
+```text
+openclaw plugins install @adamchanadam/openclaw-workspace-governance@latest
+/gov_setup install
+/gov_audit
+```
+
+---
+
 ## What Is OpenClaw WORKSPACE_GOVERNANCE
 
 OpenClaw WORKSPACE_GOVERNANCE is a governance layer for OpenClaw workspaces.
@@ -25,6 +42,14 @@ It defines a fixed lifecycle for high-risk tasks:
 This project is delivered in two channels:
 1. Plugin package (`@adamchanadam/openclaw-workspace-governance`) as the runtime core
 2. ClawHub installer as a beginner-friendly entry
+
+---
+
+## Who This Is For
+
+1. Individual OpenClaw users who want stable daily operation
+2. Teams running long-lived workspaces and needing traceable changes
+3. Beginners who want guided command paths instead of ad-hoc prompt editing
 
 ---
 

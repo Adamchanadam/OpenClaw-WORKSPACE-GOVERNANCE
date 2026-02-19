@@ -12,6 +12,23 @@ ClawHub 安裝頁：
 
 ---
 
+## 由此開始（30 秒）
+
+先選擇你的入口路徑：
+1. 首次使用本插件：先安裝 plugin，再執行 `gov_setup install`
+2. 已在使用本插件：先更新 plugin，再執行 `gov_setup upgrade -> gov_migrate -> gov_audit`
+3. 需要修改 OpenClaw 平台設定：使用 `gov_platform_change`（不要直接 patch）
+
+最短指令路徑：
+
+```text
+openclaw plugins install @adamchanadam/openclaw-workspace-governance@latest
+/gov_setup install
+/gov_audit
+```
+
+---
+
 ## 什麼是 OpenClaw WORKSPACE_GOVERNANCE
 
 OpenClaw WORKSPACE_GOVERNANCE 是一層面向 OpenClaw 工作區的治理方案。
@@ -25,6 +42,14 @@ OpenClaw WORKSPACE_GOVERNANCE 是一層面向 OpenClaw 工作區的治理方案�
 本專案提供雙通道發佈：
 1. Plugin 套件（`@adamchanadam/openclaw-workspace-governance`）作為執行核心
 2. ClawHub Installer 作為新手入口
+
+---
+
+## 適用對象
+
+1. 需要穩定日常運作的 OpenClaw 個人用戶
+2. 需要可追溯改動紀錄的長期工作區團隊
+3. 希望使用導引式流程、而非臨時拼接 prompt 的新手用戶
 
 ---
 
