@@ -98,7 +98,10 @@ OpenClaw 預設使用單一工作區目錄作為代理的工作目錄（workspac
 4. 路徑相容契約：
    - 一律以 runtime `<workspace-root>` 為準。
    - `~/.openclaw/workspace` 只是常見預設，不是硬編碼依據。
-5. BOOT 套用成效：
+5. 平台控制面變更（關鍵）：
+   - 任何 `~/.openclaw/openclaw.json` 變更都屬 Mode C。
+   - 必須以 `gov_platform_change` 作入口，不可直接跳過治理流程改動 config。
+6. BOOT 套用成效：
    - `/gov_apply <NN>` 後必須記錄前後指標；若沒有可衡量改善，結果只能標記 `PARTIAL`，不可宣稱完全解決。
 
 ---
@@ -130,10 +133,11 @@ OpenClaw 預設使用單一工作區目錄作為代理的工作目錄（workspac
 2. `WORKSPACE_GOVERNANCE_MIGRATION.md`（Migration 的流程規格；workflow SSOT）
 3. `APPLY_UPGRADE_FROM_BOOT.md`（BOOT 升級套用 runner；用於 `/gov_apply <NN>`）
 
-**B. 建議（提升新手可用性：三條指令入口）**
+**B. 建議（提升新手可用性：核心指令入口）**
 4. `skills/gov_migrate/SKILL.md`（提供 `/gov_migrate`）
 5. `skills/gov_audit/SKILL.md`（提供 `/gov_audit`）
 6. `skills/gov_apply/SKILL.md`（提供 `/gov_apply <NN>`）
+7. `skills/gov_platform_change/SKILL.md`（提供 `/gov_platform_change`，處理 `~/.openclaw/openclaw.json` 受控變更）
 
 **C. 可選（自動化提醒／提案：只讀）**
 7. `BOOT.md`（放在 workspace 根目錄；配合 `boot-md` hook 於 gateway 啟動時執行；建議只做「只讀核對/提醒＋產生編號升級建議」）
@@ -173,8 +177,10 @@ OpenClaw 預設使用單一工作區目錄作為代理的工作目錄（workspac
 │  │  └─ SKILL.md                    (/gov_migrate)
 │  ├─ gov_audit/
 │  │  └─ SKILL.md                    (/gov_audit)
-│  └─ gov_apply/
-│     └─ SKILL.md                    (/gov_apply <NN>)
+│  ├─ gov_apply/
+│  │  └─ SKILL.md                    (/gov_apply <NN>)
+│  └─ gov_platform_change/
+│     └─ SKILL.md                    (/gov_platform_change)
 ├─ prompts/
 │  └─ governance/
 │     ├─ OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md
@@ -197,7 +203,7 @@ OpenClaw 預設使用單一工作區目錄作為代理的工作目錄（workspac
 
 ## 6) 安裝與使用（三種情境，一次講清）
 
-🔎 最大升級：日常操作改為三條 skills 指令（新手只需記住：**migrate / audit / apply**）。
+🔎 最大升級：日常操作改為固定 skills 入口（新手可先記住：**setup / migrate / audit / apply / platform_change**）。
 
 命名說明：安裝/部署入口只保留 `gov_setup`，避免多入口造成混淆。
 
@@ -278,6 +284,11 @@ OpenClaw 預設使用單一工作區目錄作為代理的工作目錄（workspac
 **Step 2：Audit（只讀核對是否一致）**
 
 * 執行：以獨立訊息送出 `/gov_audit`；如不可用，改用 `/skill gov_audit`。
+
+**Step 3：如涉及平台設定，走專用入口**
+
+* 任何 `~/.openclaw/openclaw.json` 變更，必須送出 `/gov_platform_change`；如不可用，改用 `/skill gov_platform_change`。
+* 目的是強制保留備份、驗證與回退證據，避免「直接 patch config」造成隱性風險。
 
 > 如果因為環境限制未能使用 `/gov_*`：
 > 改用 fallback：`prompts/governance/manual_prompt/MIGRATION_prompt_for_RUNNING_OpenClaw.md` → 再 `prompts/governance/manual_prompt/POST_MIGRATION_AUDIT_prompt_for_RUNNING_OpenClaw.md`。

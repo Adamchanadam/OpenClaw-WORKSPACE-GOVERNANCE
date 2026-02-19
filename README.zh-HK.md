@@ -100,6 +100,7 @@ Fail-Closed 原則：
 2. 日常維護：`/gov_migrate`、`/gov_audit`
 3. BOOT 升級：`/gov_apply <NN>`
 4. 資產部署與更新：`/gov_setup install|upgrade|check`
+5. 平台設定安全入口：`/gov_platform_change`
 
 ---
 
@@ -119,7 +120,10 @@ Fail-Closed 原則：
    - 回答前必須先核對 runtime 當前時間（session status），並以絕對日期表達結論。
 4. 路徑相容：
    - 以 runtime 的 `<workspace-root>` 為準；`~/.openclaw/workspace` 只視為常見預設，不可硬編碼假設。
-5. BOOT 套用成效：
+5. 平台控制面變更：
+   - 任何 `~/.openclaw/openclaw.json` 變更都屬 Mode C，必須走完整治理流程。
+   - 執行入口必須使用 `gov_platform_change`，並保留備份/驗證/回退證據。
+6. BOOT 套用成效：
    - `/gov_apply <NN>` 後要記錄前後指標；若無可衡量改善，結果應標記為 `PARTIAL`，並保留後續修正動作。
 
 ---
@@ -214,6 +218,7 @@ openclaw skills info gov_setup
 openclaw skills info gov_migrate
 openclaw skills info gov_audit
 openclaw skills info gov_apply
+openclaw skills info gov_platform_change
 ```
 
 ### Step 2：在 OpenClaw TUI 送出自然語言（非 slash）
@@ -269,6 +274,7 @@ openclaw skills info gov_apply
 2. 執行 `/gov_migrate`。
 3. 執行 `/gov_audit`。
 4. 當 BOOT 提供編號提案時，執行 `/gov_apply <NN>`，並在完成後再次執行 `/gov_audit`。
+5. 若任務涉及 `~/.openclaw/openclaw.json` 變更，改用 `/gov_platform_change`（或 `/skill gov_platform_change`），不可直接 patch config。
 
 ---
 
@@ -281,6 +287,7 @@ openclaw skills info gov_apply
 /gov_migrate         # 套用治理升級
 /gov_audit           # 執行一致性核對
 /gov_apply <NN>      # 套用 BOOT 編號提案
+/gov_platform_change # 受控平台設定變更（備份/驗證/回退）
 ```
 
 若 slash command 不可用或撞名，請改用：
@@ -292,6 +299,7 @@ openclaw skills info gov_apply
 /skill gov_migrate
 /skill gov_audit
 /skill gov_apply 01
+/skill gov_platform_change
 ```
 
 命名說明：本插件只保留一個安裝/部署入口：`gov_setup`。
@@ -339,7 +347,8 @@ openclaw skills info gov_apply
 │  ├─ gov_setup/SKILL.md
 │  ├─ gov_migrate/SKILL.md
 │  ├─ gov_audit/SKILL.md
-│  └─ gov_apply/SKILL.md
+│  ├─ gov_apply/SKILL.md
+│  └─ gov_platform_change/SKILL.md
 └─ clawhub/
    └─ openclaw-workspace-governance-installer/SKILL.md
 ```
@@ -396,6 +405,10 @@ OpenClaw 的 plugin 安裝流程會把套件下載並解壓到 extensions，之�
 1. `/gov_setup check`（確認狀態）
 2. 若顯示 `NOT_INSTALLED`：`/gov_setup install`
 3. 完成後：`/gov_migrate` -> `/gov_audit`
+
+### Q13. 我需要改 `~/.openclaw/openclaw.json`，可否直接用 patch 工具？
+不建議。這屬平台控制面 Mode C 變更。  
+請用 `/gov_platform_change`（或 `/skill gov_platform_change`），確保備份、驗證、回退證據完整。
 
 ---
 

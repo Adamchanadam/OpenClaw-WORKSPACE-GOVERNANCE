@@ -100,6 +100,7 @@ Mode routing (to avoid confusion):
 2. Daily operations: `/gov_migrate`, `/gov_audit`
 3. BOOT upgrades: `/gov_apply <NN>`
 4. Asset deployment and updates: `/gov_setup install|upgrade|check`
+5. Platform config safety gate: `/gov_platform_change`
 
 ---
 
@@ -119,6 +120,9 @@ To reduce risks like incorrect commands, date/time mistakes, and path drift, thi
    - Verify runtime current time context first (session status), then answer with absolute dates.
 4. Path compatibility:
    - Use runtime `<workspace-root>`; treat `~/.openclaw/workspace` as a common default, not a fixed assumption.
+5. Platform control-plane changes:
+   - Any `~/.openclaw/openclaw.json` change is Mode C and must run full gates.
+   - Use `gov_platform_change` as the execution entrypoint (with backup/validate/rollback evidence).
 5. BOOT apply effectiveness:
    - After `/gov_apply <NN>`, record before/after indicators; if no measurable improvement is shown, mark outcome as `PARTIAL` and keep follow-up actions.
 
@@ -214,6 +218,7 @@ openclaw skills info gov_setup
 openclaw skills info gov_migrate
 openclaw skills info gov_audit
 openclaw skills info gov_apply
+openclaw skills info gov_platform_change
 ```
 
 ### Step 2: Send a natural-language request in OpenClaw TUI (not slash)
@@ -269,6 +274,7 @@ Recommended next action:
 2. Run `/gov_migrate`.
 3. Run `/gov_audit`.
 4. When BOOT provides numbered proposals, run `/gov_apply <NN>`, then run `/gov_audit` again.
+5. If the task changes `~/.openclaw/openclaw.json`, run `/gov_platform_change` (or `/skill gov_platform_change`) instead of direct config patching.
 
 ---
 
@@ -281,6 +287,7 @@ Recommended next action:
 /gov_migrate         # Apply governance upgrades
 /gov_audit           # Run consistency checks
 /gov_apply <NN>      # Apply BOOT numbered proposal
+/gov_platform_change # Controlled platform config change (backup/validate/rollback)
 ```
 
 If slash command is unavailable or name-collided, use:
@@ -292,6 +299,7 @@ If slash command is unavailable or name-collided, use:
 /skill gov_migrate
 /skill gov_audit
 /skill gov_apply 01
+/skill gov_platform_change
 ```
 
 Naming note: this plugin keeps a single install/deploy entry: `gov_setup`.
@@ -339,7 +347,8 @@ When `boot-md` is enabled, the recommended flow is:
 │  ├─ gov_setup/SKILL.md
 │  ├─ gov_migrate/SKILL.md
 │  ├─ gov_audit/SKILL.md
-│  └─ gov_apply/SKILL.md
+│  ├─ gov_apply/SKILL.md
+│  └─ gov_platform_change/SKILL.md
 └─ clawhub/
    └─ openclaw-workspace-governance-installer/SKILL.md
 ```
@@ -396,6 +405,10 @@ Fastest path after install:
 1. `/gov_setup check` (detect current status)
 2. If status is `NOT_INSTALLED`: `/gov_setup install`
 3. Then: `/gov_migrate` -> `/gov_audit`
+
+### Q13. I need to edit `~/.openclaw/openclaw.json`. Should I use direct patch tools?
+No. Treat it as a platform Mode C governance change.  
+Use `/gov_platform_change` (or `/skill gov_platform_change`) so backup, validation, and rollback evidence are recorded.
 
 ---
 

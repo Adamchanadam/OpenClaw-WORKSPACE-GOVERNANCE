@@ -22,6 +22,7 @@ Execute the migration workflow defined by:
    - official releases at `https://github.com/openclaw/openclaw/releases` for latest/version-sensitive claims
    - if verification cannot be completed, report uncertainty and required next check; do not infer
 7. For date/time-sensitive claims, verify runtime current time context first (session status).
+8. If the operator asks to change platform control-plane state (for example `~/.openclaw/openclaw.json`), route execution to `gov_platform_change` and do not patch platform files inside `gov_migrate`.
 
 ## Fallback
 - If slash command is unavailable or name-collided, use:

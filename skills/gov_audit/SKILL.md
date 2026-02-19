@@ -20,6 +20,10 @@ Perform governance integrity checks after bootstrap, migration, or apply.
    - OpenClaw system claims must cite `https://docs.openclaw.ai` sources
    - latest/version-sensitive OpenClaw claims must also cite `https://github.com/openclaw/openclaw/releases` sources
    - date/time claims must include runtime current time evidence (session status)
+6. If a run includes platform control-plane changes, verify:
+   - backup path exists under `archive/_platform_backup_<ts>/...`
+   - before/after key excerpts are present
+   - change was executed via `gov_platform_change` path (or equivalent documented fallback)
 
 ## Persistence
 - Write audit result into `_runs/` when the active governance flow requires persistence.

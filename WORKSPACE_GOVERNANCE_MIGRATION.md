@@ -8,7 +8,7 @@ Apply the latest governance hardening to an ALREADY-RUNNING workspace without de
 - Ensure `BOOT.md` exists for startup read-only audit (boot-md hook).
 - Ensure `prompts/governance/APPLY_UPGRADE_FROM_BOOT.md` exists (guided runner for BOOT upgrade menu approvals).
 - Ensure governance command entrypoints exist as user-invocable skills:
-  - `gov_migrate` / `gov_audit` / `gov_apply <NN>` (backed by `skills/gov_migrate/`, `skills/gov_audit/`, `skills/gov_apply/`).
+  - `gov_migrate` / `gov_audit` / `gov_apply <NN>` / `gov_platform_change` (backed by `skills/gov_migrate/`, `skills/gov_audit/`, `skills/gov_apply/`, `skills/gov_platform_change/`).
   - Slash commands should be invoked as standalone command messages.
   - If slash command is unavailable or name-collided, use `/skill <name> [input]` fallback.
 
@@ -20,6 +20,7 @@ RUNTIME MODES (Hard)
     - If the claim is latest/version-sensitive, MUST also verify official releases at `https://github.com/openclaw/openclaw/releases`.
   - Mode B3 (Date/time topics): MUST verify current time context first (use runtime session status), then answer with explicit absolute date when relevant.
 - Mode C (Governance change): any write/update/save/persist operation; MUST run PLAN → READ → CHANGE → QC → PERSIST.
+  - Platform control-plane changes (for example `~/.openclaw/openclaw.json`) MUST be routed through `gov_platform_change` (or `/skill gov_platform_change`) as the execution entrypoint.
 
 PATH COMPATIBILITY CONTRACT (Hard)
 - Treat workspace root as runtime-resolved `<workspace-root>`.
@@ -70,6 +71,7 @@ B) Patch targets (ONLY these paths are allowed to be modified by this migration)
    - `skills/gov_migrate/SKILL.md` (create if missing; if exists and differs from canonical, STOP and report conflict)
    - `skills/gov_audit/SKILL.md` (create if missing; if exists and differs from canonical, STOP and report conflict)
    - `skills/gov_apply/SKILL.md` (create if missing; if exists and differs from canonical, STOP and report conflict)
+   - `skills/gov_platform_change/SKILL.md` (create if missing; if exists and differs from canonical, STOP and report conflict)
 
 C) Any other file/folder:
    - DO NOT overwrite/move/delete. Non-destructive.
@@ -101,6 +103,7 @@ HARD ORDER (NO SKIP)
      - `skills/gov_migrate/SKILL.md` (if present)
      - `skills/gov_audit/SKILL.md` (if present)
      - `skills/gov_apply/SKILL.md` (if present)
+     - `skills/gov_platform_change/SKILL.md` (if present)
      - Relevant Brain Docs when the task implies persistence/user-profile/timezone: `USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`
    - If task content includes OpenClaw system topics (commands/config/plugins/skills/hooks/path defaults):
      - Read relevant local skill docs first (`skills/*/SKILL.md` that map to the operation).
@@ -120,7 +123,7 @@ HARD ORDER (NO SKIP)
        - `_control/REGRESSION_CHECK.md`: ensure AUTOGEN block `REGRESSION_12_v1` exists exactly once; replace its content with canonical content extracted per "CANONICAL SOURCE (hard)" mapping rules.
        - `_control/WORKSPACE_INDEX.md`: ensure it contains links to:
          `./ACTIVE_GUARDS.md`, `./LESSONS.md`, `../BOOT.md`, `../prompts/governance/WORKSPACE_GOVERNANCE_MIGRATION.md`, `../prompts/governance/APPLY_UPGRADE_FROM_BOOT.md`,
-         `../skills/gov_migrate/`, `../skills/gov_audit/`, `../skills/gov_apply/`
+        `../skills/gov_migrate/`, `../skills/gov_audit/`, `../skills/gov_apply/`, `../skills/gov_platform_change/`
          Add missing links only; do not remove existing content.
        - `_control/PRESETS.md`:
          - If it matches an older known payload: backup and overwrite with canonical payload.
@@ -132,7 +135,7 @@ HARD ORDER (NO SKIP)
        - `prompts/governance/APPLY_UPGRADE_FROM_BOOT.md`:
          - If missing: create it using canonical payload.
          - If present: overwrite only if it matches an older known payload; otherwise STOP and output a conflict report (do not overwrite).
-       - `skills/gov_migrate/SKILL.md`, `skills/gov_audit/SKILL.md`, `skills/gov_apply/SKILL.md`:
+      - `skills/gov_migrate/SKILL.md`, `skills/gov_audit/SKILL.md`, `skills/gov_apply/SKILL.md`, `skills/gov_platform_change/SKILL.md`:
          - If missing: create each using canonical payload (create directories as needed).
          - If present: compare against canonical payload; if any differs, STOP and output a conflict report (do not overwrite).
        - `BOOT.md`:
@@ -148,7 +151,7 @@ HARD ORDER (NO SKIP)
      - Confirm `AGENTS.md` contains the PLAN-first rule, PERSISTENCE trigger, and No-Write guardrail.
      - Confirm `_control/GOVERNANCE_BOOTSTRAP.md` contains the learning loop rule (Guards + Lessons) and the 5-gate lifecycle.
      - Confirm `_control/REGRESSION_CHECK.md` still has 12 items + fixed denominator rule.
-     - Confirm `_control/WORKSPACE_INDEX.md` includes Active Guards + Lessons + Boot audit + Migration kit + Boot+Apply runner + governance command shortcuts (`/gov_migrate`, `/gov_audit`, `/gov_apply <NN>`).
+    - Confirm `_control/WORKSPACE_INDEX.md` includes Active Guards + Lessons + Boot audit + Migration kit + Boot+Apply runner + governance command shortcuts (`/gov_migrate`, `/gov_audit`, `/gov_apply <NN>`, `/gov_platform_change`).
    - System-truth self-check (Fail-Closed):
      - If this run makes OpenClaw system claims, run report must include source URLs from `https://docs.openclaw.ai`.
      - If this run makes latest/version-sensitive OpenClaw claims, run report must include source URLs from `https://github.com/openclaw/openclaw/releases`.

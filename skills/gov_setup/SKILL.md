@@ -52,6 +52,9 @@ Deploy this plugin's governance prompt assets into the current workspace at `pro
    - If verification cannot be completed, report uncertainty and required next check; do not infer.
 9. If operator asks date/time-sensitive setup questions:
    - Verify runtime current time context (session status) before answering.
+10. If operator asks to patch platform control-plane config (for example `~/.openclaw/openclaw.json`) during setup:
+   - do not patch inside `gov_setup`
+   - route to `gov_platform_change`
 
 ## Output requirements
 - Report source root, target root, files copied (or checked), and backup path if created.

@@ -44,6 +44,7 @@ Extra controls:
 1. System claims: verify local skills + `https://docs.openclaw.ai`.
 2. Latest/version-sensitive claims: also verify `https://github.com/openclaw/openclaw/releases`.
 3. Date/time claims: verify runtime current time context first.
+4. Platform control-plane changes (`~/.openclaw/openclaw.json`) are Mode C and should use `gov_platform_change` as the execution entrypoint.
 
 ## 5) Packaging and Entry Points
 
@@ -52,6 +53,7 @@ Primary plugin skills:
 2. `gov_migrate`
 3. `gov_audit`
 4. `gov_apply <NN>`
+5. `gov_platform_change`
 
 Key behavior:
 1. `openclaw plugins install ...` installs plugin under extensions.
@@ -67,6 +69,7 @@ Key behavior:
 3. Running workspace, governance already installed:
    - `gov_setup upgrade` -> `gov_migrate` -> `gov_audit`
    - when BOOT provides numbered proposals: `gov_apply <NN>`
+   - for platform config edits: `gov_platform_change`
 
 ## 7) BOOT Controlled Apply
 

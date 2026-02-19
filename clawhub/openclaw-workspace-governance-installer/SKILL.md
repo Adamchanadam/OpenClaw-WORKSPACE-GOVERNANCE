@@ -40,6 +40,7 @@ In OpenClaw chat:
 2. `gov_migrate` for governance upgrades.
 3. `gov_audit` for 12/12 consistency checks.
 4. `gov_apply <NN>` for controlled BOOT proposal apply.
+5. `gov_platform_change` for controlled `~/.openclaw/openclaw.json` updates.
 
 ## First-run status map
 After `/gov_setup check`:
