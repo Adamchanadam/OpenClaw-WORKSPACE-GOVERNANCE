@@ -23,8 +23,13 @@ Execute the migration workflow defined by:
    - if verification cannot be completed, report uncertainty and required next check; do not infer
 7. For date/time-sensitive claims, verify runtime current time context first (session status).
 8. If the operator asks to change platform control-plane state (for example `~/.openclaw/openclaw.json`), route execution to `gov_platform_change` and do not patch platform files inside `gov_migrate`.
+9. Brain Docs routing:
+   - If the task touches Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`), treat read-only asks as Mode B and any write/update as Mode C.
+   - For Brain Docs writes, missing READ evidence is fail-closed.
 
 ## Output requirements
+- Include `FILES_READ` (exact paths) and `TARGET_FILES_TO_CHANGE` (exact paths).
+- If either field is missing, output `BLOCKED (missing read/change evidence)` and stop.
 - Always include a final `NEXT STEP (Operator)` section.
 - If migration PASS:
   - primary: `/gov_audit`

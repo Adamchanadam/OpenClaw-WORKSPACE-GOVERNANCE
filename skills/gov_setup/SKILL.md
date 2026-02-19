@@ -13,6 +13,12 @@ Deploy this plugin's governance prompt assets into the current workspace at `pro
 ## Inputs
 - Optional mode: `install` (default), `upgrade`, or `check`.
 
+## Brain Docs routing (hard)
+When the request touches Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`):
+1. Read-only ask -> Mode B (verified answer): read the exact target files before answering.
+2. Any write/update request -> Mode C: full governance lifecycle is mandatory.
+3. If the same request also includes OpenClaw system claims, apply Mode B2 verification (`docs.openclaw.ai` + releases when version-sensitive).
+
 ## Required behavior
 1. Resolve plugin root from this skill directory:
    - `plugin_root = {baseDir}/../..`
@@ -59,6 +65,8 @@ Deploy this plugin's governance prompt assets into the current workspace at `pro
 ## Output requirements
 - Report source root, target root, files copied (or checked), and backup path if created.
 - If any required source file is missing, stop and report missing paths.
+- Include `FILES_READ` (exact paths) and `TARGET_FILES_TO_CHANGE` (exact paths, or `none` for read-only `check`).
+- If required evidence fields are missing, output `BLOCKED (missing read/change evidence)` instead of completion.
 - Always include a final `NEXT STEP (Operator)` section with:
   - one primary command
   - one fallback `/skill ...` command

@@ -19,7 +19,9 @@ RUNTIME MODES (Hard)
   - Mode B2 (OpenClaw system topics): MUST read relevant local skills/docs AND verify using official docs at `https://docs.openclaw.ai` before answering.
     - If the claim is latest/version-sensitive, MUST also verify official releases at `https://github.com/openclaw/openclaw/releases`.
   - Mode B3 (Date/time topics): MUST verify current time context first (use runtime session status), then answer with explicit absolute date when relevant.
+  - Brain Docs read-only checks: when answering about `USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, or `memory/*.md`, MUST read the exact target files first and cite them in run-report evidence.
 - Mode C (Governance change): any write/update/save/persist operation; MUST run PLAN → READ → CHANGE → QC → PERSIST.
+  - Any create/update to Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`) is Mode C and must include explicit read evidence before write.
   - Platform control-plane changes (for example `~/.openclaw/openclaw.json`) MUST be routed through `gov_platform_change` (or `/skill gov_platform_change`) as the execution entrypoint.
 
 PATH COMPATIBILITY CONTRACT (Hard)
@@ -104,7 +106,8 @@ HARD ORDER (NO SKIP)
      - `skills/gov_audit/SKILL.md` (if present)
      - `skills/gov_apply/SKILL.md` (if present)
      - `skills/gov_platform_change/SKILL.md` (if present)
-     - Relevant Brain Docs when the task implies persistence/user-profile/timezone: `USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`
+    - Relevant Brain Docs when the task implies persistence/user-profile/timezone or directly targets Brain Docs: `USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/YYYY-MM-DD.md` (if present)
+      - If target files include any Brain Docs path, read those exact files before change and record exact paths under `FILES_READ`.
    - If task content includes OpenClaw system topics (commands/config/plugins/skills/hooks/path defaults):
      - Read relevant local skill docs first (`skills/*/SKILL.md` that map to the operation).
      - Verify claims against official docs at `https://docs.openclaw.ai` and record source URLs in the run report.
@@ -156,6 +159,11 @@ HARD ORDER (NO SKIP)
      - If this run makes OpenClaw system claims, run report must include source URLs from `https://docs.openclaw.ai`.
      - If this run makes latest/version-sensitive OpenClaw claims, run report must include source URLs from `https://github.com/openclaw/openclaw/releases`.
      - If this run makes date/time claims, run report must include runtime-verified absolute date/time evidence (from session status).
+   - Brain Docs evidence self-check (Fail-Closed):
+     - If this run touches Brain Docs, run report must include:
+       - `FILES_READ` with exact Brain Docs paths
+       - `TARGET_FILES_TO_CHANGE` with exact paths (or `none` for read-only runs)
+     - Missing either field => STOP and output Blocked/Remediation.
    - Path-compatibility self-check (Fail-Closed):
      - No hardcoded `~/.openclaw/workspace/...` path assumptions in changed content.
    - Canonical equality check (Fail-Closed):
@@ -171,6 +179,8 @@ HARD ORDER (NO SKIP)
    - Run report must include:
      - summary + `<ts>`
      - backup paths created
+     - `FILES_READ` (exact paths)
+     - `TARGET_FILES_TO_CHANGE` (exact paths; use `none` for read-only)
      - files patched (paths) + before/after excerpts (AUTOGEN blocks)
      - QC results 12/12 with evidence
      - final tree view (only top-level + `_control/` + `prompts/governance/`)

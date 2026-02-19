@@ -128,6 +128,9 @@ Fail-Closed 原則：
    - 執行入口必須使用 `gov_platform_change`，並保留備份/驗證/回退證據。
 6. BOOT 套用成效：
    - `/gov_apply <NN>` 後要記錄前後指標；若無可衡量改善，結果應標記為 `PARTIAL`，並保留後續修正動作。
+7. Brain Docs 路由：
+   - 對 Brain Docs 的只讀問題（`USER.md`、`IDENTITY.md`、`TOOLS.md`、`SOUL.md`、`MEMORY.md`、`HEARTBEAT.md`、`memory/*.md`）必須先讀取目標檔案。
+   - 任何 Brain Docs 寫入/更新都屬 Mode C，run report 必須包含 `FILES_READ` 與 `TARGET_FILES_TO_CHANGE` 證據；缺一即 Blocked。
 
 ---
 

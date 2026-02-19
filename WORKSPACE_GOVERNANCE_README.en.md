@@ -48,7 +48,10 @@ Extra controls:
 1. System claims: verify local skills + `https://docs.openclaw.ai`.
 2. Latest/version-sensitive claims: also verify `https://github.com/openclaw/openclaw/releases`.
 3. Date/time claims: verify runtime current time context first.
-4. Platform control-plane changes (`~/.openclaw/openclaw.json`) are Mode C and should use `gov_platform_change` as the execution entrypoint.
+4. Brain Docs routing:
+   - Read-only questions on `USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, or `memory/*.md` must read exact target files first.
+   - Any Brain Docs write/update is Mode C and run report must include `FILES_READ` + `TARGET_FILES_TO_CHANGE` (missing either field is blocked).
+5. Platform control-plane changes (`~/.openclaw/openclaw.json`) are Mode C and should use `gov_platform_change` as the execution entrypoint.
 
 ## 5) Packaging and Entry Points
 

@@ -97,13 +97,16 @@ OpenClaw 預設使用單一工作區目錄作為代理的工作目錄（workspac
    - 不足依據時必須回覆不確定與下一步查證，不可猜測。
 3. Mode B3（日期時間題）：
    - 先核對 runtime 當前時間（session status），再以絕對日期表達結論，避免「今日/今年」漂移誤判。
-4. 路徑相容契約：
+4. Brain Docs 路由（關鍵）：
+   - 只讀查詢 `USER.md`、`IDENTITY.md`、`TOOLS.md`、`SOUL.md`、`MEMORY.md`、`HEARTBEAT.md`、`memory/*.md` 時，必須先讀目標檔案再回答。
+   - 任何 Brain Docs 寫入/更新都屬 Mode C，run report 必須有 `FILES_READ` 與 `TARGET_FILES_TO_CHANGE`（缺一即 Blocked）。
+5. 路徑相容契約：
    - 一律以 runtime `<workspace-root>` 為準。
    - `~/.openclaw/workspace` 只是常見預設，不是硬編碼依據。
-5. 平台控制面變更（關鍵）：
+6. 平台控制面變更（關鍵）：
    - 任何 `~/.openclaw/openclaw.json` 變更都屬 Mode C。
    - 必須以 `gov_platform_change` 作入口，不可直接跳過治理流程改動 config。
-6. BOOT 套用成效：
+7. BOOT 套用成效：
    - `/gov_apply <NN>` 後必須記錄前後指標；若沒有可衡量改善，結果只能標記 `PARTIAL`，不可宣稱完全解決。
 
 ---

@@ -41,12 +41,14 @@ If request does not provide enough detail, ask for missing fields before any pat
 ## Output contract
 Always report:
 1. workspace root
-2. target platform path
-3. backup path
-4. changed key paths
-5. validation result
-6. rollback result (if triggered)
-7. `NEXT STEP (Operator)`:
+2. `FILES_READ` (exact paths)
+3. `TARGET_FILES_TO_CHANGE` (exact paths)
+4. target platform path
+5. backup path
+6. changed key paths
+7. validation result
+8. rollback result (if triggered)
+9. `NEXT STEP (Operator)`:
    - if PASS: `/gov_audit` (fallback: `/skill gov_audit`)
    - if FAIL/BLOCKED: one unblock action + retry command
 

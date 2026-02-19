@@ -24,6 +24,10 @@ Perform governance integrity checks after bootstrap, migration, or apply.
    - backup path exists under `archive/_platform_backup_<ts>/...`
    - before/after key excerpts are present
    - change was executed via `gov_platform_change` path (or equivalent documented fallback)
+7. If a run touches Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`), verify run report includes:
+   - `FILES_READ` exact paths
+   - `TARGET_FILES_TO_CHANGE` exact paths (or `none` for read-only)
+   Missing either field => FAIL (evidence incomplete).
 
 ## Persistence
 - Write audit result into `_runs/` when the active governance flow requires persistence.

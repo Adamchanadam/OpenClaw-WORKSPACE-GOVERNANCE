@@ -128,6 +128,9 @@ To reduce risks like incorrect commands, date/time mistakes, and path drift, thi
    - Use `gov_platform_change` as the execution entrypoint (with backup/validate/rollback evidence).
 6. BOOT apply effectiveness:
    - After `/gov_apply <NN>`, record before/after indicators; if no measurable improvement is shown, mark outcome as `PARTIAL` and keep follow-up actions.
+7. Brain Docs routing:
+   - Brain Docs read-only questions must read exact target files first (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`).
+   - Any Brain Docs write/update is Mode C and must include `FILES_READ` + `TARGET_FILES_TO_CHANGE` evidence in run report; missing evidence is blocked.
 
 ---
 
