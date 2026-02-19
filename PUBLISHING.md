@@ -47,7 +47,13 @@ npm publish --access public
 4. Verify plugin install from OpenClaw CLI:
 
 ```text
+# First-time install path
 openclaw plugins install @adamchanadam/openclaw-workspace-governance@<version>
+
+# Existing installation upgrade path
+openclaw plugins update openclaw-workspace-governance
+openclaw gateway restart
+
 openclaw plugins enable openclaw-workspace-governance
 openclaw plugins list
 openclaw skills list --eligible
@@ -55,16 +61,16 @@ openclaw skills list --eligible
 
 ## 4. Publish Installer Skill to ClawHub
 
-From repository root, publish installer folder:
+From repository root, publish installer folder only (avoid broad sync that may publish unrelated local skills):
 
 ```text
-clawhub sync ./clawhub/openclaw-workspace-governance-installer
+npx clawhub publish ./clawhub/openclaw-workspace-governance-installer --version <x.y.z> --changelog "<what changed>" --tags latest
 ```
 
-Recommended validation before sync:
+Recommended validation before/after publish:
 
 ```text
-clawhub inspect ./clawhub/openclaw-workspace-governance-installer
+npx clawhub inspect openclaw-workspace-governance-installer --versions --json
 ```
 
 ## 5. Post-Release Validation
@@ -74,6 +80,7 @@ clawhub inspect ./clawhub/openclaw-workspace-governance-installer
 3. Run:
    - `/gov_setup check`
    - `/gov_setup install` (first adoption) OR `/gov_setup upgrade` (existing workspace)
+   - `openclaw plugins update openclaw-workspace-governance` + `openclaw gateway restart` for existing installed users
    - `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md` (new workspace case)
    - `/gov_migrate` and `/gov_audit` (running workspace case)
 4. Confirm BOOT flow:
@@ -87,6 +94,8 @@ If a bad release is detected:
 1. Pin users to previous stable version:
 
 ```text
+# If plugin already exists locally, uninstall first
+openclaw plugins uninstall openclaw-workspace-governance
 openclaw plugins install @adamchanadam/openclaw-workspace-governance@<previous_version>
 ```
 

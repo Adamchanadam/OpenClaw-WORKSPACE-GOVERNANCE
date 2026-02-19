@@ -10,13 +10,14 @@
 
 建議安裝順序：
 
-1. 安裝並啟用 Plugin。
-2. 在 OpenClaw 對話中執行 `gov_setup` 模式：
+1. 首次安裝：`openclaw plugins install @adamchanadam/openclaw-workspace-governance@latest`，再啟用 plugin。
+2. 已安裝升級：`openclaw plugins update openclaw-workspace-governance`，然後 `openclaw gateway restart`。
+3. 在 OpenClaw 對話中執行 `gov_setup` 模式：
    - `/gov_setup install`（首次部署）
    - `/gov_setup upgrade`（升級既有治理資產）
    - `/gov_setup check`（只檢查，不寫入）
    由技能自動處理 `<workspace-root>/prompts/governance/`。
-3. 依工作區狀態執行 Bootstrap 或 Migration/Audit。
+4. 依工作區狀態執行 Bootstrap 或 Migration/Audit。
 
 ---
 
@@ -279,7 +280,8 @@ OpenClaw 預設使用單一工作區目錄作為代理的工作目錄（workspac
 
 **Step 1：Migration（套用升級）**
 
-* 若剛更新 plugin 版本，先執行 `/gov_setup upgrade`（或 `/skill gov_setup upgrade`）。
+* 先在主機端執行 `openclaw plugins update openclaw-workspace-governance`，然後 `openclaw gateway restart`。
+* 再執行 `/gov_setup upgrade`（或 `/skill gov_setup upgrade`）。
 * 然後執行：以獨立訊息送出 `/gov_migrate`；如不可用，改用 `/skill gov_migrate`。
 
 **Step 2：Audit（只讀核對是否一致）**

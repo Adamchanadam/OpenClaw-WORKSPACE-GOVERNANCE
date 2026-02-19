@@ -135,19 +135,26 @@ To reduce risks like incorrect commands, date/time mistakes, and path drift, thi
 
 ### Option A (Recommended): Install Plugin Directly
 
-1. Install:
+1. First-time install:
 
 ```text
 openclaw plugins install @adamchanadam/openclaw-workspace-governance@latest
 ```
 
-2. Enable:
+2. If already installed, upgrade instead of install:
+
+```text
+openclaw plugins update openclaw-workspace-governance
+openclaw gateway restart
+```
+
+3. Ensure enabled:
 
 ```text
 openclaw plugins enable openclaw-workspace-governance
 ```
 
-3. Verify:
+4. Verify:
 
 ```text
 openclaw plugins list
@@ -167,7 +174,7 @@ After installer setup, follow its guidance to install and enable the plugin.
 
 ## First Deployment
 
-After installation, run in OpenClaw chat:
+After first-time plugin installation, run in OpenClaw chat:
 
 ```text
 /gov_setup install
@@ -182,6 +189,23 @@ If slash command is unavailable or name-collided, use:
 ```
 
 Note: `plugins install` only installs the plugin under extensions. Governance prompt assets are deployed to `<workspace-root>/prompts/governance/` only after `gov_setup install`.
+
+## Plugin Upgrade (Already Installed)
+
+For users already running this plugin, use update (not install):
+
+```text
+openclaw plugins update openclaw-workspace-governance
+openclaw gateway restart
+```
+
+Then run:
+
+```text
+/gov_setup upgrade
+/gov_migrate
+/gov_audit
+```
 
 ## `gov_setup` Modes (Important)
 
@@ -202,9 +226,11 @@ If slash command is unavailable, use:
 ```
 
 Recommended update flow (after plugin version upgrade):
-1. `gov_setup upgrade`
-2. `gov_migrate`
-3. `gov_audit`
+1. `openclaw plugins update openclaw-workspace-governance`
+2. `openclaw gateway restart`
+3. `gov_setup upgrade`
+4. `gov_migrate`
+5. `gov_audit`
 
 ---
 
@@ -273,11 +299,12 @@ Recommended next action:
 
 ### Scenario C: Governance Already Installed (Daily Maintenance)
 
-1. If plugin was just updated, run `/gov_setup upgrade` first.
-2. Run `/gov_migrate`.
-3. Run `/gov_audit`.
-4. When BOOT provides numbered proposals, run `/gov_apply <NN>`, then run `/gov_audit` again.
-5. If the task changes `~/.openclaw/openclaw.json`, run `/gov_platform_change` (or `/skill gov_platform_change`) instead of direct config patching.
+1. Update plugin from host shell: `openclaw plugins update openclaw-workspace-governance` then `openclaw gateway restart`.
+2. Run `/gov_setup upgrade`.
+3. Run `/gov_migrate`.
+4. Run `/gov_audit`.
+5. When BOOT provides numbered proposals, run `/gov_apply <NN>`, then run `/gov_audit` again.
+6. If the task changes `~/.openclaw/openclaw.json`, run `/gov_platform_change` (or `/skill gov_platform_change`) instead of direct config patching.
 
 ---
 
@@ -391,7 +418,11 @@ Only after BOOT has produced numbered proposals and the approval step is complet
 Reinstall a pinned plugin version, then run `/gov_setup install` and `/gov_audit` to restore and verify consistency.
 
 ### Q8. After upgrading plugin version, how do I apply changes to workspace?
-Use this flow: `/gov_setup upgrade` -> `/gov_migrate` -> `/gov_audit`. The `upgrade` mode creates backup first, then updates governance prompts.
+Use this flow:
+1. `openclaw plugins update openclaw-workspace-governance`
+2. `openclaw gateway restart`
+3. `/gov_setup upgrade` -> `/gov_migrate` -> `/gov_audit`
+The `upgrade` mode creates backup first, then updates governance prompts.
 
 ### Q9. Why must OpenClaw system questions be verified against official docs?
 Because these are system-truth claims (commands, config, hooks, skills, plugins). Verify against `docs.openclaw.ai` first; for latest/version-sensitive claims, also verify official releases, to prevent outdated or invalid instructions from entering runtime configuration.

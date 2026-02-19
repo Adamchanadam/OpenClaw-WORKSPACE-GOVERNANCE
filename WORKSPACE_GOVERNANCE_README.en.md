@@ -60,9 +60,10 @@ Primary plugin skills:
 5. `gov_platform_change`
 
 Key behavior:
-1. `openclaw plugins install ...` installs plugin under extensions.
-2. Governance prompt assets are deployed into workspace only after `gov_setup install`.
-3. `gov_setup check` returns `NOT_INSTALLED` / `PARTIAL` / `READY` with next action.
+1. First-time use: `openclaw plugins install ...` installs plugin under extensions.
+2. Already installed: use `openclaw plugins update openclaw-workspace-governance` (do not use install again), then restart gateway.
+3. Governance prompt assets are deployed into workspace only after `gov_setup install` or `gov_setup upgrade`.
+4. `gov_setup check` returns `NOT_INSTALLED` / `PARTIAL` / `READY` with next action.
 
 ## 6) Three Usage Scenarios
 
@@ -71,6 +72,7 @@ Key behavior:
 2. Running workspace, first-time governance adoption:
    - `gov_setup install` -> Bootstrap/Migration path -> `gov_audit`
 3. Running workspace, governance already installed:
+   - `openclaw plugins update openclaw-workspace-governance` -> `openclaw gateway restart`
    - `gov_setup upgrade` -> `gov_migrate` -> `gov_audit`
    - when BOOT provides numbered proposals: `gov_apply <NN>`
    - for platform config edits: `gov_platform_change`

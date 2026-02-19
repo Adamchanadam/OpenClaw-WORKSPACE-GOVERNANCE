@@ -135,19 +135,26 @@ Fail-Closed 原則：
 
 ### 方式 A（推薦）：直接安裝 Plugin
 
-1. 安裝：
+1. 首次安裝：
 
 ```text
 openclaw plugins install @adamchanadam/openclaw-workspace-governance@latest
 ```
 
-2. 啟用：
+2. 如已安裝，請用更新（不要再用 install）：
+
+```text
+openclaw plugins update openclaw-workspace-governance
+openclaw gateway restart
+```
+
+3. 確認啟用：
 
 ```text
 openclaw plugins enable openclaw-workspace-governance
 ```
 
-3. 驗證：
+4. 驗證：
 
 ```text
 openclaw plugins list
@@ -167,7 +174,7 @@ clawhub install Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/clawhub/openclaw-work
 
 ## 首次部署
 
-安裝完成後，在 OpenClaw 對話中執行：
+首次安裝 plugin 後，在 OpenClaw 對話中執行：
 
 ```text
 /gov_setup install
@@ -182,6 +189,23 @@ clawhub install Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/clawhub/openclaw-work
 ```
 
 說明：`plugins install` 只安裝 plugin 到 extensions；治理 prompts 需由 `gov_setup install` 部署到 `<workspace-root>/prompts/governance/`。
+
+## 已安裝用戶升級（重要）
+
+已在使用本插件的工作區，請先更新 plugin（不是 install）：
+
+```text
+openclaw plugins update openclaw-workspace-governance
+openclaw gateway restart
+```
+
+然後執行：
+
+```text
+/gov_setup upgrade
+/gov_migrate
+/gov_audit
+```
 
 ## `gov_setup` 三種模式（重要）
 
@@ -202,9 +226,11 @@ clawhub install Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/clawhub/openclaw-work
 ```
 
 建議升級路線（plugin 更新後）：
-1. `gov_setup upgrade`
-2. `gov_migrate`
-3. `gov_audit`
+1. `openclaw plugins update openclaw-workspace-governance`
+2. `openclaw gateway restart`
+3. `gov_setup upgrade`
+4. `gov_migrate`
+5. `gov_audit`
 
 ---
 
@@ -273,11 +299,12 @@ openclaw skills info gov_platform_change
 
 ### 場景 C：已導入治理方案（日常維護）
 
-1. 若剛更新 plugin 版本，先執行 `/gov_setup upgrade`。
-2. 執行 `/gov_migrate`。
-3. 執行 `/gov_audit`。
-4. 當 BOOT 提供編號提案時，執行 `/gov_apply <NN>`，並在完成後再次執行 `/gov_audit`。
-5. 若任務涉及 `~/.openclaw/openclaw.json` 變更，改用 `/gov_platform_change`（或 `/skill gov_platform_change`），不可直接 patch config。
+1. 先在主機端更新 plugin：`openclaw plugins update openclaw-workspace-governance`，再執行 `openclaw gateway restart`。
+2. 執行 `/gov_setup upgrade`。
+3. 執行 `/gov_migrate`。
+4. 執行 `/gov_audit`。
+5. 當 BOOT 提供編號提案時，執行 `/gov_apply <NN>`，並在完成後再次執行 `/gov_audit`。
+6. 若任務涉及 `~/.openclaw/openclaw.json` 變更，改用 `/gov_platform_change`（或 `/skill gov_platform_change`），不可直接 patch config。
 
 ---
 
@@ -391,7 +418,11 @@ openclaw skills info gov_platform_change
 可重新安裝指定 plugin 版本（pin version），再執行 `/gov_setup install` 與 `/gov_audit` 完成回退與一致性確認。
 
 ### Q8. 更新到新 plugin 版本後，應如何套用到 workspace？
-建議固定流程：`/gov_setup upgrade` -> `/gov_migrate` -> `/gov_audit`。其中 `upgrade` 會先建立備份，再更新 governance prompts。
+建議固定流程：
+1. `openclaw plugins update openclaw-workspace-governance`
+2. `openclaw gateway restart`
+3. `/gov_setup upgrade` -> `/gov_migrate` -> `/gov_audit`
+其中 `upgrade` 會先建立備份，再更新 governance prompts。
 
 ### Q9. 回答 OpenClaw 系統問題時，為何要先查官方文檔？
 因為此類問題屬於系統事實（例如指令、設定、hooks、skills、plugins）。回答前要先核對 `docs.openclaw.ai`；如涉及最新版本或版本差異，還要核對官方 Releases，避免把過時或錯誤指令寫入系統配置。
