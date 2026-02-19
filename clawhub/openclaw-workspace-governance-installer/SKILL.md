@@ -56,7 +56,18 @@ Then in OpenClaw chat:
 2. `gov_migrate` for governance upgrades.
 3. `gov_audit` for 12/12 consistency checks.
 4. `gov_apply <NN>` for controlled BOOT proposal apply.
-5. `gov_platform_change` for controlled `~/.openclaw/openclaw.json` updates.
+5. `gov_platform_change` for controlled platform control-plane updates:
+   - in scope: `~/.openclaw/openclaw.json`
+   - in scope when explicitly needed: `~/.openclaw/extensions/`
+   - not for Brain Docs (`USER.md`, `SOUL.md`, `memory/*.md`) or normal workspace docs
+
+## When to use which command (quick map)
+1. New setup in workspace: `gov_setup install`
+2. Upgrade existing governance assets: `gov_setup upgrade`
+3. Apply governance alignment changes: `gov_migrate`
+4. Verify consistency (read-only): `gov_audit`
+5. Apply approved BOOT menu item: `gov_apply <NN>`
+6. Edit OpenClaw platform config safely: `gov_platform_change`
 
 ## First-run status map
 After `/gov_setup check`:
@@ -75,8 +86,11 @@ Use fallback commands:
 ```text
 /skill gov_setup check
 /skill gov_setup install
+/skill gov_setup upgrade
 /skill gov_migrate
 /skill gov_audit
+/skill gov_apply 01
+/skill gov_platform_change
 ```
 
 Or natural language:

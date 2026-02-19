@@ -107,6 +107,21 @@ Fail-Closed 原則：
 
 ---
 
+## 我應該用哪條指令？
+
+可先看這個快速對照表，避免用錯指令：
+
+| 任務目標 | 應用指令 | 適用範圍 | 不適用於 |
+|---|---|---|---|
+| 首次部署治理資產 | `/gov_setup install` | `<workspace-root>/prompts/governance/` | 修改 `~/.openclaw/openclaw.json` |
+| 升級既有治理資產 | `/gov_setup upgrade` | `<workspace-root>/prompts/governance/` | 平台控制面變更 |
+| 套用治理對齊更新 | `/gov_migrate` | 工作區治理檔案 | BOOT 編號提案套用 |
+| 核對治理狀態（只讀） | `/gov_audit` | 工作區治理證據與一致性 | 寫入任何新變更 |
+| 套用已批准 BOOT 提案 | `/gov_apply <NN>` | 已批准 BOOT 項目 | 未經 BOOT 批准的臨時改動 |
+| 安全處理 OpenClaw 平台控制面變更 | `/gov_platform_change` | `~/.openclaw/openclaw.json`、`~/.openclaw/extensions/` | Brain Docs（如 `USER.md`、`SOUL.md`）及一般 workspace 文件 |
+
+---
+
 ## 可靠性契約（重要）
 
 為降低「答錯指令／誤判日期／路徑漂移」風險，本方案採用以下硬規則：
@@ -448,6 +463,12 @@ OpenClaw 的 plugin 安裝流程會把套件下載並解壓到 extensions，之�
 不建議。這屬平台控制面 Mode C 變更。  
 請用 `/gov_platform_change`（或 `/skill gov_platform_change`），確保備份、驗證、回退證據完整。
 
+`gov_platform_change` 的適用範圍：
+1. 適用：`~/.openclaw/openclaw.json`
+2. 明確需要時可用：`~/.openclaw/extensions/`
+3. 不適用：Brain Docs（`USER.md`、`IDENTITY.md`、`TOOLS.md`、`SOUL.md`、`MEMORY.md`、`HEARTBEAT.md`、`memory/*.md`）
+4. 不適用：一般 workspace 治理/內容檔（`projects/`、`docs/`、`_control/`、`_runs/`、`prompts/governance/`）
+
 ### Q14. 如果 AI 做錯，之後會發生甚麼？系統如何改進？
 此治理方案會用四層方式處理錯誤：
 1. 當次任務即時攔截：凡是寫入任務，都必須按 `PLAN -> READ -> CHANGE -> QC -> PERSIST` 固定次序執行，不可跳步。
@@ -456,6 +477,12 @@ OpenClaw 的 plugin 安裝流程會把套件下載並解壓到 extensions，之�
 4. 就算未寫檔也要提升答覆可靠度：回答 OpenClaw 系統題前，必須先核對官方文檔；回答日期時間題前，必須先核對當前系統時間，並用明確日期作答。
 
 一句總結：本方案不是改模型本身，而是透過固定流程、證據紀錄和重複錯誤升級機制，令 AI 較難再次犯同類錯誤。
+
+### Q15. `gov_platform_change` 可否用來改 Brain Docs？
+不可以。Brain Docs 不是平台控制面目標。  
+處理 Brain Docs 應使用：
+1. 只讀查詢：先讀取精確目標檔案，再回答。
+2. 任何寫入/更新：走 Mode C 治理流程（`PLAN -> READ -> CHANGE -> QC -> PERSIST`）並保留完整 run report 證據。
 
 ---
 

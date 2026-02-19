@@ -107,6 +107,21 @@ Mode routing (to avoid confusion):
 
 ---
 
+## Which Command Should I Use?
+
+Use this quick map to avoid command misuse:
+
+| Task goal | Use this command | In-scope targets | Do not use for |
+|---|---|---|---|
+| First-time governance asset deployment | `/gov_setup install` | `<workspace-root>/prompts/governance/` | Editing `~/.openclaw/openclaw.json` |
+| Upgrade existing governance assets | `/gov_setup upgrade` | `<workspace-root>/prompts/governance/` | Platform control-plane changes |
+| Apply governance alignment updates | `/gov_migrate` | Workspace governance files | BOOT numbered proposal apply |
+| Verify governance state (read-only) | `/gov_audit` | Workspace governance evidence | Writing changes |
+| Apply approved BOOT proposal | `/gov_apply <NN>` | Approved BOOT item only | Ad-hoc changes without BOOT approval |
+| Change OpenClaw platform control plane safely | `/gov_platform_change` | `~/.openclaw/openclaw.json`, `~/.openclaw/extensions/` | Brain Docs (`USER.md`, `SOUL.md`, etc.) and normal workspace docs |
+
+---
+
 ## Reliability Contract (Important)
 
 To reduce risks like incorrect commands, date/time mistakes, and path drift, this solution enforces these hard rules:
@@ -448,6 +463,12 @@ Fastest path after install:
 No. Treat it as a platform Mode C governance change.  
 Use `/gov_platform_change` (or `/skill gov_platform_change`) so backup, validation, and rollback evidence are recorded.
 
+`gov_platform_change` scope:
+1. In scope: `~/.openclaw/openclaw.json`
+2. In scope when explicitly needed: `~/.openclaw/extensions/`
+3. Out of scope: Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`)
+4. Out of scope: standard workspace governance/content files (`projects/`, `docs/`, `_control/`, `_runs/`, `prompts/governance/`)
+
 ### Q14. If the AI makes a mistake, what happens next, and how does it improve?
 This governance flow handles mistakes in four layers:
 1. Immediate stop-and-check for the current task: any write task must follow `PLAN -> READ -> CHANGE -> QC -> PERSIST` in order. Skipping steps is not allowed.
@@ -456,6 +477,12 @@ This governance flow handles mistakes in four layers:
 4. Better answers even without file edits: for OpenClaw system questions, the agent must verify official docs first; for date/time questions, it must verify current runtime time first and answer with explicit dates.
 
 In short: this solution does not change the model itself; it improves reliability by enforcing process order, evidence, and repeat-failure upgrades.
+
+### Q15. Can `gov_platform_change` be used to edit Brain Docs?
+No. Brain Docs are not platform control-plane targets.  
+For Brain Docs:
+1. Read-only asks: read exact target files first, then answer.
+2. Any write/update: use Mode C governance flow (`PLAN -> READ -> CHANGE -> QC -> PERSIST`) with full run-report evidence.
 
 ---
 
