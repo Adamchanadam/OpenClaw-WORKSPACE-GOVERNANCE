@@ -141,7 +141,7 @@ CANONICAL FILE PAYLOADS
 ========================
 
 <<BEGIN FILE: AGENTS.md>>
-# Workspace Agent Loader ??Governance Router
+# Workspace Agent Loader ->Governance Router
 > This file is intentionally short to avoid context truncation.
 > Governance SSOT: `_control/GOVERNANCE_BOOTSTRAP.md`
 > Presets SSOT: `_control/PRESETS.md`
@@ -152,7 +152,7 @@ CANONICAL FILE PAYLOADS
 ## Non-negotiable rules
 PERSISTENCE Trigger (Hard):
 - Any request implying write/save/update/remember/record into documents is ALWAYS a governance task.
-- Governance tasks MUST run: PLAN ??READ ??CHANGE ??QC ??PERSIST.
+- Governance tasks MUST run: PLAN ->READ ->CHANGE ->QC ->PERSIST.
 - "Test/demo" tasks are NOT exemptions if they write files.
 
 PLAN-first rule (Hard):
@@ -167,7 +167,7 @@ Evidence modes (Hard):
 - Mode B (Verified Answer): factual answer required, no writes.
   - Mode B2 (OpenClaw system topics): MUST verify using relevant local skill docs + official docs at `https://docs.openclaw.ai` before answering. For latest/version-sensitive claims, MUST also verify official releases at `https://github.com/openclaw/openclaw/releases`.
   - Mode B3 (Date/time topics): MUST verify runtime current time context first (session status), then answer with explicit absolute date when relevant.
-- Mode C (Governance change): any write/update/save/persist operation; MUST run PLAN ??READ ??CHANGE ??QC ??PERSIST.
+- Mode C (Governance change): any write/update/save/persist operation; MUST run PLAN ->READ ->CHANGE ->QC ->PERSIST.
   - Platform control-plane changes (for example `~/.openclaw/openclaw.json`) MUST route through `gov_platform_change` (or `/skill gov_platform_change`) as execution entrypoint.
 - If verification cannot be completed, do not guess; report uncertainty and required next check.
 
@@ -198,7 +198,7 @@ Platform Channel (Control Plane) exception (Hard):
   - workspace-local backup created first under `archive/_platform_backup_<ts>/...`,
   - before/after excerpts of the changed keys/sections,
   - rollback instructions (restore from backup) if apply/validation fails.
-- Any Platform change is a governance task: PLAN ??READ ??CHANGE ??QC ??PERSIST still applies, with the stricter Platform backup/evidence requirements above.
+- Any Platform change is a governance task: PLAN ->READ ->CHANGE ->QC ->PERSIST still applies, with the stricter Platform backup/evidence requirements above.
 - Direct config patching without the `gov_platform_change` entrypoint is non-compliant and must be blocked/re-scoped.
 
 Completion claim threshold (Hard):
@@ -258,7 +258,7 @@ See `_control/WORKSPACE_INDEX.md` for navigation.
 <<END FILE>>
 
 <<BEGIN FILE: BOOT.md>>
-# BOOT.md ??Startup Audit (Read-only)
+# BOOT.md ->Startup Audit (Read-only)
 > Trigger: boot-md hook runs this file on gateway start (after channels start). See OpenClaw hooks docs.
 > If the task sends a message, use the message tool and then reply with NO_REPLY.
 > Hard rule: READ-ONLY. Do NOT write/edit/move/delete any file. Do NOT make Platform changes.
@@ -277,14 +277,14 @@ See `_control/WORKSPACE_INDEX.md` for navigation.
 3) Quick integrity checks (no edits):
    - Confirm required folders exist: `_control/`, `_runs/`, `docs/`, `projects/`, `prompts/`, `archive/`
    - Confirm SSOT pointers exist in `AGENTS.md` and `_control/WORKSPACE_INDEX.md`
-   - Confirm governance lifecycle is present: PLAN ??READ ??CHANGE ??QC ??PERSIST
+   - Confirm governance lifecycle is present: PLAN ->READ ->CHANGE ->QC ->PERSIST
    - Confirm QC rule: fixed 12/12 denominator
 4) Recent failure surface (no edits):
    - If `_runs/` exists: inspect the latest 5 run reports (filenames only + QC 12/12 PASS/FAIL line if present).
    - If `_control/ACTIVE_GUARDS.md` exists: inspect the latest 10 entries (timestamps + Guard IDs only).
 5) Detect recurrence triggers (no edits):
-   - Trigger type A (QC recurrence): same QC item FAIL appears ??3 times within the latest 5 run reports.
-   - Trigger type B (Guard recurrence): same Guard ID appears ??3 times within the latest 10 guard entries.
+   - Trigger type A (QC recurrence): same QC item FAIL appears ->3 times within the latest 5 run reports.
+   - Trigger type B (Guard recurrence): same Guard ID appears ->3 times within the latest 10 guard entries.
 6) Output:
    - `BOOT AUDIT REPORT` (status + drift + next action)
    - Optional: `BOOT UPGRADE MENU (BOOT+APPLY v1)` with numbered items (operator can approve by replying with the item number).
@@ -310,11 +310,11 @@ See `_control/WORKSPACE_INDEX.md` for navigation.
 
 
 <<BEGIN FILE: BOOTSTRAP.md>>
-# BOOTSTRAP.md ??First-run Seed (one-shot)
+# BOOTSTRAP.md ->First-run Seed (one-shot)
 > Fresh workspace bootstrapping. No prior memory is assumed.
 > When finished, this file should be deleted (bootstrap script no longer needed).
 
-## Phase A ??Identity + User (required)
+## Phase A ->Identity + User (required)
 1) Start a short, human conversation (do not interrogate):
    - Confirm the assistant name / vibe / signature emoji.
    - Confirm the user name, preferred form of address, and timezone.
@@ -324,7 +324,7 @@ See `_control/WORKSPACE_INDEX.md` for navigation.
 3) Open `SOUL.md` together and record:
    - What matters, boundaries, and preferences (write to `SOUL.md`)
 
-## Phase B ??Governance kit seed (required)
+## Phase B ->Governance kit seed (required)
 1) Identify workspace root (folder containing `AGENTS.md`).
 2) Safety check (Fail-Closed):
    - If `_control/` exists AND `_control/GOVERNANCE_BOOTSTRAP.md` exists, do NOT run bootstrap.
@@ -340,14 +340,14 @@ See `_control/WORKSPACE_INDEX.md` for navigation.
    - Confirm `prompts/governance/APPLY_UPGRADE_FROM_BOOT.md` exists.
    - Write a run report under `_runs/` if not already created by the task.
 
-## Phase C ??Clean up (required)
+## Phase C ->Clean up (required)
 - Delete this `BOOTSTRAP.md` file after successful bootstrap.
 <<END FILE>>
 
 <<BEGIN FILE: docs/AGENT_PLAYBOOK.md>>
 # Agent Playbook (Operational, non-SSOT)
 - Read `_control/WORKSPACE_INDEX.md` first.
-- For governance tasks, follow PLAN ??READ ??CHANGE ??QC ??PERSIST.
+- For governance tasks, follow PLAN ->READ ->CHANGE ->QC ->PERSIST.
 - Keep `_runs/` for run reports; keep `_control/` small and stable.
 <<END FILE>>
 
@@ -817,7 +817,7 @@ Hard rule:
 ## 5) Mandatory Task Lifecycle (5 Gates)
 PERSISTENCE Trigger (Hard):
 - Any request implying writing/saving/updating/remembering into documents is ALWAYS a governance task.
-- Governance tasks MUST run: PLAN ??READ ??CHANGE ??QC ??PERSIST.
+- Governance tasks MUST run: PLAN ->READ ->CHANGE ->QC ->PERSIST.
 
 PLAN-first rule (Hard):
 - For any governance task, the FIRST output line MUST be a PLAN GATE header.
@@ -926,7 +926,7 @@ Must include:
 <<END FILE>>
 
 <<BEGIN FILE: _control/REGRESSION_CHECK.md>>
-# Regression Checklist (SSOT) ??QC Gate Requirements
+# Regression Checklist (SSOT) ->QC Gate Requirements
 > Completion threshold.
 > Fixed denominator: ALWAYS report 12/12. Never output reduced denominators (e.g., "11/11").
 > If an item is not applicable, mark "PASS (N/A)" but keep it within 12/12.
@@ -1016,21 +1016,21 @@ Must include:
 > Purpose: Operational Guard Register (LOG; NOT governance SSOT).
 > Hard rules:
 > 1) READ GATE of every governance task MUST read this file (if present) and list read evidence in the run report.
-> 2) Adding/updating a Guard MUST go through governance gates (PLAN ??READ ??CHANGE ??QC ??PERSIST) and MUST be paired with a Lesson entry in `_control/LESSONS.md` that includes the Guard ID + a recurrence test.
+> 2) Adding/updating a Guard MUST go through governance gates (PLAN ->READ ->CHANGE ->QC ->PERSIST) and MUST be paired with a Lesson entry in `_control/LESSONS.md` that includes the Guard ID + a recurrence test.
 > 3) Appends MUST use a real timestamp (no future dates). Use the timezone defined in `USER.md`.
 
 ## Guard log (append-only)
-- YYYY-MM-DD HH:MM (TZ) ??Guard #NNN ??Symptom ??Root cause ??Prevention ??Recurrence test reference (link to Lesson)
+- YYYY-MM-DD HH:MM (TZ) ->Guard #NNN ->Symptom ->Root cause ->Prevention ->Recurrence test reference (link to Lesson)
 <<END FILE>>
 
 <<BEGIN FILE: _control/DECISIONS.md>>
 # Decisions (LOG; non-SSOT)
-- YYYY-MM-DD ??Decision ??Rationale ??Impact ??Follow-up
+- YYYY-MM-DD ->Decision ->Rationale ->Impact ->Follow-up
 <<END FILE>>
 
 <<BEGIN FILE: _control/LESSONS.md>>
 # Lessons Learned (LOG; non-SSOT)
-- YYYY-MM-DD ??Symptom ??Root Cause ??Prevention ??Recurrence Test ??Linked Guard ID (if any)
+- YYYY-MM-DD ->Symptom ->Root Cause ->Prevention ->Recurrence Test ->Linked Guard ID (if any)
 <<END FILE>>
 
 <<BEGIN FILE: _control/PRESETS.md>>
@@ -1200,5 +1200,6 @@ Always report:
 <<END FILE>>
 
 END TASK
+
 
 
