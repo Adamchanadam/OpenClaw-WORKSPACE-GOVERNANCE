@@ -7,6 +7,9 @@
 
 [![OpenClaw](https://img.shields.io/badge/OpenClaw-Compatible-0ea5e9)](https://docs.openclaw.ai/) [![Distribution](https://img.shields.io/badge/Distribution-Plugin%20%2B%20ClawHub-22c55e)](#安裝方式) [![Audience](https://img.shields.io/badge/Audience-Beginners-f59e0b)](#首次部署)
 
+ClawHub Installer 頁面：
+- https://clawhub.ai/Adamchanadam/openclaw-workspace-governance-installer
+
 ---
 
 ## 什麼是 OpenClaw WORKSPACE_GOVERNANCE

@@ -12,6 +12,10 @@ For value positioning and factory baseline differences, read:
 1. [`README.md`](./README.md)
 2. [`VALUE_POSITIONING_AND_FACTORY_GAP.en.md`](./VALUE_POSITIONING_AND_FACTORY_GAP.en.md)
 
+Distribution channels:
+1. Plugin package: `@adamchanadam/openclaw-workspace-governance`
+2. ClawHub installer listing: `https://clawhub.ai/Adamchanadam/openclaw-workspace-governance-installer`
+
 ## 2) Why It Exists
 
 Long-running workspaces commonly degrade due to:

@@ -19,7 +19,7 @@ SCOPE (Hard)
 NON-GOALS (hard)
 - Do NOT redesign or restructure existing `projects/` or `skills/`.
 - Do NOT delete any existing file; use backup + archive only.
-- Do NOT create additional ?arallel governance systems??
+- Do NOT create additional "parallel governance systems".
 
 AUTHORIZED ACTIONS (explicit permission granted)
 A) Create/ensure canonical folders (non-destructive):
@@ -57,37 +57,36 @@ D) Any other file/folder not mentioned above:
 
 TARGET STRUCTURE (must exist after run)
 .
-?? AGENTS.md
-?? README.md                      (optional)
-?? BOOT.md                        (optional; startup read-only audit; for boot-md hook)
-?? _control/
-?? ?? GOVERNANCE_BOOTSTRAP.md
-?? ?? PRESETS.md
-?? ?? REGRESSION_CHECK.md
-?? ?? WORKSPACE_INDEX.md
-?? ?? ACTIVE_GUARDS.md            (LOG; operational guard register; optional but recommended)
-?? ?? DECISIONS.md
-?? ?? LESSONS.md
-?? ?? RULES.md
-?? _runs/
-?? docs/
-?? ?? AGENT_PLAYBOOK.md           (pointer; authorized to overwrite)
-?? ?? AGENT_PLAYBOOK_legacy_<ts>.md (only if old AGENTS existed)
-?? projects/
-?? skills/
-?? prompts/
-?? ?? governance/
-??    ?? WORKSPACE_GOVERNANCE_MIGRATION.md
-??    ?? APPLY_UPGRADE_FROM_BOOT.md
-?? memory/
-?? canvas/
-?? .openclaw/                     (optional; OpenClaw internal; e.g., `.openclaw/extensions/`)
-?? .git/                          (optional; VCS metadata)
-?? .gitignore                     (optional)
-?? archive/
-   ?? _bootstrap_backup_<ts>/
-      ?? _control/ (backups only)
-
+- AGENTS.md
+- README.md                      (optional)
+- BOOT.md                        (optional; startup read-only audit; for boot-md hook)
+- _control/
+  - GOVERNANCE_BOOTSTRAP.md
+  - PRESETS.md
+  - REGRESSION_CHECK.md
+  - WORKSPACE_INDEX.md
+  - ACTIVE_GUARDS.md             (LOG; operational guard register; optional but recommended)
+  - DECISIONS.md
+  - LESSONS.md
+  - RULES.md
+- _runs/
+- docs/
+  - AGENT_PLAYBOOK.md            (pointer; authorized to overwrite)
+  - AGENT_PLAYBOOK_legacy_<ts>.md (only if old AGENTS existed)
+- projects/
+- skills/
+- prompts/
+  - governance/
+    - WORKSPACE_GOVERNANCE_MIGRATION.md
+    - APPLY_UPGRADE_FROM_BOOT.md
+- memory/
+- canvas/
+- .openclaw/                     (optional; OpenClaw internal; e.g., .openclaw/extensions/)
+- .git/                          (optional; VCS metadata)
+- .gitignore                     (optional)
+- archive/
+  - _bootstrap_backup_<ts>/
+    - _control/ (backups only)
 HARD ORDER (NO SKIP)
 1) PLAN GATE
    - Declare `<ts>` in sortable format: YYYYMMDD_HHMMSS.
@@ -750,8 +749,8 @@ END TASK
 - Any new/moved file requires `_control/WORKSPACE_INDEX.md` update.
 - Path compatibility rule: resolve runtime `<workspace-root>`; never hardcode `~/.openclaw/workspace/...` as an absolute assumption.
 
-### 1.3 Platform Channel (Control Plane) ??OpenClaw global state
-- Scope: `~/.openclaw/` is OUTSIDE the workspace root. It is OpenClaw? platform control-plane state (global config/state).
+### 1.3 Platform Channel (Control Plane) - OpenClaw global state
+- Scope: `~/.openclaw/` is OUTSIDE the workspace root. It is OpenClaw's platform control-plane state (global config/state).
 - Minimal allowlist (targets):
   - `~/.openclaw/openclaw.json` (global config)
   - `~/.openclaw/extensions/` (only if plugins/extensions are explicitly used)
@@ -792,13 +791,13 @@ These are NOT governance SSOT; they are operational LOGs that make repeated fail
 
 Hard rules:
 - READ GATE MUST read `_control/ACTIVE_GUARDS.md` (if present) and `_control/LESSONS.md` (if present), and the run report MUST list read evidence.
-- New/updated Guards MUST go through governance gates (PLAN ??READ ??CHANGE ??QC ??PERSIST), and each Guard MUST have a matching Lesson entry with:
+- New/updated Guards MUST go through governance gates (PLAN -> READ -> CHANGE -> QC -> PERSIST), and each Guard MUST have a matching Lesson entry with:
   - Guard ID,
   - root cause,
   - recurrence test (how to prove the same failure will not repeat).
 
 Anti-pattern (forbidden):
-- Do NOT invent a parallel ?ew governance system??document when Guards + Lessons already cover the need.
+- Do NOT invent a parallel "new governance system" document when Guards + Lessons already cover the need.
 
 ---
 
@@ -862,7 +861,7 @@ Must read:
 Classify every change:
 1) LOG update (append allowed): only `_runs/`, `memory/`, and designated LOG files (`_control/ACTIVE_GUARDS.md`, `_control/LESSONS.md`).
 2) SSOT update (append forbidden): must edit via AUTOGEN anchored replacement.
-3) PLATFORM update (control-plane outside workspace): only allowed under the Platform Channel rules (see 禮1.3) and must be audited with backups + before/after evidence.
+3) PLATFORM update (control-plane outside workspace): only allowed under the Platform Channel rules (see Section 1.3) and must be audited with backups + before/after evidence.
 
 SSOT (AUTOGEN) standard:
 - `<!-- AUTOGEN:BEGIN <id> -->` ... `<!-- AUTOGEN:END <id> -->`
@@ -871,7 +870,7 @@ SSOT (AUTOGEN) standard:
 PLATFORM update protocol (Fail-Closed, minimal):
 - Read current state first (e.g., `~/.openclaw/openclaw.json` relevant keys/sections).
 - Backup BEFORE change into workspace: `archive/_platform_backup_<ts>/...` (exact path recorded).
-- Apply change using OpenClaw? supported control-plane pathway.
+- Apply change using OpenClaw's supported control-plane pathway.
 - Verify apply/validation succeeded; if not, rollback from backup and STOP with Blocked/Remediation.
 - Record before/after excerpts of the changed keys/sections + backup path in the run report.
 
@@ -882,7 +881,7 @@ PLATFORM update protocol (Fail-Closed, minimal):
 ### 5.5 PERSIST GATE
 - Write one run report under `_runs/`.
 - Update `_control/WORKSPACE_INDEX.md` on any file create/move/archive.
-- If error/redo/conflict: update `_control/LESSONS.md` (symptom ??root cause ??prevention ??regression).
+- If error/redo/conflict: update `_control/LESSONS.md` (symptom -> root cause -> prevention -> regression).
 
 ---
 
@@ -894,7 +893,7 @@ PLATFORM update protocol (Fail-Closed, minimal):
 ---
 
 ## 7) Bootstrap, Migration, Audit (Three-piece workflow)
-This workspace uses a three-piece workflow to avoid ?e-run bootstrap overwrites??and to make learning automatic:
+This workspace uses a three-piece workflow to avoid one-run bootstrap overwrites and to make learning automatic:
 
 1) Bootstrap (new workspace only)
 - Purpose: create the canonical folder structure and SSOT control-plane files.
@@ -961,10 +960,10 @@ Must include:
 9) NO DUP TOPIC SSOT:
    No parallel SSOT doc created without replace/retire linkage in index.
 10) LESSONS LOOP:
-   If errors/conflicts happened, `_control/LESSONS.md` updated and regression recorded (symptom ??root cause ??prevention ??recurrence test).
+   If errors/conflicts happened, `_control/LESSONS.md` updated and regression recorded (symptom -> root cause -> prevention -> recurrence test).
 11) CONSOLIDATION:
    Governance switches/rules are not duplicated elsewhere; reference SSOT docs only.
-   Do NOT invent parallel ?ew governance systems??when `_control/ACTIVE_GUARDS.md` + `_control/LESSONS.md` already cover the need.
+   Do NOT invent parallel "new governance systems" when `_control/ACTIVE_GUARDS.md` + `_control/LESSONS.md` already cover the need.
    Path assumptions are runtime-compatible (`<workspace-root>` semantics) and do not hardcode `~/.openclaw/workspace/...`.
 12) COMPLETION LANGUAGE:
    If any item FAILS, do NOT say "completed/updated"; output Blocked/Remediation instead.
@@ -986,8 +985,8 @@ Must include:
 - Lessons (LOG): `./LESSONS.md`
 - Projects (persistent): `../projects/`
 - Skills (tool-managed): `../skills/`
-- Governance Commands: `gov_migrate` 繚 `gov_audit` 繚 `gov_apply <NN>` 繚 `gov_platform_change` (TUI: `/gov_migrate` 繚 `/gov_audit` 繚 `/gov_apply <NN>` 繚 `/gov_platform_change`; slash command as standalone message; fallback: `/skill <name> [input]`)
-- Skills inventory (CLI): `openclaw skills list --eligible` 繚 `openclaw skills check`
+- Governance Commands: `gov_migrate` | `gov_audit` | `gov_apply <NN>` | `gov_platform_change` (TUI: `/gov_migrate` | `/gov_audit` | `/gov_apply <NN>` | `/gov_platform_change`; slash command as standalone message; fallback: `/skill <name> [input]`)
+- Skills inventory (CLI): `openclaw skills list --eligible` | `openclaw skills check`
 - Hooks inventory (CLI): `openclaw hooks list --verbose`
 - Prompts (assets): `../prompts/`
 - Boot audit (optional): `../BOOT.md`
@@ -1001,7 +1000,7 @@ Must include:
 ## Migration Kits (prompts/)
 - Workspace governance migration: `../prompts/governance/WORKSPACE_GOVERNANCE_MIGRATION.md`
 - Boot+Apply Upgrade Apply (v1): `../prompts/governance/APPLY_UPGRADE_FROM_BOOT.md`
-- Governance Commands: `gov_migrate` 繚 `gov_audit` 繚 `gov_apply <NN>` 繚 `gov_platform_change` (TUI: `/gov_migrate` 繚 `/gov_audit` 繚 `/gov_apply <NN>` 繚 `/gov_platform_change`; slash command as standalone message; skills: `../skills/gov_migrate/`, `../skills/gov_audit/`, `../skills/gov_apply/`, `../skills/gov_platform_change/`; fallback: `/skill <name> [input]`)
+- Governance Commands: `gov_migrate` | `gov_audit` | `gov_apply <NN>` | `gov_platform_change` (TUI: `/gov_migrate` | `/gov_audit` | `/gov_apply <NN>` | `/gov_platform_change`; slash command as standalone message; skills: `../skills/gov_migrate/`, `../skills/gov_audit/`, `../skills/gov_apply/`, `../skills/gov_platform_change/`; fallback: `/skill <name> [input]`)
 
 
 
@@ -1201,4 +1200,5 @@ Always report:
 <<END FILE>>
 
 END TASK
+
 

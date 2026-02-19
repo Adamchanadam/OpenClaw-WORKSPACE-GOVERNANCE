@@ -6,6 +6,7 @@
 
 1. Plugin（主發佈）：`@adamchanadam/openclaw-workspace-governance`
 2. ClawHub Installer（安裝入口）：`clawhub/openclaw-workspace-governance-installer`
+3. ClawHub 公開頁：`https://clawhub.ai/Adamchanadam/openclaw-workspace-governance-installer`
 
 建議安裝順序：
 

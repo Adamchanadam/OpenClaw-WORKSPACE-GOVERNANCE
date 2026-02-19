@@ -7,6 +7,9 @@
 
 [![OpenClaw](https://img.shields.io/badge/OpenClaw-Compatible-0ea5e9)](https://docs.openclaw.ai/) [![Distribution](https://img.shields.io/badge/Distribution-Plugin%20%2B%20ClawHub-22c55e)](#installation-options) [![Audience](https://img.shields.io/badge/Audience-Beginners-f59e0b)](#first-deployment)
 
+ClawHub installer page:
+- https://clawhub.ai/Adamchanadam/openclaw-workspace-governance-installer
+
 ---
 
 ## What Is OpenClaw WORKSPACE_GOVERNANCE
@@ -123,7 +126,7 @@ To reduce risks like incorrect commands, date/time mistakes, and path drift, thi
 5. Platform control-plane changes:
    - Any `~/.openclaw/openclaw.json` change is Mode C and must run full gates.
    - Use `gov_platform_change` as the execution entrypoint (with backup/validate/rollback evidence).
-5. BOOT apply effectiveness:
+6. BOOT apply effectiveness:
    - After `/gov_apply <NN>`, record before/after indicators; if no measurable improvement is shown, mark outcome as `PARTIAL` and keep follow-up actions.
 
 ---
