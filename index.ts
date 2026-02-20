@@ -112,9 +112,32 @@ const READONLY_COMMAND_HINTS = [
 const WRITE_INTENT_HINT = /\b(create|write|edit|update|modify|fix|refactor|implement|build|add|remove|delete|rename|move|patch|save|generate|scaffold)\b|寫|修改|更新|修正|新增|刪除|重構|建立|生成/i;
 
 const GOV_SETUP_HINT = /(^|\s)\/?(skill\s+)?gov_setup\b/i;
-const GOV_SETUP_CHECK_HINT = /\bgov_setup\b[^\n\r]{0,80}\bcheck\b|\bcheck\b[^\n\r]{0,80}\bgov_setup\b/i;
 const GOV_READ_COMMAND_HINT = /(^|\s)\/?(skill\s+)?gov_audit\b/i;
 const GOV_WRITE_COMMAND_HINT = /(^|\s)\/?(skill\s+)?gov_(migrate|apply|platform_change)\b/i;
+
+function lastMatchIndex(text: string, pattern: RegExp): number {
+  const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
+  const re = new RegExp(pattern.source, flags);
+  let idx = -1;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    idx = m.index;
+  }
+  return idx;
+}
+
+function detectGovSetupRequestKind(text: string): "none" | "read" | "write" {
+  const re = /(^|\s)\/?(skill\s+)?gov_setup\b(?:\s+(check|install|upgrade))?/gi;
+  let found = false;
+  let lastMode = "install";
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    found = true;
+    lastMode = String(m[3] || "install").toLowerCase();
+  }
+  if (!found) return "none";
+  return lastMode === "check" ? "read" : "write";
+}
 
 function toSessionKey(ctx: Partial<PluginHookAgentContext> | Partial<PluginHookToolContext>): string {
   return ctx.sessionKey || DEFAULT_SESSION;
@@ -183,12 +206,17 @@ function latestUserText(messages: unknown): string {
 }
 
 function detectGovRequestKind(text: string): "none" | "read" | "write" {
-  if (GOV_READ_COMMAND_HINT.test(text)) return "read";
-  if (GOV_WRITE_COMMAND_HINT.test(text)) return "write";
-  if (GOV_SETUP_HINT.test(text)) {
-    return GOV_SETUP_CHECK_HINT.test(text) ? "read" : "write";
-  }
-  return "none";
+  if (!text.trim()) return "none";
+
+  const setupIdx = lastMatchIndex(text, GOV_SETUP_HINT);
+  const readIdx = lastMatchIndex(text, GOV_READ_COMMAND_HINT);
+  const writeIdx = lastMatchIndex(text, GOV_WRITE_COMMAND_HINT);
+  const latestIdx = Math.max(setupIdx, readIdx, writeIdx);
+
+  if (latestIdx < 0) return "none";
+  if (latestIdx === setupIdx) return detectGovSetupRequestKind(text);
+  if (latestIdx === writeIdx) return "write";
+  return "read";
 }
 
 function isReadToolCall(event: PluginHookBeforeToolCallEvent): boolean {
@@ -273,10 +301,12 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
       const tailMessages = Array.isArray(event.messages) ? event.messages.slice(-10) : [];
       const tailText = flattenText(tailMessages).toLowerCase();
       const userText = latestUserText(event.messages);
-      const govRequestKind = detectGovRequestKind(userText);
+      const govRequestKindUser = detectGovRequestKind(userText);
+      const govRequestKindTail = detectGovRequestKind(tailText);
+      const govRequestKind = govRequestKindUser !== "none" ? govRequestKindUser : govRequestKindTail;
 
-      const modeCRequired = inferWriteIntent(userText);
-      const explicitGovEntrypoint = govRequestKind === "write";
+      const modeCRequired = inferWriteIntent(userText) || govRequestKindTail === "write";
+      const explicitGovEntrypoint = govRequestKind === "write" || govRequestKindTail === "write";
 
       state.planSeen = state.planSeen || hasPlanEvidence(tailText);
       state.readSeen = state.readSeen || hasReadEvidence(tailText);
