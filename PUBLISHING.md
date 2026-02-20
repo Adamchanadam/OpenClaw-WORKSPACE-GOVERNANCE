@@ -23,6 +23,8 @@ Use a dual-channel release model:
    - `skills/gov_migrate/SKILL.md`
    - `skills/gov_audit/SKILL.md`
    - `skills/gov_apply/SKILL.md`
+   - `skills/gov_platform_change/SKILL.md`
+   - `skills/gov_brain_audit/SKILL.md`
 
 ## 3. Publish Plugin to npm
 
@@ -86,6 +88,10 @@ npx clawhub inspect openclaw-workspace-governance-installer --versions --json
 4. Confirm BOOT flow:
    - `boot-md` enabled
    - `/gov_apply <NN>` works after BOOT menu approval.
+5. Confirm Brain Docs auditor flow:
+   - `/gov_brain_audit preview`
+   - `/gov_brain_audit apply APPROVE: APPLY_ALL_SAFE`
+   - `/gov_brain_audit rollback`
 
 ## 6. Rollback
 

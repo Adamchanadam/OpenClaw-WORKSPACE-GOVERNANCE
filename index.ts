@@ -115,32 +115,26 @@ const READONLY_COMMAND_HINTS = [
 
 const WRITE_INTENT_HINT = /\b(create|write|edit|update|modify|fix|refactor|implement|build|add|remove|delete|rename|move|patch|save|generate|scaffold)\b|寫|修改|更新|修正|新增|刪除|重構|建立|生成/i;
 
-const GOV_SETUP_HINT = /(^|\s)\/?(skill\s+)?gov_setup\b/i;
-const GOV_READ_COMMAND_HINT = /(^|\s)\/?(skill\s+)?gov_audit\b/i;
-const GOV_WRITE_COMMAND_HINT = /(^|\s)\/?(skill\s+)?gov_(migrate|apply|platform_change)\b/i;
+function classifyGovCommandRequest(
+  command: string,
+  modeArg: string,
+): "none" | "read" | "write" {
+  const cmd = command.toLowerCase();
+  const mode = modeArg.toLowerCase();
 
-function lastMatchIndex(text: string, pattern: RegExp): number {
-  const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
-  const re = new RegExp(pattern.source, flags);
-  let idx = -1;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) !== null) {
-    idx = m.index;
+  if (cmd === "gov_setup") {
+    return mode === "check" ? "read" : "write";
   }
-  return idx;
-}
-
-function detectGovSetupRequestKind(text: string): "none" | "read" | "write" {
-  const re = /(^|\s)\/?(skill\s+)?gov_setup\b(?:\s+(check|install|upgrade))?/gi;
-  let found = false;
-  let lastMode = "install";
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) !== null) {
-    found = true;
-    lastMode = String(m[3] || "install").toLowerCase();
+  if (cmd === "gov_audit") {
+    return "read";
   }
-  if (!found) return "none";
-  return lastMode === "check" ? "read" : "write";
+  if (cmd === "gov_migrate" || cmd === "gov_apply" || cmd === "gov_platform_change") {
+    return "write";
+  }
+  if (cmd === "gov_brain_audit") {
+    return mode === "apply" || mode === "rollback" ? "write" : "read";
+  }
+  return "none";
 }
 
 function toSessionKey(ctx: Partial<PluginHookAgentContext> | Partial<PluginHookToolContext>): string {
@@ -211,16 +205,37 @@ function latestUserText(messages: unknown): string {
 
 function detectGovRequestKind(text: string): "none" | "read" | "write" {
   if (!text.trim()) return "none";
+  const re = /(^|\s)\/?(?:skill\s+)?(gov_[a-z_]+)\b(?:\s+([a-z0-9_:-]+))?/gi;
+  let latest: "none" | "read" | "write" = "none";
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    const cmd = String(m[2] || "");
+    const mode = String(m[3] || "");
+    const classified = classifyGovCommandRequest(cmd, mode);
+    if (classified !== "none") latest = classified;
+  }
+  return latest;
+}
 
-  const setupIdx = lastMatchIndex(text, GOV_SETUP_HINT);
-  const readIdx = lastMatchIndex(text, GOV_READ_COMMAND_HINT);
-  const writeIdx = lastMatchIndex(text, GOV_WRITE_COMMAND_HINT);
-  const latestIdx = Math.max(setupIdx, readIdx, writeIdx);
-
-  if (latestIdx < 0) return "none";
-  if (latestIdx === setupIdx) return detectGovSetupRequestKind(text);
-  if (latestIdx === writeIdx) return "write";
-  return "read";
+function detectGovCommandKindByName(
+  text: string,
+  command: string,
+): "none" | "read" | "write" {
+  if (!text.trim()) return "none";
+  const escaped = command.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(
+    `(^|\\s)\\/?(?:skill\\s+)?(${escaped})\\b(?:\\s+([a-z0-9_:-]+))?`,
+    "gi",
+  );
+  let latest: "none" | "read" | "write" = "none";
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    const cmd = String(m[2] || command);
+    const mode = String(m[3] || "");
+    const classified = classifyGovCommandRequest(cmd, mode);
+    if (classified !== "none") latest = classified;
+  }
+  return latest;
 }
 
 function isReadToolCall(event: PluginHookBeforeToolCallEvent): boolean {
@@ -327,8 +342,8 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
       const govRequestKindUser = detectGovRequestKind(userText);
       const govRequestKindTail = detectGovRequestKind(tailText);
       const govRequestKind = govRequestKindUser !== "none" ? govRequestKindUser : govRequestKindTail;
-      const setupRequestKindUser = detectGovSetupRequestKind(userText);
-      const setupRequestKindTail = detectGovSetupRequestKind(tailText);
+      const setupRequestKindUser = detectGovCommandKindByName(userText, "gov_setup");
+      const setupRequestKindTail = detectGovCommandKindByName(tailText, "gov_setup");
 
       const modeCRequired = inferWriteIntent(userText) || govRequestKindTail === "write";
       const explicitGovEntrypoint = govRequestKind === "write" || govRequestKindTail === "write";

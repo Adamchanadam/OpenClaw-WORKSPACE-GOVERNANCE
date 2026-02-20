@@ -24,7 +24,7 @@
 1. Plugin 套件：
    - `@adamchanadam/openclaw-workspace-governance`
 2. 必備 skills：
-   - `gov_setup`、`gov_migrate`、`gov_audit`、`gov_apply`、`gov_platform_change`
+   - `gov_setup`、`gov_migrate`、`gov_audit`、`gov_apply`、`gov_platform_change`、`gov_brain_audit`
 3. 如 slash 路由不穩，改用 `/skill ...`。
 
 主機端檢查：
@@ -86,6 +86,7 @@ Fail-Closed 原則：
 3. Brain Docs：
    - `USER.md`、`IDENTITY.md`、`TOOLS.md`、`SOUL.md`、`MEMORY.md`、`HEARTBEAT.md`、`memory/*.md`
    - 不屬 `gov_platform_change` 範圍
+   - 建議以 `gov_brain_audit` 進行保守式預覽/套用/回退修補
 
 ---
 
@@ -121,6 +122,28 @@ openclaw gateway restart
 /gov_setup upgrade
 /gov_migrate
 /gov_audit
+```
+
+### D) Brain Docs 保守修補流程
+
+1. 先做只讀預覽：
+
+```text
+/gov_brain_audit preview
+```
+
+2. 只批准指定項目（或安全批次）：
+
+```text
+/gov_brain_audit apply APPROVE: F001,F003
+# 或
+/gov_brain_audit apply APPROVE: APPLY_ALL_SAFE
+```
+
+3. 如需回退：
+
+```text
+/gov_brain_audit rollback
 ```
 
 ---
@@ -178,6 +201,10 @@ Fallback：
    - 缺少 PLAN/READ 證據時，可寫入工具調用會被阻擋
    - 只讀 shell/測試命令應保持可執行
    - 寫入任務被阻擋時，先補 `WG_PLAN_GATE_OK` + `WG_READ_GATE_OK` 再重試
+8. Brain Docs 審核流程可完整運作：
+   - `gov_brain_audit preview` 有 findings + approval checklist
+   - `gov_brain_audit apply ...` 有備份與 run report
+   - `gov_brain_audit rollback` 可回復最近備份
 
 ---
 
@@ -204,6 +231,9 @@ Fallback：
 8. 關於自動更新：
    - 目前沒有背景自動更新機制
    - 請使用手動流程：`openclaw plugins update ...` -> `openclaw gateway restart` -> `gov_setup upgrade` -> `gov_migrate` -> `gov_audit`
+9. `gov_brain_audit apply` 顯示 blocked：
+   - 請提供明確批准輸入（`APPROVE: F001,F003` 或 `APPROVE: APPLY_ALL_SAFE`）
+   - 再重新執行 apply
 
 ---
 

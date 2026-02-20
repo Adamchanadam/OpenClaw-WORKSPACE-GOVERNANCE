@@ -24,7 +24,7 @@ It covers:
 1. Plugin package:
    - `@adamchanadam/openclaw-workspace-governance`
 2. Required skills:
-   - `gov_setup`, `gov_migrate`, `gov_audit`, `gov_apply`, `gov_platform_change`
+   - `gov_setup`, `gov_migrate`, `gov_audit`, `gov_apply`, `gov_platform_change`, `gov_brain_audit`
 3. If slash routing is unstable, use `/skill ...` fallback.
 
 Host-side checks:
@@ -86,6 +86,7 @@ Special rules:
 3. Brain Docs:
    - `USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`
    - not handled by `gov_platform_change`
+   - use `gov_brain_audit` for conservative preview/apply/rollback hardening
 
 ---
 
@@ -121,6 +122,28 @@ openclaw gateway restart
 /gov_setup upgrade
 /gov_migrate
 /gov_audit
+```
+
+### D) Brain Docs conservative hardening
+
+1. Start read-only preview:
+
+```text
+/gov_brain_audit preview
+```
+
+2. Approve only selected findings (or safe batch):
+
+```text
+/gov_brain_audit apply APPROVE: F001,F003
+# or
+/gov_brain_audit apply APPROVE: APPLY_ALL_SAFE
+```
+
+3. If result is not acceptable:
+
+```text
+/gov_brain_audit rollback
 ```
 
 ---
@@ -178,6 +201,10 @@ Fallback:
    - write-capable tool calls are blocked if PLAN/READ evidence is missing
    - read-only shell/testing commands should remain allowed
    - for blocked write tasks, include `WG_PLAN_GATE_OK` and `WG_READ_GATE_OK` before retry
+8. Brain Docs auditor flow works end-to-end:
+   - `gov_brain_audit preview` returns findings and approval checklist
+   - `gov_brain_audit apply ...` creates backup and run report
+   - `gov_brain_audit rollback` restores latest approved backup
 
 ---
 
@@ -204,6 +231,9 @@ Fallback:
 8. Auto-update expectation:
    - no background auto-update
    - use manual flow: `openclaw plugins update ...` -> `openclaw gateway restart` -> `gov_setup upgrade` -> `gov_migrate` -> `gov_audit`
+9. `gov_brain_audit apply` reports blocked:
+   - include explicit approval input (`APPROVE: F001,F003` or `APPROVE: APPLY_ALL_SAFE`)
+   - rerun apply
 
 ---
 

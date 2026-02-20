@@ -74,6 +74,28 @@ npm view @adamchanadam/openclaw-workspace-governance version
 /gov_audit
 ```
 
+### Scenario D: Brain Docs risk review and conservative hardening
+1. In OpenClaw TUI, start with read-only preview:
+```text
+/gov_brain_audit preview
+```
+2. Approve only selected findings (or safe batch):
+```text
+/gov_brain_audit apply APPROVE: F001,F003
+# or
+/gov_brain_audit apply APPROVE: APPLY_ALL_SAFE
+```
+3. If needed, rollback to latest backup:
+```text
+/gov_brain_audit rollback
+```
+4. If slash routing is unstable, use:
+```text
+/skill gov_brain_audit preview
+/skill gov_brain_audit apply APPROVE: APPLY_ALL_SAFE
+/skill gov_brain_audit rollback
+```
+
 ---
 
 ## What Is OpenClaw WORKSPACE_GOVERNANCE
@@ -174,6 +196,7 @@ Runtime mode routing:
 | Verify consistency (read-only) | `/gov_audit` | Governance evidence and checks | Writing new changes |
 | Apply approved BOOT proposal | `/gov_apply <NN>` | Approved BOOT item only | Ad-hoc unapproved edits |
 | Change OpenClaw platform control plane safely | `/gov_platform_change` | `~/.openclaw/openclaw.json`, `~/.openclaw/extensions/` | Brain Docs and normal workspace docs |
+| Audit and harden Brain Docs conservatively | `/gov_brain_audit preview|apply|rollback` | Brain Docs + governance behavior prompts | Direct broad rewrite without approval |
 
 `gov_platform_change` is not for Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`).
 
@@ -193,7 +216,8 @@ All `gov_*` commands should end with:
 4. Brain Docs read-only asks must read exact target files first
 5. Brain Docs writes must include run-report evidence: `FILES_READ` + `TARGET_FILES_TO_CHANGE`
 6. Platform config changes must route via `gov_platform_change` with backup/validate/rollback evidence
-7. Runtime hard gate is enabled by default:
+7. Brain Docs hardening should use `gov_brain_audit` in preview-first mode, then approval-based apply
+8. Runtime hard gate is enabled by default:
    - `before_prompt_build`: injects Mode C reminder for write-intent tasks
    - `before_tool_call`: blocks write-capable tool calls when PLAN/READ evidence is missing
    - read-only shell/testing commands are allowed and should not be blocked
@@ -286,6 +310,8 @@ openclaw gateway restart
 3. Governance already installed:
    - `gov_setup upgrade` -> `gov_migrate` -> `gov_audit`
    - if BOOT gives numbered proposals: `gov_apply <NN>` then `gov_audit`
+4. Brain Docs quality hardening:
+   - `gov_brain_audit preview` -> approve selected findings -> `gov_brain_audit apply ...` -> `gov_audit`
 
 ---
 
@@ -332,7 +358,7 @@ Run `gov_setup install` (or `gov_setup upgrade` for existing deployments).
 `gov_setup upgrade` -> `gov_migrate` -> `gov_audit`.
 
 ### Q8. If slash is unstable, can I use `/skill ...` permanently?
-Yes: `/skill gov_setup ...`, `/skill gov_migrate`, `/skill gov_audit`, `/skill gov_apply <NN>`, `/skill gov_platform_change`.
+Yes: `/skill gov_setup ...`, `/skill gov_migrate`, `/skill gov_audit`, `/skill gov_apply <NN>`, `/skill gov_platform_change`, `/skill gov_brain_audit ...`.
 
 ### Q9. What happens when AI makes mistakes?
 Mistakes are recorded in run reports; repeated patterns can be escalated via BOOT proposals and applied in a controlled loop.
@@ -371,6 +397,12 @@ Not yet. Use manual update flow:
 1. `openclaw plugins update openclaw-workspace-governance`
 2. `openclaw gateway restart`
 3. `/gov_setup upgrade -> /gov_migrate -> /gov_audit`
+
+### Q16. How do I improve risky Brain Docs wording without breaking persona?
+Use `gov_brain_audit`:
+1. Start with `preview` (read-only findings and patch preview).
+2. Approve only selected findings (`APPROVE: F001,F003` or `APPLY_ALL_SAFE`).
+3. Use `rollback` if result is not acceptable.
 
 ---
 

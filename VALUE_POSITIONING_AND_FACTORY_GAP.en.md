@@ -51,6 +51,7 @@ These are workflow-gate problems, not only model-quality problems.
 3. Mode routing for conversation vs verified-answer vs write tasks
 4. BOOT read-only proposals with human-approved controlled apply
 5. Run-report traceability for review and recurrence reduction
+6. Conservative Brain Docs hardening (`gov_brain_audit`) with preview-first approval and rollback
 
 ---
 

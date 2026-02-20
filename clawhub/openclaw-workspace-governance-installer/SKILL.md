@@ -60,6 +60,10 @@ Then in OpenClaw chat:
    - in scope: `~/.openclaw/openclaw.json`
    - in scope when explicitly needed: `~/.openclaw/extensions/`
    - not for Brain Docs (`USER.md`, `SOUL.md`, `memory/*.md`) or normal workspace docs
+6. `gov_brain_audit` for conservative Brain Docs risk review:
+   - `preview` (read-only findings)
+   - `apply` (approval-based minimal diff + backup)
+   - `rollback` (restore latest backup)
 
 ## When to use which command (quick map)
 1. New setup in workspace: `gov_setup install`
@@ -68,6 +72,7 @@ Then in OpenClaw chat:
 4. Verify consistency (read-only): `gov_audit`
 5. Apply approved BOOT menu item: `gov_apply <NN>`
 6. Edit OpenClaw platform config safely: `gov_platform_change`
+7. Review/harden Brain Docs safely: `gov_brain_audit preview -> apply -> rollback`
 
 ## First-run status map
 After `/gov_setup check`:
@@ -103,6 +108,9 @@ Use fallback commands:
 /skill gov_audit
 /skill gov_apply 01
 /skill gov_platform_change
+/skill gov_brain_audit preview
+/skill gov_brain_audit apply APPROVE: APPLY_ALL_SAFE
+/skill gov_brain_audit rollback
 ```
 
 Or natural language:

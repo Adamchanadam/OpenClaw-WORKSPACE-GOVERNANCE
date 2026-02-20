@@ -18,6 +18,7 @@ Default target is `~/.openclaw/openclaw.json`.
 1. Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`)
 2. Normal workspace coding/docs files under `<workspace-root>`
 3. If request is non-platform file change, re-route to normal Mode C lifecycle (`PLAN -> READ -> CHANGE -> QC -> PERSIST`)
+4. For conservative Brain Docs behavior hardening, route to `gov_brain_audit` (preview-first).
 
 ## Required workflow (hard)
 1. Classify request as Mode C governance change.

@@ -10,6 +10,7 @@ Create the workspace governance control plane, without assuming any prior contex
 - Add optional startup read-only audit entrypoint `BOOT.md` for the boot-md hook (reports drift; does not write).
 - Ship `prompts/governance/APPLY_UPGRADE_FROM_BOOT.md` as a guided apply runner for BOOT upgrade menu approvals (operator-approved; triggers Migration).
 - Ship `skills/gov_platform_change/SKILL.md` as the dedicated Mode C entrypoint for platform control-plane changes (backup/validate/rollback evidence required).
+- Ship `skills/gov_brain_audit/SKILL.md` as the conservative Brain Docs auditor (preview-first; approval-based apply; rollback-supported).
 
 SCOPE (Hard)
 - This task is BOOTSTRAP-ONLY: it is designed for NEW workspaces only.
@@ -47,6 +48,7 @@ B) Governance + control-plane SSOT initialization (ONLY the listed files):
    - `skills/gov_audit/SKILL.md`         (create if missing; if exists and differs from canonical, STOP and report conflict; provides `/gov_audit`)
    - `skills/gov_apply/SKILL.md`         (create if missing; if exists and differs from canonical, STOP and report conflict; provides `/gov_apply <NN>`)
    - `skills/gov_platform_change/SKILL.md` (create if missing; if exists and differs from canonical, STOP and report conflict; provides `/gov_platform_change`)
+   - `skills/gov_brain_audit/SKILL.md`   (create if missing; if exists and differs from canonical, STOP and report conflict; provides `/gov_brain_audit`)
 
 C) README policy:
    - If `README.md` does NOT exist, create it using payload below.
@@ -344,7 +346,7 @@ See `_control/WORKSPACE_INDEX.md` for navigation.
    - Run `TASK: BOOTSTRAP_WORKSPACE_GOVERNANCE (ONE-SHOT, INTEGRATE-LEGACY, FAIL-CLOSED, REV6)`
 5) After completion:
    - Confirm `_control/`, `_runs/`, `docs/`, `projects/`, `prompts/governance/`, and `archive/` exist.
-   - Confirm `_control/WORKSPACE_INDEX.md` links Active Guards + Lessons + Boot audit + Migration kit + Boot+Apply runner + governance entrypoints (TUI: `/gov_migrate`, `/gov_audit`, `/gov_apply <NN>`, `/gov_platform_change`; invoke slash command as a standalone message; fallback: `/skill <name> [input]`).
+   - Confirm `_control/WORKSPACE_INDEX.md` links Active Guards + Lessons + Boot audit + Migration kit + Boot+Apply runner + governance entrypoints (TUI: `/gov_migrate`, `/gov_audit`, `/gov_apply <NN>`, `/gov_platform_change`, `/gov_brain_audit`; invoke slash command as a standalone message; fallback: `/skill <name> [input]`).
    - Confirm `prompts/governance/APPLY_UPGRADE_FROM_BOOT.md` exists.
    - Write a run report under `_runs/` if not already created by the task.
 
@@ -377,7 +379,6 @@ RUNTIME MODES (Hard)
   - Mode B3 (Date/time topics): MUST verify runtime current time context first (session status), then answer using absolute dates when relevant.
 - Mode C (Governance change): any write/update/save/persist operation; MUST run PLAN → READ → CHANGE → QC → PERSIST.
   - Any coding/development task that creates or modifies workspace files is Mode C, even when requested in natural language without `/gov_*` commands.
-  - Platform control-plane changes (for example `~/.openclaw/openclaw.json`) MUST route through `gov_platform_change` (or `/skill gov_platform_change`) as execution entrypoint.
   - If it is unclear whether writes will occur, classify as Mode C (Fail-Closed).
 
 PATH COMPATIBILITY CONTRACT (Hard)
@@ -538,7 +539,7 @@ Apply the latest governance hardening to an ALREADY-RUNNING workspace without de
 - Ensure `BOOT.md` exists for startup read-only audit (boot-md hook).
 - Ensure `prompts/governance/APPLY_UPGRADE_FROM_BOOT.md` exists (guided runner for BOOT upgrade menu approvals).
 - Ensure governance command entrypoints exist as user-invocable skills:
-  - `gov_migrate` / `gov_audit` / `gov_apply <NN>` / `gov_platform_change` (backed by `skills/gov_migrate/`, `skills/gov_audit/`, `skills/gov_apply/`, `skills/gov_platform_change/`).
+  - `gov_migrate` / `gov_audit` / `gov_apply <NN>` / `gov_platform_change` / `gov_brain_audit` (backed by `skills/gov_migrate/`, `skills/gov_audit/`, `skills/gov_apply/`, `skills/gov_platform_change/`, `skills/gov_brain_audit/`).
   - Slash commands should be invoked as standalone command messages.
   - If slash command is unavailable or name-collided, use `/skill <name> [input]` fallback.
 
@@ -553,7 +554,7 @@ RUNTIME MODES (Hard)
 - Mode C (Governance change): any write/update/save/persist operation; MUST run PLAN → READ → CHANGE → QC → PERSIST.
   - Any coding/development task that creates or modifies workspace files is Mode C, even when requested in natural language without `/gov_*` commands.
   - Any create/update to Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`) is Mode C and must include explicit read evidence before write.
-  - Platform control-plane changes (for example `~/.openclaw/openclaw.json`) MUST route through `gov_platform_change` (or `/skill gov_platform_change`) as execution entrypoint.
+  - Platform control-plane changes (for example `~/.openclaw/openclaw.json`) MUST be routed through `gov_platform_change` (or `/skill gov_platform_change`) as the execution entrypoint.
   - If it is unclear whether writes will occur, classify as Mode C (Fail-Closed).
 
 PATH COMPATIBILITY CONTRACT (Hard)
@@ -606,6 +607,7 @@ B) Patch targets (ONLY these paths are allowed to be modified by this migration)
    - `skills/gov_audit/SKILL.md` (create if missing; if exists and differs from canonical, STOP and report conflict)
    - `skills/gov_apply/SKILL.md` (create if missing; if exists and differs from canonical, STOP and report conflict)
    - `skills/gov_platform_change/SKILL.md` (create if missing; if exists and differs from canonical, STOP and report conflict)
+   - `skills/gov_brain_audit/SKILL.md` (create if missing; if exists and differs from canonical, STOP and report conflict)
 
 C) Any other file/folder:
    - DO NOT overwrite/move/delete. Non-destructive.
@@ -638,6 +640,7 @@ HARD ORDER (NO SKIP)
      - `skills/gov_audit/SKILL.md` (if present)
      - `skills/gov_apply/SKILL.md` (if present)
      - `skills/gov_platform_change/SKILL.md` (if present)
+     - `skills/gov_brain_audit/SKILL.md` (if present)
     - Relevant Brain Docs when the task implies persistence/user-profile/timezone or directly targets Brain Docs: `USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/YYYY-MM-DD.md` (if present)
       - If target files include any Brain Docs path, read those exact files before change and record exact paths under `FILES_READ`.
    - If task content includes OpenClaw system topics (commands/config/plugins/skills/hooks/path defaults):
@@ -658,7 +661,7 @@ HARD ORDER (NO SKIP)
        - `_control/REGRESSION_CHECK.md`: ensure AUTOGEN block `REGRESSION_12_v1` exists exactly once; replace its content with canonical content extracted per "CANONICAL SOURCE (hard)" mapping rules.
        - `_control/WORKSPACE_INDEX.md`: ensure it contains links to:
          `./ACTIVE_GUARDS.md`, `./LESSONS.md`, `../BOOT.md`, `../prompts/governance/WORKSPACE_GOVERNANCE_MIGRATION.md`, `../prompts/governance/APPLY_UPGRADE_FROM_BOOT.md`,
-        `../skills/gov_migrate/`, `../skills/gov_audit/`, `../skills/gov_apply/`, `../skills/gov_platform_change/`
+        `../skills/gov_migrate/`, `../skills/gov_audit/`, `../skills/gov_apply/`, `../skills/gov_platform_change/`, `../skills/gov_brain_audit/`
          Add missing links only; do not remove existing content.
        - `_control/PRESETS.md`:
          - If it matches an older known payload: backup and overwrite with canonical payload.
@@ -670,7 +673,7 @@ HARD ORDER (NO SKIP)
        - `prompts/governance/APPLY_UPGRADE_FROM_BOOT.md`:
          - If missing: create it using canonical payload.
          - If present: overwrite only if it matches an older known payload; otherwise STOP and output a conflict report (do not overwrite).
-      - `skills/gov_migrate/SKILL.md`, `skills/gov_audit/SKILL.md`, `skills/gov_apply/SKILL.md`, `skills/gov_platform_change/SKILL.md`:
+      - `skills/gov_migrate/SKILL.md`, `skills/gov_audit/SKILL.md`, `skills/gov_apply/SKILL.md`, `skills/gov_platform_change/SKILL.md`, `skills/gov_brain_audit/SKILL.md`:
          - If missing: create each using canonical payload (create directories as needed).
          - If present: compare against canonical payload; if any differs, STOP and output a conflict report (do not overwrite).
        - `BOOT.md`:
@@ -686,7 +689,7 @@ HARD ORDER (NO SKIP)
      - Confirm `AGENTS.md` contains the PLAN-first rule, PERSISTENCE trigger, and No-Write guardrail.
      - Confirm `_control/GOVERNANCE_BOOTSTRAP.md` contains the learning loop rule (Guards + Lessons) and the 5-gate lifecycle.
      - Confirm `_control/REGRESSION_CHECK.md` still has 12 items + fixed denominator rule.
-    - Confirm `_control/WORKSPACE_INDEX.md` includes Active Guards + Lessons + Boot audit + Migration kit + Boot+Apply runner + governance command shortcuts (`/gov_migrate`, `/gov_audit`, `/gov_apply <NN>`, `/gov_platform_change`).
+    - Confirm `_control/WORKSPACE_INDEX.md` includes Active Guards + Lessons + Boot audit + Migration kit + Boot+Apply runner + governance command shortcuts (`/gov_migrate`, `/gov_audit`, `/gov_apply <NN>`, `/gov_platform_change`, `/gov_brain_audit`).
    - System-truth self-check (Fail-Closed):
      - If this run makes OpenClaw system claims, run report must include source URLs from `https://docs.openclaw.ai`.
      - If this run makes latest/version-sensitive OpenClaw claims, run report must include source URLs from `https://github.com/openclaw/openclaw/releases`.
@@ -1011,7 +1014,7 @@ Must include:
 - Lessons (LOG): `./LESSONS.md`
 - Projects (persistent): `../projects/`
 - Skills (tool-managed): `../skills/`
-- Governance Commands: `gov_migrate` | `gov_audit` | `gov_apply <NN>` | `gov_platform_change` (TUI: `/gov_migrate` | `/gov_audit` | `/gov_apply <NN>` | `/gov_platform_change`; slash command as standalone message; fallback: `/skill <name> [input]`)
+- Governance Commands: `gov_migrate` | `gov_audit` | `gov_apply <NN>` | `gov_platform_change` | `gov_brain_audit` (TUI: `/gov_migrate` | `/gov_audit` | `/gov_apply <NN>` | `/gov_platform_change` | `/gov_brain_audit`; slash command as standalone message; fallback: `/skill <name> [input]`)
 - Skills inventory (CLI): `openclaw skills list --eligible` | `openclaw skills check`
 - Hooks inventory (CLI): `openclaw hooks list --verbose`
 - Prompts (assets): `../prompts/`
@@ -1026,7 +1029,7 @@ Must include:
 ## Migration Kits (prompts/)
 - Workspace governance migration: `../prompts/governance/WORKSPACE_GOVERNANCE_MIGRATION.md`
 - Boot+Apply Upgrade Apply (v1): `../prompts/governance/APPLY_UPGRADE_FROM_BOOT.md`
-- Governance Commands: `gov_migrate` | `gov_audit` | `gov_apply <NN>` | `gov_platform_change` (TUI: `/gov_migrate` | `/gov_audit` | `/gov_apply <NN>` | `/gov_platform_change`; slash command as standalone message; skills: `../skills/gov_migrate/`, `../skills/gov_audit/`, `../skills/gov_apply/`, `../skills/gov_platform_change/`; fallback: `/skill <name> [input]`)
+- Governance Commands: `gov_migrate` | `gov_audit` | `gov_apply <NN>` | `gov_platform_change` | `gov_brain_audit` (TUI: `/gov_migrate` | `/gov_audit` | `/gov_apply <NN>` | `/gov_platform_change` | `/gov_brain_audit`; slash command as standalone message; skills: `../skills/gov_migrate/`, `../skills/gov_audit/`, `../skills/gov_apply/`, `../skills/gov_platform_change/`, `../skills/gov_brain_audit/`; fallback: `/skill <name> [input]`)
 
 
 
@@ -1103,6 +1106,7 @@ Execute the migration workflow defined by:
 9. Brain Docs routing:
    - If the task touches Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`), treat read-only asks as Mode B and any write/update as Mode C.
    - For Brain Docs writes, missing READ evidence is fail-closed.
+   - For conservative Brain Docs behavior audits/fixes, route to `gov_brain_audit` (`preview` first).
 10. Coding-task routing:
    - Any request that creates or modifies workspace code/files (for example: build, implement, fix, refactor) is Mode C, even without `/gov_*` command wording.
    - If write intent is uncertain, treat as Mode C (Fail-Closed).
@@ -1110,6 +1114,11 @@ Execute the migration workflow defined by:
 ## Output requirements
 - Include `FILES_READ` (exact paths) and `TARGET_FILES_TO_CHANGE` (exact paths).
 - If either field is missing, output `BLOCKED (missing read/change evidence)` and stop.
+- Use this output order for UX consistency:
+  1. `STATUS`
+  2. `WHY`
+  3. `NEXT STEP (Operator)`
+  4. `COMMAND TO COPY`
 - Always include a final `NEXT STEP (Operator)` section.
 - If migration PASS:
   - primary: `/gov_audit`
@@ -1159,12 +1168,22 @@ Perform governance integrity checks after bootstrap, migration, or apply.
    - READ evidence
    - QC 12/12 outcome
    Missing evidence => FAIL (workflow bypass).
+9. If a run includes `gov_brain_audit apply` or `gov_brain_audit rollback`, verify:
+   - backup path exists under `archive/_brain_docs_autofix_<ts>/...`
+   - run report includes approved finding IDs (or rollback scope)
+   - changed files are limited to approved Brain Docs/governance targets
+   Missing evidence => FAIL (unsafe Brain Docs mutation).
 
 ## Persistence
 - Write audit result into `_runs/` when the active governance flow requires persistence.
 - Ensure `_control/WORKSPACE_INDEX.md` is updated when a new run report is added.
 
 ## Output requirements
+- Use this output order for UX consistency:
+  1. `STATUS`
+  2. `WHY`
+  3. `NEXT STEP (Operator)`
+  4. `COMMAND TO COPY`
 - Always include a final `NEXT STEP (Operator)` section.
 - If audit PASS:
   - primary: continue normal operation, or run `/gov_apply <NN>` only when an approved BOOT menu item exists.
@@ -1210,6 +1229,11 @@ Execute:
 ## Output requirements
 - Include `FILES_READ` (exact paths) and `TARGET_FILES_TO_CHANGE` (exact paths).
 - If either field is missing, output `BLOCKED (missing read/change evidence)` and stop.
+- Use this output order for UX consistency:
+  1. `STATUS`
+  2. `WHY`
+  3. `NEXT STEP (Operator)`
+  4. `COMMAND TO COPY`
 - Always include a final `NEXT STEP (Operator)` section.
 - After apply completes:
   - primary: `/gov_migrate` then `/gov_audit`
@@ -1243,6 +1267,7 @@ Default target is `~/.openclaw/openclaw.json`.
 1. Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`)
 2. Normal workspace coding/docs files under `<workspace-root>`
 3. If request is non-platform file change, re-route to normal Mode C lifecycle (`PLAN -> READ -> CHANGE -> QC -> PERSIST`)
+4. For conservative Brain Docs behavior hardening, route to `gov_brain_audit` (preview-first).
 
 ## Required workflow (hard)
 1. Classify request as Mode C governance change.
@@ -1281,13 +1306,133 @@ Always report:
 9. `NEXT STEP (Operator)`:
    - if PASS: `/gov_audit` (fallback: `/skill gov_audit`)
    - if FAIL/BLOCKED: one unblock action + retry command
+10. Use this output order for UX consistency:
+   - `STATUS`
+   - `WHY`
+   - `NEXT STEP (Operator)`
+   - `COMMAND TO COPY`
 
 ## Fallback
 - If slash command is unavailable or name-collided, use:
   - `/skill gov_platform_change`
 <<END FILE>>
 
+<<BEGIN FILE: skills/gov_brain_audit/SKILL.md>>
+---
+name: gov_brain_audit
+description: Conservative Brain Docs auditor with preview-first findings, approval-based apply, and rollback for persona-safe hardening.
+user-invocable: true
+metadata: {"openclaw":{"emoji":"🧠"}}
+---
+# /gov_brain_audit [preview|apply|rollback]
+
+## Purpose
+Audit Brain Docs conservatively to reduce two recurring risks:
+1. Action-before-verification behavior
+2. Unsupported certainty/completion claims without evidence
+
+Default mode is `preview` (read-only).
+
+## In scope
+Brain Docs and governance docs that shape agent behavior:
+1. `AGENTS.md`
+2. `SOUL.md`
+3. `IDENTITY.md`
+4. `USER.md`
+5. `TOOLS.md`
+6. `MEMORY.md`
+7. `HEARTBEAT.md`
+8. `BOOT.md`
+9. `_control/GOVERNANCE_BOOTSTRAP.md`
+10. `_control/PRESETS.md`
+11. `_control/REGRESSION_CHECK.md`
+12. `_control/ACTIVE_GUARDS.md` (if present)
+13. `_control/LESSONS.md` (if present)
+14. Recent `memory/*.md` (last 7 days; if present)
+15. Recent `_runs/*.md` (sample latest 10; read-only)
+
+## Hard principles
+1. Preserve persona intent; do not flatten voice.
+2. Use minimal-diff edits only.
+3. Preview first; never apply before operator approval.
+4. Do not delete user content without explicit approval.
+5. If evidence is missing, mark uncertainty instead of guessing.
+
+## Mode contract
+1. `preview` (default):
+   - Read-only.
+   - Output findings + patch preview.
+   - No file writes.
+2. `apply`:
+   - Requires operator approval list.
+   - Create backup first under `archive/_brain_docs_autofix_<ts>/...`.
+   - Apply only approved items.
+   - Write run report under `_runs/`.
+3. `rollback`:
+   - Restore latest `archive/_brain_docs_autofix_<ts>/...` backup.
+   - Write rollback report under `_runs/`.
+
+## Input contract
+1. If mode is omitted, use `preview`.
+2. `apply` must include one of:
+   - `APPROVE: F001,F003`
+   - `APPROVE: APPLY_ALL_SAFE` (High + Medium only)
+   - `APPROVE: APPLY_ALL`
+3. If approval is missing in `apply`, stop with `BLOCKED`.
+4. `rollback` can optionally include a backup path; otherwise use latest backup.
+
+## Required workflow
+1. Classify mode:
+   - `preview` -> read-only
+   - `apply`/`rollback` -> Mode C (`PLAN -> READ -> CHANGE -> QC -> PERSIST`)
+2. For `preview`, return:
+   - Executive Summary (risk level + top root causes)
+   - Findings sorted by severity (ID, file:line, risky text, why risky, keep intent, proposed fix)
+   - Patch Preview (BEFORE/AFTER snippets only; no write)
+   - Approval Checklist
+   - Apply command hint
+3. For `apply`:
+   - Backup all target files before change.
+   - Apply only approved findings.
+   - Validate:
+     - persona preserved
+     - high-risk triggers reduced or guarded
+     - no new rule conflicts introduced
+   - Persist run report + update index if required.
+4. For `rollback`:
+   - Restore backed up files.
+   - Persist rollback report.
+
+## Risk detection hints
+1. Impulse trigger wording:
+   - "immediately", "do not wait", "always act", "唔使等指令", "即刻"
+2. Over-confidence wording:
+   - "always answer", "never uncertain", "must complete"
+3. Completion-claim leakage:
+   - declares done/pass without evidence fields
+4. Evidence mismatch:
+   - claims file read but file missing
+5. Memory pollution:
+   - speculative words ("likely", "可能", "估計") written as facts
+
+## Output requirements (UX)
+Use this order:
+1. `STATUS`
+2. `WHY`
+3. `NEXT STEP (Operator)`
+4. `COMMAND TO COPY`
+
+Always provide one primary next command and one `/skill ...` fallback.
+
+## Fallback
+If slash routing is unstable:
+1. `/skill gov_brain_audit preview`
+2. `/skill gov_brain_audit apply APPROVE: APPLY_ALL_SAFE`
+3. `/skill gov_brain_audit rollback`
+<<END FILE>>
+
 END TASK
+
 
 
 

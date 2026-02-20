@@ -10,6 +10,7 @@ This file is for maintainers only. It is not executed by OpenClaw runtime.
 4. `curl -I https://docs.openclaw.ai`
 5. `git status`
 6. `openclaw skills list --eligible`
+7. `/gov_brain_audit preview`
 
 ## Expected block without PLAN+READ evidence
 1. `echo test > tmp.txt`
@@ -23,6 +24,8 @@ This file is for maintainers only. It is not executed by OpenClaw runtime.
 1. `apply_patch ...`
 2. `write_file ...`
 3. `copy-item src dst`
+4. `/gov_brain_audit apply APPROVE: APPLY_ALL_SAFE`
+5. `/gov_brain_audit rollback`
 
 ## Evidence token smoke check
 1. Include `WG_PLAN_GATE_OK` in PLAN output.

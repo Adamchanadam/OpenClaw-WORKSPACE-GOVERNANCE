@@ -51,6 +51,7 @@ OpenClaw 出廠基線主要強調：
 3. Mode 分流：對話、查證、寫入任務分開處理
 4. BOOT 只讀提案 + 人工批准 + 受控套用
 5. run report 證據化，支援回溯與降低重覆失誤
+6. Brain Docs 保守修補能力（`gov_brain_audit`）：先預覽、後批准套用、可回退
 
 ---
 

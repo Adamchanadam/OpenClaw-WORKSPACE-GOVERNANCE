@@ -18,6 +18,7 @@ When the request touches Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL
 1. Read-only ask -> Mode B (verified answer): read the exact target files before answering.
 2. Any write/update request -> Mode C: full governance lifecycle is mandatory.
 3. If the same request also includes OpenClaw system claims, apply Mode B2 verification (`docs.openclaw.ai` + releases when version-sensitive).
+4. If the request is specifically about auditing/hardening Brain Docs behavior wording, route to `gov_brain_audit` (start with `preview`).
 
 ## Required behavior
 1. Resolve plugin root from this skill directory:

@@ -33,6 +33,11 @@ Perform governance integrity checks after bootstrap, migration, or apply.
    - READ evidence
    - QC 12/12 outcome
    Missing evidence => FAIL (workflow bypass).
+9. If a run includes `gov_brain_audit apply` or `gov_brain_audit rollback`, verify:
+   - backup path exists under `archive/_brain_docs_autofix_<ts>/...`
+   - run report includes approved finding IDs (or rollback scope)
+   - changed files are limited to approved Brain Docs/governance targets
+   Missing evidence => FAIL (unsafe Brain Docs mutation).
 
 ## Persistence
 - Write audit result into `_runs/` when the active governance flow requires persistence.

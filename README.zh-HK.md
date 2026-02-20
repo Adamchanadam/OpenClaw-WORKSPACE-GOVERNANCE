@@ -74,6 +74,28 @@ npm view @adamchanadam/openclaw-workspace-governance version
 /gov_audit
 ```
 
+### 情境 D：檢視並保守修補 Brain Docs 風險
+1. 在 OpenClaw TUI 先做只讀預覽：
+```text
+/gov_brain_audit preview
+```
+2. 只批准指定項目（或安全批次）：
+```text
+/gov_brain_audit apply APPROVE: F001,F003
+# 或
+/gov_brain_audit apply APPROVE: APPLY_ALL_SAFE
+```
+3. 如需回退至最近備份：
+```text
+/gov_brain_audit rollback
+```
+4. 若 slash 路由不穩，改用：
+```text
+/skill gov_brain_audit preview
+/skill gov_brain_audit apply APPROVE: APPLY_ALL_SAFE
+/skill gov_brain_audit rollback
+```
+
 ---
 
 ## 什麼是 OpenClaw WORKSPACE_GOVERNANCE
@@ -174,6 +196,7 @@ Mode 分流：
 | 只讀核對一致性 | `/gov_audit` | 治理證據與一致性 | 寫入新變更 |
 | 套用已批准 BOOT 提案 | `/gov_apply <NN>` | 已批准 BOOT 項目 | 未批准的臨時改動 |
 | 安全修改 OpenClaw 平台控制面 | `/gov_platform_change` | `~/.openclaw/openclaw.json`、`~/.openclaw/extensions/` | Brain Docs 與一般 workspace 內容 |
+| 保守審核與修補 Brain Docs | `/gov_brain_audit preview|apply|rollback` | Brain Docs 與治理行為提示檔 | 未經批准的大範圍重寫 |
 
 `gov_platform_change` 不適用於 Brain Docs（`USER.md`、`IDENTITY.md`、`TOOLS.md`、`SOUL.md`、`MEMORY.md`、`HEARTBEAT.md`、`memory/*.md`）。
 
@@ -193,7 +216,8 @@ Mode 分流：
 4. Brain Docs 只讀查詢必須先讀目標檔案
 5. Brain Docs 寫入任務的 run report 必須包含：`FILES_READ` + `TARGET_FILES_TO_CHANGE`
 6. 平台設定變更必須使用 `gov_platform_change`，並保留備份/驗證/回退證據
-7. 預設啟用 Runtime Hard Gate：
+7. Brain Docs 修補建議使用 `gov_brain_audit`：先 `preview`，再批准後 `apply`
+8. 預設啟用 Runtime Hard Gate：
    - `before_prompt_build`：對寫入意圖任務注入 Mode C 提示
    - `before_tool_call`：缺少 PLAN/READ 證據時阻擋可寫入工具
    - 只讀 shell/測試命令應可直接執行，不應被阻擋
@@ -286,6 +310,8 @@ openclaw gateway restart
 3. 已導入治理（日常維護）：
    - `gov_setup upgrade` -> `gov_migrate` -> `gov_audit`
    - 若 BOOT 有編號提案：`gov_apply <NN>` 後再 `gov_audit`
+4. Brain Docs 品質修補：
+   - `gov_brain_audit preview` -> 批准指定項目 -> `gov_brain_audit apply ...` -> `gov_audit`
 
 ---
 
@@ -331,7 +357,7 @@ openclaw gateway restart
 `gov_setup upgrade` -> `gov_migrate` -> `gov_audit`。
 
 ### Q8. slash 不穩定時可否全程使用 `/skill ...`？
-可以：`/skill gov_setup ...`、`/skill gov_migrate`、`/skill gov_audit`、`/skill gov_apply <NN>`、`/skill gov_platform_change`。
+可以：`/skill gov_setup ...`、`/skill gov_migrate`、`/skill gov_audit`、`/skill gov_apply <NN>`、`/skill gov_platform_change`、`/skill gov_brain_audit ...`。
 
 ### Q9. AI 出錯後會如何改進？
 錯誤會被寫入 run report；重覆模式可透過 BOOT 編號提案進行受控改進。
@@ -370,6 +396,12 @@ openclaw gateway restart
 1. `openclaw plugins update openclaw-workspace-governance`
 2. `openclaw gateway restart`
 3. `/gov_setup upgrade -> /gov_migrate -> /gov_audit`
+
+### Q16. 如何修補 Brain Docs 的高風險語句，同時保留原有人設？
+請使用 `gov_brain_audit`：
+1. 先 `preview`（只讀輸出風險與 patch 預覽）。
+2. 再以批准清單套用（`APPROVE: F001,F003` 或 `APPLY_ALL_SAFE`）。
+3. 如結果不理想，可用 `rollback` 回退。
 
 ---
 
