@@ -234,10 +234,11 @@ function governanceBlockReason(state: GateState): string {
   if (!state.readSeen) missing.push("READ GATE evidence");
   const missingText = missing.join(" + ");
   return [
-    `Blocked by WORKSPACE_GOVERNANCE runtime gate: missing ${missingText}.`,
-    "For any file write/change task, complete PLAN -> READ first, then retry CHANGE.",
-    "Use structured evidence tokens in your plan: WG_PLAN_GATE_OK and WG_READ_GATE_OK.",
-    "If this is a platform control-plane change, route through gov_platform_change.",
+    "WORKSPACE_GOVERNANCE guard activated (this is a safety block, not a system error).",
+    `Missing evidence: ${missingText}.`,
+    "If your task is read-only diagnostics/testing, rerun with read-only commands only.",
+    "If your task writes/updates files, complete PLAN -> READ first, include WG_PLAN_GATE_OK + WG_READ_GATE_OK, then retry CHANGE.",
+    "If this is a platform control-plane change, use gov_platform_change.",
   ].join(" ");
 }
 
@@ -293,9 +294,10 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
       if (modeCRequired && !explicitGovEntrypoint && (!state.planSeen || !state.readSeen)) {
         return {
           prependContext:
-            "Runtime governance gate active: This request appears to involve file changes. " +
+            "Runtime governance guard preflight: write intent detected. This is a safety check, not a system failure. " +
             "Before any write-capable tool call, complete PLAN GATE and READ GATE evidence first. " +
             "Include WG_PLAN_GATE_OK and WG_READ_GATE_OK in your governance response. " +
+            "If this task is read-only diagnostics/testing, keep it read-only and rerun. " +
             "If write intent is uncertain, treat as Mode C (fail-closed).",
         };
       }

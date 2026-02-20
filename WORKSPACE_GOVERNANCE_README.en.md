@@ -31,6 +31,7 @@ Host-side checks:
 
 ```text
 openclaw plugins info openclaw-workspace-governance
+npm view @adamchanadam/openclaw-workspace-governance version
 openclaw skills list --eligible
 ```
 
@@ -48,6 +49,12 @@ Any write/update/save task must run in this order:
 Fail-Closed:
 1. Missing evidence/path ambiguity -> stop
 2. Any QC fail -> do not claim completion
+
+Operator UX output convention:
+1. `STATUS`
+2. `WHY`
+3. `NEXT STEP (Operator)`
+4. `COMMAND TO COPY`
 
 ---
 
@@ -187,12 +194,16 @@ Fallback:
 5. Audit mismatch after update:
    - run `gov_migrate` then `gov_audit` again
 6. Runtime gate block message appears:
+   - this usually means governance guard worked (not a system crash)
    - if task is write/update/save: output PLAN + READ evidence, include `WG_PLAN_GATE_OK` + `WG_READ_GATE_OK`, then retry CHANGE
    - if task is read-only diagnostics/testing: keep command read-only and rerun
 7. `gov_setup upgrade` still stuck at governance gate:
    - update plugin to latest: `openclaw plugins update openclaw-workspace-governance`
    - restart gateway: `openclaw gateway restart`
    - rerun: `/gov_setup check` then `/gov_setup upgrade`
+8. Auto-update expectation:
+   - no background auto-update
+   - use manual flow: `openclaw plugins update ...` -> `openclaw gateway restart` -> `gov_setup upgrade` -> `gov_migrate` -> `gov_audit`
 
 ---
 

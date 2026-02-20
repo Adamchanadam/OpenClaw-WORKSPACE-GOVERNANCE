@@ -39,6 +39,11 @@ Perform governance integrity checks after bootstrap, migration, or apply.
 - Ensure `_control/WORKSPACE_INDEX.md` is updated when a new run report is added.
 
 ## Output requirements
+- Use this output order for UX consistency:
+  1. `STATUS`
+  2. `WHY`
+  3. `NEXT STEP (Operator)`
+  4. `COMMAND TO COPY`
 - Always include a final `NEXT STEP (Operator)` section.
 - If audit PASS:
   - primary: continue normal operation, or run `/gov_apply <NN>` only when an approved BOOT menu item exists.

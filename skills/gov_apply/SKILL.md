@@ -29,6 +29,11 @@ Execute:
 ## Output requirements
 - Include `FILES_READ` (exact paths) and `TARGET_FILES_TO_CHANGE` (exact paths).
 - If either field is missing, output `BLOCKED (missing read/change evidence)` and stop.
+- Use this output order for UX consistency:
+  1. `STATUS`
+  2. `WHY`
+  3. `NEXT STEP (Operator)`
+  4. `COMMAND TO COPY`
 - Always include a final `NEXT STEP (Operator)` section.
 - After apply completes:
   - primary: `/gov_migrate` then `/gov_audit`

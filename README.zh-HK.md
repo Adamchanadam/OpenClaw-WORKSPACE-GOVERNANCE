@@ -14,16 +14,63 @@ ClawHub 安裝頁：
 
 ## 由此開始（30 秒）
 
-先選擇你的入口路徑：
-1. 首次使用本插件：先安裝 plugin，再執行 `gov_setup install`
-2. 已在使用本插件：先更新 plugin，再執行 `gov_setup upgrade -> gov_migrate -> gov_audit`
-3. 需要修改 OpenClaw 平台設定：使用 `gov_platform_change`（不要直接 patch）
+請按你的情境，直接照以下步驟執行。
 
-最短指令路徑：
-
+### 情境 A：首次安裝（未用過本插件）
+1. Host Shell（終端）：
 ```text
 openclaw plugins install @adamchanadam/openclaw-workspace-governance@latest
+openclaw gateway restart
+openclaw plugins info openclaw-workspace-governance
+openclaw skills list --eligible
+```
+2. OpenClaw TUI：
+```text
+/gov_setup check
 /gov_setup install
+/gov_audit
+```
+3. 若 slash 路由不穩，改用：
+```text
+/skill gov_setup check
+/skill gov_setup install
+/skill gov_audit
+```
+
+### 情境 B：已安裝用戶升級到最新
+1. Host Shell（終端）：
+```text
+openclaw plugins update openclaw-workspace-governance
+openclaw gateway restart
+openclaw plugins info openclaw-workspace-governance
+npm view @adamchanadam/openclaw-workspace-governance version
+```
+2. OpenClaw TUI：
+```text
+/gov_setup check
+/gov_setup upgrade
+/gov_migrate
+/gov_audit
+```
+3. 若 slash 路由不穩，改用：
+```text
+/skill gov_setup check
+/skill gov_setup upgrade
+/skill gov_migrate
+/skill gov_audit
+```
+
+### 情境 C：需要修改 OpenClaw 平台設定（例如 `openclaw.json`）
+1. 在 OpenClaw TUI 使用：
+```text
+/gov_platform_change
+```
+2. 若 slash 路由不穩，改用：
+```text
+/skill gov_platform_change
+```
+3. 完成後執行：
+```text
 /gov_audit
 ```
 
@@ -129,6 +176,12 @@ Mode 分流：
 | 安全修改 OpenClaw 平台控制面 | `/gov_platform_change` | `~/.openclaw/openclaw.json`、`~/.openclaw/extensions/` | Brain Docs 與一般 workspace 內容 |
 
 `gov_platform_change` 不適用於 Brain Docs（`USER.md`、`IDENTITY.md`、`TOOLS.md`、`SOUL.md`、`MEMORY.md`、`HEARTBEAT.md`、`memory/*.md`）。
+
+所有 `gov_*` 指令回覆建議固定包含：
+1. `STATUS`
+2. `WHY`
+3. `NEXT STEP (Operator)`
+4. `COMMAND TO COPY`
 
 ---
 
@@ -295,6 +348,7 @@ openclaw gateway restart
 預設為啟用。
 
 ### Q13. 出現 `Blocked by WORKSPACE_GOVERNANCE runtime gate...` 應如何處理？
+這通常表示治理保護已成功觸發，並非系統故障。
 1. 先確認當前任務是否屬寫入（而非只讀診斷）。
 2. 先輸出 PLAN + READ 證據，再重試寫入步驟。
 3. 在治理回覆內加入 `WG_PLAN_GATE_OK` 與 `WG_READ_GATE_OK`。
@@ -310,6 +364,12 @@ openclaw gateway restart
 3. 若 slash 路由不穩，改用：
    - `/skill gov_setup check`
    - `/skill gov_setup upgrade`
+
+### Q15. 此插件是否支援自動更新？
+目前不支援。請使用手動更新流程：
+1. `openclaw plugins update openclaw-workspace-governance`
+2. `openclaw gateway restart`
+3. `/gov_setup upgrade -> /gov_migrate -> /gov_audit`
 
 ---
 

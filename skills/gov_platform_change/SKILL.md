@@ -56,6 +56,11 @@ Always report:
 9. `NEXT STEP (Operator)`:
    - if PASS: `/gov_audit` (fallback: `/skill gov_audit`)
    - if FAIL/BLOCKED: one unblock action + retry command
+10. Use this output order for UX consistency:
+   - `STATUS`
+   - `WHY`
+   - `NEXT STEP (Operator)`
+   - `COMMAND TO COPY`
 
 ## Fallback
 - If slash command is unavailable or name-collided, use:

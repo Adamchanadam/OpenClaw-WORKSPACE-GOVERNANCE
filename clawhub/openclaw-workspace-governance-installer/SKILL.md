@@ -81,11 +81,17 @@ If `openclaw plugins install ...` returns `plugin already exists`, use:
 2. `openclaw gateway restart`
 3. `/gov_setup upgrade` -> `/gov_migrate` -> `/gov_audit`
 
+Version check (operator-side):
+1. Installed: `openclaw plugins info openclaw-workspace-governance`
+2. Latest: `npm view @adamchanadam/openclaw-workspace-governance version`
+
 ## Runtime gate behavior (important)
 1. Read-only diagnostics/testing commands are allowed and should not be blocked.
 2. Write/update/save commands require PLAN + READ evidence before CHANGE.
-3. If blocked by runtime gate, include `WG_PLAN_GATE_OK` + `WG_READ_GATE_OK` in governance output, then retry.
-4. If `gov_setup upgrade` still reports gate deadlock, update plugin to latest + restart gateway, then rerun `gov_setup check` and `gov_setup upgrade`.
+3. If blocked by runtime gate, this usually means governance guard worked (not a system crash).
+4. Include `WG_PLAN_GATE_OK` + `WG_READ_GATE_OK` in governance output, then retry.
+5. Prefer final response shape from `gov_*`: `STATUS` -> `WHY` -> `NEXT STEP (Operator)` -> `COMMAND TO COPY`.
+6. If `gov_setup upgrade` still reports gate deadlock, update plugin to latest + restart gateway, then rerun `gov_setup check` and `gov_setup upgrade`.
 
 ## If slash routing is unstable
 Use fallback commands:

@@ -14,16 +14,63 @@ ClawHub installer page:
 
 ## Start Here (30 Seconds)
 
-Choose your entry path first:
-1. New to this plugin: install plugin, then run `gov_setup install`
-2. Already using this plugin: update plugin, then run `gov_setup upgrade -> gov_migrate -> gov_audit`
-3. Need to change OpenClaw platform config: use `gov_platform_change` (not direct patch)
+Use the exact path that matches your situation.
 
-Minimal command path:
-
+### Scenario A: First-time install
+1. Host shell:
 ```text
 openclaw plugins install @adamchanadam/openclaw-workspace-governance@latest
+openclaw gateway restart
+openclaw plugins info openclaw-workspace-governance
+openclaw skills list --eligible
+```
+2. OpenClaw TUI:
+```text
+/gov_setup check
 /gov_setup install
+/gov_audit
+```
+3. If slash routing is unstable, use:
+```text
+/skill gov_setup check
+/skill gov_setup install
+/skill gov_audit
+```
+
+### Scenario B: Existing users upgrading to latest
+1. Host shell:
+```text
+openclaw plugins update openclaw-workspace-governance
+openclaw gateway restart
+openclaw plugins info openclaw-workspace-governance
+npm view @adamchanadam/openclaw-workspace-governance version
+```
+2. OpenClaw TUI:
+```text
+/gov_setup check
+/gov_setup upgrade
+/gov_migrate
+/gov_audit
+```
+3. If slash routing is unstable, use:
+```text
+/skill gov_setup check
+/skill gov_setup upgrade
+/skill gov_migrate
+/skill gov_audit
+```
+
+### Scenario C: Platform control-plane config change (for example `openclaw.json`)
+1. In OpenClaw TUI, run:
+```text
+/gov_platform_change
+```
+2. If slash routing is unstable, use:
+```text
+/skill gov_platform_change
+```
+3. Then run:
+```text
 /gov_audit
 ```
 
@@ -129,6 +176,12 @@ Runtime mode routing:
 | Change OpenClaw platform control plane safely | `/gov_platform_change` | `~/.openclaw/openclaw.json`, `~/.openclaw/extensions/` | Brain Docs and normal workspace docs |
 
 `gov_platform_change` is not for Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`).
+
+All `gov_*` commands should end with:
+1. `STATUS`
+2. `WHY`
+3. `NEXT STEP (Operator)`
+4. `COMMAND TO COPY`
 
 ---
 
@@ -296,6 +349,7 @@ Yes, but not recommended. Set plugin config `runtimeGateEnabled: false`.
 Default is enabled.
 
 ### Q13. I got: `Blocked by WORKSPACE_GOVERNANCE runtime gate...` What should I do?
+This usually means governance protection worked as designed, not that the system crashed.
 1. Confirm this is a write task (not read-only diagnostics).
 2. Output PLAN + READ evidence first, then retry the write step.
 3. Include `WG_PLAN_GATE_OK` and `WG_READ_GATE_OK` in the governance response.
@@ -311,6 +365,12 @@ Default is enabled.
 3. If slash routing is unstable, use:
    - `/skill gov_setup check`
    - `/skill gov_setup upgrade`
+
+### Q15. Does this plugin support auto-update?
+Not yet. Use manual update flow:
+1. `openclaw plugins update openclaw-workspace-governance`
+2. `openclaw gateway restart`
+3. `/gov_setup upgrade -> /gov_migrate -> /gov_audit`
 
 ---
 

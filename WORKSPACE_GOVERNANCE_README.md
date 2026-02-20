@@ -31,6 +31,7 @@
 
 ```text
 openclaw plugins info openclaw-workspace-governance
+npm view @adamchanadam/openclaw-workspace-governance version
 openclaw skills list --eligible
 ```
 
@@ -48,6 +49,12 @@ openclaw skills list --eligible
 Fail-Closed 原則：
 1. 缺證據或路徑不明確時，必須停止
 2. 任一 QC 未通過，不可宣稱完成
+
+操作輸出建議格式：
+1. `STATUS`
+2. `WHY`
+3. `NEXT STEP (Operator)`
+4. `COMMAND TO COPY`
 
 ---
 
@@ -187,12 +194,16 @@ Fallback：
 5. 升級後 audit mismatch：
    - 先 `gov_migrate`，再 `gov_audit`
 6. 出現 runtime gate 阻擋訊息：
+   - 這通常表示治理保護已生效，並非系統崩潰
    - 若屬寫入/更新/保存任務：先補 PLAN + READ 證據，加入 `WG_PLAN_GATE_OK` + `WG_READ_GATE_OK`，再重試 CHANGE
    - 若屬只讀診斷/測試：保持只讀命令並重新執行
 7. `gov_setup upgrade` 仍顯示卡在 governance gate：
    - 更新 plugin 至最新版：`openclaw plugins update openclaw-workspace-governance`
    - 重啟 gateway：`openclaw gateway restart`
    - 重新執行：`/gov_setup check` 再 `/gov_setup upgrade`
+8. 關於自動更新：
+   - 目前沒有背景自動更新機制
+   - 請使用手動流程：`openclaw plugins update ...` -> `openclaw gateway restart` -> `gov_setup upgrade` -> `gov_migrate` -> `gov_audit`
 
 ---
 

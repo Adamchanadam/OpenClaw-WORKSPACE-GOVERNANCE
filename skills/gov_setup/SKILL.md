@@ -40,10 +40,11 @@ When the request touches Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL
 6. If mode is `check`:
    - Do not copy files.
    - Only report whether each target file exists and whether source files are discoverable.
+   - Try to report installed plugin version via `openclaw plugins info openclaw-workspace-governance` (if available).
    - Return one status:
-     - `NOT_INSTALLED`: target folder missing or target files absent (common right after plugin install).
-     - `PARTIAL`: target exists but one or more required files are missing/out-of-sync.
-     - `READY`: all required files are present.
+      - `NOT_INSTALLED`: target folder missing or target files absent (common right after plugin install).
+      - `PARTIAL`: target exists but one or more required files are missing/out-of-sync.
+      - `READY`: all required files are present.
    - Provide next action:
      - `NOT_INSTALLED` -> run `/gov_setup install`
      - `PARTIAL` -> run `/gov_setup upgrade`
@@ -67,6 +68,11 @@ When the request touches Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL
 - If any required source file is missing, stop and report missing paths.
 - Include `FILES_READ` (exact paths) and `TARGET_FILES_TO_CHANGE` (exact paths, or `none` for read-only `check`).
 - If required evidence fields are missing, output `BLOCKED (missing read/change evidence)` instead of completion.
+- Use this output order for UX consistency:
+  1. `STATUS`
+  2. `WHY`
+  3. `NEXT STEP (Operator)`
+  4. `COMMAND TO COPY`
 - Always include a final `NEXT STEP (Operator)` section with:
   - one primary command
   - one fallback `/skill ...` command
@@ -83,3 +89,6 @@ When the request touches Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL
   - if `status=READY`, append:
     - `/gov_migrate` then `/gov_audit`
     - fallback: `/skill gov_migrate` then `/skill gov_audit`
+  - append version visibility commands for operator-side check:
+    - installed: `openclaw plugins info openclaw-workspace-governance`
+    - latest: `npm view @adamchanadam/openclaw-workspace-governance version`
