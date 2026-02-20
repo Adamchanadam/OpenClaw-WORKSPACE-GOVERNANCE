@@ -12,7 +12,6 @@ import type {
 type GateState = {
   planSeen: boolean;
   readSeen: boolean;
-  modeCIntentSeen: boolean;
   govEntrypointSeen: boolean;
   govBypassUntil: number;
   govBypassWritesLeft: number;
@@ -27,6 +26,8 @@ const DEFAULT_SESSION = "__default__";
 const STATE_TTL_MS = 45 * 60 * 1000;
 const GOV_BYPASS_WINDOW_MS = 8 * 60 * 1000;
 const GOV_BYPASS_MAX_WRITES = 64;
+const PRUNE_INTERVAL_MS = 60 * 1000;
+let lastPruneAt = 0;
 
 const PLAN_EVIDENCE_PATTERNS = [
   /\bplan\s*gate\b/i,
@@ -110,7 +111,10 @@ const READONLY_COMMAND_HINTS = [
 
 const WRITE_INTENT_HINT = /\b(create|write|edit|update|modify|fix|refactor|implement|build|add|remove|delete|rename|move|patch|save|generate|scaffold)\b|寫|修改|更新|修正|新增|刪除|重構|建立|生成/i;
 
-const GOV_COMMAND_HINT = /(^|\s)\/?(skill\s+)?gov_(setup|migrate|audit|apply|platform_change)\b/i;
+const GOV_SETUP_HINT = /(^|\s)\/?(skill\s+)?gov_setup\b/i;
+const GOV_SETUP_CHECK_HINT = /\bgov_setup\b[^\n\r]{0,80}\bcheck\b|\bcheck\b[^\n\r]{0,80}\bgov_setup\b/i;
+const GOV_READ_COMMAND_HINT = /(^|\s)\/?(skill\s+)?gov_audit\b/i;
+const GOV_WRITE_COMMAND_HINT = /(^|\s)\/?(skill\s+)?gov_(migrate|apply|platform_change)\b/i;
 
 function toSessionKey(ctx: Partial<PluginHookAgentContext> | Partial<PluginHookToolContext>): string {
   return ctx.sessionKey || DEFAULT_SESSION;
@@ -125,7 +129,6 @@ function ensureState(sessionKey: string): GateState {
   const created: GateState = {
     planSeen: false,
     readSeen: false,
-    modeCIntentSeen: false,
     govEntrypointSeen: false,
     govBypassUntil: 0,
     govBypassWritesLeft: 0,
@@ -154,7 +157,7 @@ function hasAnyPattern(haystack: string, patterns: RegExp[]): boolean {
 }
 
 function inferWriteIntent(prompt: string): boolean {
-  return WRITE_INTENT_HINT.test(prompt) || GOV_COMMAND_HINT.test(prompt);
+  return WRITE_INTENT_HINT.test(prompt) || detectGovRequestKind(prompt) === "write";
 }
 
 function hasPlanEvidence(text: string): boolean {
@@ -179,8 +182,13 @@ function latestUserText(messages: unknown): string {
   return flattenText(messages[messages.length - 1] ?? "");
 }
 
-function isGovEntrypointRequest(text: string): boolean {
-  return GOV_COMMAND_HINT.test(text);
+function detectGovRequestKind(text: string): "none" | "read" | "write" {
+  if (GOV_READ_COMMAND_HINT.test(text)) return "read";
+  if (GOV_WRITE_COMMAND_HINT.test(text)) return "write";
+  if (GOV_SETUP_HINT.test(text)) {
+    return GOV_SETUP_CHECK_HINT.test(text) ? "read" : "write";
+  }
+  return "none";
 }
 
 function isReadToolCall(event: PluginHookBeforeToolCallEvent): boolean {
@@ -233,8 +241,10 @@ function governanceBlockReason(state: GateState): string {
   ].join(" ");
 }
 
-function pruneExpiredStates(): void {
+function maybePruneExpiredStates(): void {
   const now = Date.now();
+  if (now - lastPruneAt < PRUNE_INTERVAL_MS) return;
+  lastPruneAt = now;
   for (const [key, state] of states.entries()) {
     if (now - state.updatedAt > STATE_TTL_MS) states.delete(key);
   }
@@ -256,19 +266,17 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
       event: PluginHookBeforePromptBuildEvent,
       ctx: PluginHookAgentContext,
     ): PluginHookBeforePromptBuildResult | void => {
-      pruneExpiredStates();
+      maybePruneExpiredStates();
       const sessionKey = toSessionKey(ctx);
       const state = ensureState(sessionKey);
       const tailMessages = Array.isArray(event.messages) ? event.messages.slice(-10) : [];
       const tailText = flattenText(tailMessages).toLowerCase();
-      const recentMessages = Array.isArray(event.messages) ? event.messages.slice(-4) : [];
-      const recentText = flattenText(recentMessages).toLowerCase();
       const userText = latestUserText(event.messages);
+      const govRequestKind = detectGovRequestKind(userText);
 
       const modeCRequired = inferWriteIntent(userText);
-      const explicitGovEntrypoint = isGovEntrypointRequest(userText);
+      const explicitGovEntrypoint = govRequestKind === "write";
 
-      state.modeCIntentSeen = state.modeCIntentSeen || modeCRequired;
       state.planSeen = state.planSeen || hasPlanEvidence(tailText);
       state.readSeen = state.readSeen || hasReadEvidence(tailText);
       if (explicitGovEntrypoint) {
@@ -277,8 +285,6 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
         state.govEntrypointSeen = true;
         state.govBypassUntil = Date.now() + GOV_BYPASS_WINDOW_MS;
         state.govBypassWritesLeft = GOV_BYPASS_MAX_WRITES;
-        state.planSeen = true;
-        state.readSeen = true;
       }
       state.updatedAt = Date.now();
 
@@ -304,7 +310,7 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
       event: PluginHookBeforeToolCallEvent,
       ctx: PluginHookToolContext,
     ): PluginHookBeforeToolCallResult | void => {
-      pruneExpiredStates();
+      maybePruneExpiredStates();
       const sessionKey = toSessionKey(ctx);
       const state = ensureState(sessionKey);
 
@@ -353,7 +359,7 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
   api.on(
     "agent_end",
     (event: PluginHookAgentEndEvent, ctx: PluginHookAgentContext): void => {
-      pruneExpiredStates();
+      maybePruneExpiredStates();
       const sessionKey = toSessionKey(ctx);
       const state = ensureState(sessionKey);
       const messageText = flattenText(event.messages).toLowerCase();
@@ -383,7 +389,6 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
       ) {
         state.planSeen = false;
         state.readSeen = false;
-        state.modeCIntentSeen = false;
         state.writeSeen = false;
         state.blockedWrites = 0;
       }
