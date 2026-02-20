@@ -169,6 +169,8 @@ Fallback：
 6. Brain Docs 寫入具備 `FILES_READ` + `TARGET_FILES_TO_CHANGE`
 7. Runtime hard gate hooks 已啟用：
    - 缺少 PLAN/READ 證據時，可寫入工具調用會被阻擋
+   - 只讀 shell/測試命令應保持可執行
+   - 寫入任務被阻擋時，先補 `WG_PLAN_GATE_OK` + `WG_READ_GATE_OK` 再重試
 
 ---
 
@@ -184,6 +186,9 @@ Fallback：
    - 執行 `gov_setup upgrade`
 5. 升級後 audit mismatch：
    - 先 `gov_migrate`，再 `gov_audit`
+6. 出現 runtime gate 阻擋訊息：
+   - 若屬寫入/更新/保存任務：先補 PLAN + READ 證據，加入 `WG_PLAN_GATE_OK` + `WG_READ_GATE_OK`，再重試 CHANGE
+   - 若屬只讀診斷/測試：保持只讀命令並重新執行
 
 ---
 

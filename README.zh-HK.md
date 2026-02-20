@@ -143,6 +143,8 @@ Mode 分流：
 7. 預設啟用 Runtime Hard Gate：
    - `before_prompt_build`：對寫入意圖任務注入 Mode C 提示
    - `before_tool_call`：缺少 PLAN/READ 證據時阻擋可寫入工具
+   - 只讀 shell/測試命令應可直接執行，不應被阻擋
+   - 若被阻擋，請在治理回覆中加入證據 token：`WG_PLAN_GATE_OK` 與 `WG_READ_GATE_OK`
    - `agent_end`：若寫入任務缺少必要證據欄位會輸出告警
 
 ---
@@ -291,6 +293,12 @@ openclaw gateway restart
 ### Q12. 可否停用 runtime hard gate hooks？
 可以，但不建議。於 plugin config 設定 `runtimeGateEnabled: false`。  
 預設為啟用。
+
+### Q13. 出現 `Blocked by WORKSPACE_GOVERNANCE runtime gate...` 應如何處理？
+1. 先確認當前任務是否屬寫入（而非只讀診斷）。
+2. 先輸出 PLAN + READ 證據，再重試寫入步驟。
+3. 在治理回覆內加入 `WG_PLAN_GATE_OK` 與 `WG_READ_GATE_OK`。
+4. 若任務只是讀取/測試命令，保持只讀並重新執行。
 
 ---
 

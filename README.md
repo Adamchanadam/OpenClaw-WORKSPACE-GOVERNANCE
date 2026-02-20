@@ -143,6 +143,8 @@ Runtime mode routing:
 7. Runtime hard gate is enabled by default:
    - `before_prompt_build`: injects Mode C reminder for write-intent tasks
    - `before_tool_call`: blocks write-capable tool calls when PLAN/READ evidence is missing
+   - read-only shell/testing commands are allowed and should not be blocked
+   - if blocked, provide explicit evidence tokens in governance output: `WG_PLAN_GATE_OK` and `WG_READ_GATE_OK`
    - `agent_end`: warns when write runs miss required evidence fields
 
 ---
@@ -292,6 +294,12 @@ Use `gov_platform_change` only for OpenClaw platform control-plane targets (`~/.
 ### Q12. Can I disable runtime hard gate hooks?
 Yes, but not recommended. Set plugin config `runtimeGateEnabled: false`.  
 Default is enabled.
+
+### Q13. I got: `Blocked by WORKSPACE_GOVERNANCE runtime gate...` What should I do?
+1. Confirm this is a write task (not read-only diagnostics).
+2. Output PLAN + READ evidence first, then retry the write step.
+3. Include `WG_PLAN_GATE_OK` and `WG_READ_GATE_OK` in the governance response.
+4. If your task is only read/test commands, keep it read-only and rerun.
 
 ---
 

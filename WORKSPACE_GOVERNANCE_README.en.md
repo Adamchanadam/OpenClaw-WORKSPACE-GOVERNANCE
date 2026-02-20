@@ -169,6 +169,8 @@ Fallback:
 6. Brain Docs writes require `FILES_READ` + `TARGET_FILES_TO_CHANGE`
 7. Runtime hard gate hooks are active:
    - write-capable tool calls are blocked if PLAN/READ evidence is missing
+   - read-only shell/testing commands should remain allowed
+   - for blocked write tasks, include `WG_PLAN_GATE_OK` and `WG_READ_GATE_OK` before retry
 
 ---
 
@@ -184,6 +186,9 @@ Fallback:
    - run `gov_setup upgrade`
 5. Audit mismatch after update:
    - run `gov_migrate` then `gov_audit` again
+6. Runtime gate block message appears:
+   - if task is write/update/save: output PLAN + READ evidence, include `WG_PLAN_GATE_OK` + `WG_READ_GATE_OK`, then retry CHANGE
+   - if task is read-only diagnostics/testing: keep command read-only and rerun
 
 ---
 
