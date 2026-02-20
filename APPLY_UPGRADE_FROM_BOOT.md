@@ -14,6 +14,8 @@ RUNTIME MODES (Hard)
     - If the claim is latest/version-sensitive, MUST also verify official releases at `https://github.com/openclaw/openclaw/releases`.
   - Mode B3 (Date/time topics): MUST verify runtime current time context first (session status), then answer using absolute dates when relevant.
 - Mode C (Governance change): any write/update/save/persist operation; MUST run PLAN → READ → CHANGE → QC → PERSIST.
+  - Any coding/development task that creates or modifies workspace files is Mode C, even when requested in natural language without `/gov_*` commands.
+  - If it is unclear whether writes will occur, classify as Mode C (Fail-Closed).
 
 PATH COMPATIBILITY CONTRACT (Hard)
 - Resolve and use runtime `<workspace-root>`.

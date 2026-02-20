@@ -151,9 +151,10 @@ CANONICAL FILE PAYLOADS
 <!-- AUTOGEN:BEGIN AGENTS_CORE_v1 -->
 ## Non-negotiable rules
 PERSISTENCE Trigger (Hard):
-- Any request implying write/save/update/remember/record into documents is ALWAYS a governance task.
+- Any request implying ANY filesystem persistence (create/write/edit/update/move/delete) is ALWAYS a governance task, including code, scripts, configs, prompts, docs, tests, and assets.
 - Governance tasks MUST run: PLAN ->READ ->CHANGE ->QC ->PERSIST.
 - "Test/demo" tasks are NOT exemptions if they write files.
+- Natural-language coding tasks (for example: build, implement, fix, refactor) are Mode C by default whenever they imply file changes.
 
 PLAN-first rule (Hard):
 - For any governance task, the FIRST output line MUST be a PLAN GATE header.
@@ -161,6 +162,7 @@ PLAN-first rule (Hard):
 
 No-Write Guardrail (Hard):
 - You MUST NOT run any file-changing action (write/edit/move/copy/rm) until PLAN GATE + READ GATE are completed.
+- Runtime hard gate (plugin hooks) should enforce this at tool-call boundary when available.
 
 Evidence modes (Hard):
 - Mode A (Conversation): casual interaction; no persistence and no system claims.
@@ -169,8 +171,10 @@ Evidence modes (Hard):
   - Mode B3 (Date/time topics): MUST verify runtime current time context first (session status), then answer with explicit absolute date when relevant.
   - Brain Docs read-only checks: when answering about `USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, or `memory/*.md`, MUST read the exact target files first and cite them in run-report evidence.
 - Mode C (Governance change): any write/update/save/persist operation; MUST run PLAN ->READ ->CHANGE ->QC ->PERSIST.
+  - Any coding/development task that creates or modifies files under the workspace is Mode C, even if the operator does not invoke a `/gov_*` command.
   - Any create/update to Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`) is Mode C and must include explicit read evidence before write.
   - Platform control-plane changes (for example `~/.openclaw/openclaw.json`) MUST route through `gov_platform_change` (or `/skill gov_platform_change`) as execution entrypoint.
+- If it is unclear whether the task will write files, classify as Mode C (Fail-Closed).
 - If verification cannot be completed, do not guess; report uncertainty and required next check.
 
 Workspace boundary (Hard):
@@ -372,7 +376,9 @@ RUNTIME MODES (Hard)
     - If the claim is latest/version-sensitive, MUST also verify official releases at `https://github.com/openclaw/openclaw/releases`.
   - Mode B3 (Date/time topics): MUST verify runtime current time context first (session status), then answer using absolute dates when relevant.
 - Mode C (Governance change): any write/update/save/persist operation; MUST run PLAN → READ → CHANGE → QC → PERSIST.
+  - Any coding/development task that creates or modifies workspace files is Mode C, even when requested in natural language without `/gov_*` commands.
   - Platform control-plane changes (for example `~/.openclaw/openclaw.json`) MUST route through `gov_platform_change` (or `/skill gov_platform_change`) as execution entrypoint.
+  - If it is unclear whether writes will occur, classify as Mode C (Fail-Closed).
 
 PATH COMPATIBILITY CONTRACT (Hard)
 - Resolve and use runtime `<workspace-root>`.
@@ -545,8 +551,10 @@ RUNTIME MODES (Hard)
   - Mode B3 (Date/time topics): MUST verify current time context first (use runtime session status), then answer with explicit absolute date when relevant.
   - Brain Docs read-only checks: when answering about `USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, or `memory/*.md`, MUST read the exact target files first and cite them in run-report evidence.
 - Mode C (Governance change): any write/update/save/persist operation; MUST run PLAN → READ → CHANGE → QC → PERSIST.
+  - Any coding/development task that creates or modifies workspace files is Mode C, even when requested in natural language without `/gov_*` commands.
   - Any create/update to Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`) is Mode C and must include explicit read evidence before write.
   - Platform control-plane changes (for example `~/.openclaw/openclaw.json`) MUST route through `gov_platform_change` (or `/skill gov_platform_change`) as execution entrypoint.
+  - If it is unclear whether writes will occur, classify as Mode C (Fail-Closed).
 
 PATH COMPATIBILITY CONTRACT (Hard)
 - Treat workspace root as runtime-resolved `<workspace-root>`.
@@ -792,7 +800,9 @@ Rule:
   - Mode B2 (OpenClaw system topics): read relevant local skill docs and verify against official docs `https://docs.openclaw.ai` before answering. For latest/version-sensitive claims, also verify official releases at `https://github.com/openclaw/openclaw/releases`.
   - Mode B3 (Date/time topics): verify runtime current time context first (session status), then answer with explicit absolute date where needed.
 - Mode C (Governance change): any write/update/save/persist operation; full 5-gate workflow is mandatory.
+  - Any coding/development task that creates or modifies workspace files is Mode C, even when requested in natural language without `/gov_*` commands.
   - Platform control-plane changes (for example `~/.openclaw/openclaw.json`) MUST route through `gov_platform_change` (or `/skill gov_platform_change`) as execution entrypoint.
+  - If it is unclear whether writes will occur, classify as Mode C (Fail-Closed).
 - If evidence is missing, answer with uncertainty + next check, never by guessing.
 
 ---
@@ -830,8 +840,9 @@ Hard rule:
 
 ## 5) Mandatory Task Lifecycle (5 Gates)
 PERSISTENCE Trigger (Hard):
-- Any request implying writing/saving/updating/remembering into documents is ALWAYS a governance task.
+- Any request implying ANY filesystem persistence (create/write/edit/update/move/delete) is ALWAYS a governance task, including code, scripts, configs, prompts, docs, tests, and assets.
 - Governance tasks MUST run: PLAN ->READ ->CHANGE ->QC ->PERSIST.
+- Natural-language coding tasks (for example: build, implement, fix, refactor) are Mode C by default whenever they imply file changes.
 
 PLAN-first rule (Hard):
 - For any governance task, the FIRST output line MUST be a PLAN GATE header.
@@ -839,6 +850,7 @@ PLAN-first rule (Hard):
 
 No-Write Guardrail (Hard):
 - Do not perform any file-changing action (write/edit/move/copy/rm) before PLAN+READ are completed.
+- Runtime hard gate (plugin hooks) should enforce this at tool-call boundary when available.
 
 ### 5.1 PLAN GATE
 Output a short plan with:
@@ -1087,6 +1099,24 @@ Execute the migration workflow defined by:
    - official releases at `https://github.com/openclaw/openclaw/releases` for latest/version-sensitive claims
    - if verification cannot be completed, report uncertainty and required next check; do not infer
 7. For date/time-sensitive claims, verify runtime current time context first (session status).
+8. If the operator asks to change platform control-plane state (for example `~/.openclaw/openclaw.json`), route execution to `gov_platform_change` and do not patch platform files inside `gov_migrate`.
+9. Brain Docs routing:
+   - If the task touches Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`), treat read-only asks as Mode B and any write/update as Mode C.
+   - For Brain Docs writes, missing READ evidence is fail-closed.
+10. Coding-task routing:
+   - Any request that creates or modifies workspace code/files (for example: build, implement, fix, refactor) is Mode C, even without `/gov_*` command wording.
+   - If write intent is uncertain, treat as Mode C (Fail-Closed).
+
+## Output requirements
+- Include `FILES_READ` (exact paths) and `TARGET_FILES_TO_CHANGE` (exact paths).
+- If either field is missing, output `BLOCKED (missing read/change evidence)` and stop.
+- Always include a final `NEXT STEP (Operator)` section.
+- If migration PASS:
+  - primary: `/gov_audit`
+  - fallback: `/skill gov_audit`
+- If migration FAIL or BLOCKED:
+  - primary: `fix blocker, then rerun /gov_migrate`
+  - fallback: `fix blocker, then rerun /skill gov_migrate`
 
 ## Fallback
 - If slash command is unavailable or name-collided, use:
@@ -1116,10 +1146,32 @@ Perform governance integrity checks after bootstrap, migration, or apply.
    - OpenClaw system claims must cite `https://docs.openclaw.ai` sources
    - latest/version-sensitive OpenClaw claims must also cite `https://github.com/openclaw/openclaw/releases` sources
    - date/time claims must include runtime current time evidence (session status)
+6. If a run includes platform control-plane changes, verify:
+   - backup path exists under `archive/_platform_backup_<ts>/...`
+   - before/after key excerpts are present
+   - change was executed via `gov_platform_change` path (or equivalent documented fallback)
+7. If a run touches Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`), verify run report includes:
+   - `FILES_READ` exact paths
+   - `TARGET_FILES_TO_CHANGE` exact paths (or `none` for read-only)
+   Missing either field => FAIL (evidence incomplete).
+8. If a run includes coding/workspace file writes (for example under `projects/`), verify it was treated as Mode C with:
+   - explicit PLAN gate evidence
+   - READ evidence
+   - QC 12/12 outcome
+   Missing evidence => FAIL (workflow bypass).
 
 ## Persistence
 - Write audit result into `_runs/` when the active governance flow requires persistence.
 - Ensure `_control/WORKSPACE_INDEX.md` is updated when a new run report is added.
+
+## Output requirements
+- Always include a final `NEXT STEP (Operator)` section.
+- If audit PASS:
+  - primary: continue normal operation, or run `/gov_apply <NN>` only when an approved BOOT menu item exists.
+  - fallback: `/skill gov_apply <NN>`
+- If audit FAIL:
+  - primary: run `/gov_migrate` after remediation.
+  - fallback: `/skill gov_migrate`
 
 ## Fallback
 - If slash command is unavailable or name-collided, use:
@@ -1152,6 +1204,18 @@ Execute:
    - If verification cannot be completed, report uncertainty and required next check; do not infer.
 6. For date/time-sensitive claims during apply, verify runtime current time context first (session status).
 7. Use runtime `<workspace-root>` semantics; do not assume fixed home paths.
+8. Brain Docs routing:
+   - If apply path touches Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`), enforce Mode C and require explicit READ evidence before any write.
+
+## Output requirements
+- Include `FILES_READ` (exact paths) and `TARGET_FILES_TO_CHANGE` (exact paths).
+- If either field is missing, output `BLOCKED (missing read/change evidence)` and stop.
+- Always include a final `NEXT STEP (Operator)` section.
+- After apply completes:
+  - primary: `/gov_migrate` then `/gov_audit`
+  - fallback: `/skill gov_migrate` then `/skill gov_audit`
+- If apply is BLOCKED:
+  - output one clear unblock action and the exact command to retry.
 
 ## Fallback
 - If slash command is unavailable or name-collided, use:
@@ -1174,6 +1238,11 @@ Default target is `~/.openclaw/openclaw.json`.
 ## Allowed scope (hard)
 1. `~/.openclaw/openclaw.json`
 2. `~/.openclaw/extensions/` only when plugin install/enable/disable/uninstall requires it
+
+## Not in scope (hard)
+1. Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`)
+2. Normal workspace coding/docs files under `<workspace-root>`
+3. If request is non-platform file change, re-route to normal Mode C lifecycle (`PLAN -> READ -> CHANGE -> QC -> PERSIST`)
 
 ## Required workflow (hard)
 1. Classify request as Mode C governance change.
@@ -1202,11 +1271,16 @@ If request does not provide enough detail, ask for missing fields before any pat
 ## Output contract
 Always report:
 1. workspace root
-2. target platform path
-3. backup path
-4. changed key paths
-5. validation result
-6. rollback result (if triggered)
+2. `FILES_READ` (exact paths)
+3. `TARGET_FILES_TO_CHANGE` (exact paths)
+4. target platform path
+5. backup path
+6. changed key paths
+7. validation result
+8. rollback result (if triggered)
+9. `NEXT STEP (Operator)`:
+   - if PASS: `/gov_audit` (fallback: `/skill gov_audit`)
+   - if FAIL/BLOCKED: one unblock action + retry command
 
 ## Fallback
 - If slash command is unavailable or name-collided, use:

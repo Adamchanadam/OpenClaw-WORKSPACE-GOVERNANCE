@@ -140,6 +140,10 @@ Mode 分流：
 4. Brain Docs 只讀查詢必須先讀目標檔案
 5. Brain Docs 寫入任務的 run report 必須包含：`FILES_READ` + `TARGET_FILES_TO_CHANGE`
 6. 平台設定變更必須使用 `gov_platform_change`，並保留備份/驗證/回退證據
+7. 預設啟用 Runtime Hard Gate：
+   - `before_prompt_build`：對寫入意圖任務注入 Mode C 提示
+   - `before_tool_call`：缺少 PLAN/READ 證據時阻擋可寫入工具
+   - `agent_end`：若寫入任務缺少必要證據欄位會輸出告警
 
 ---
 
@@ -279,6 +283,14 @@ openclaw gateway restart
 
 ### Q10. 哪裡可讀完整深度文檔？
 請見下方 Deep Docs。
+
+### Q11. 處理寫程式任務是否需要額外 `/gov_code_task` 指令？
+不需要。自然語言提出的寫程式/改檔任務，預期會自動進入 Mode C（`PLAN -> READ -> CHANGE -> QC -> PERSIST`）。  
+`gov_platform_change` 只用於 OpenClaw 平台控制面目標（`~/.openclaw/openclaw.json`、`~/.openclaw/extensions/`）。
+
+### Q12. 可否停用 runtime hard gate hooks？
+可以，但不建議。於 plugin config 設定 `runtimeGateEnabled: false`。  
+預設為啟用。
 
 ---
 

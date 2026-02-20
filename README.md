@@ -140,6 +140,10 @@ Runtime mode routing:
 4. Brain Docs read-only asks must read exact target files first
 5. Brain Docs writes must include run-report evidence: `FILES_READ` + `TARGET_FILES_TO_CHANGE`
 6. Platform config changes must route via `gov_platform_change` with backup/validate/rollback evidence
+7. Runtime hard gate is enabled by default:
+   - `before_prompt_build`: injects Mode C reminder for write-intent tasks
+   - `before_tool_call`: blocks write-capable tool calls when PLAN/READ evidence is missing
+   - `agent_end`: warns when write runs miss required evidence fields
 
 ---
 
@@ -280,6 +284,14 @@ Mistakes are recorded in run reports; repeated patterns can be escalated via BOO
 
 ### Q10. Where are full deep-dive docs?
 See the links below.
+
+### Q11. Do I need a separate `/gov_code_task` command for coding work?
+No. Coding/file-change requests in natural language are expected to route to Mode C automatically (`PLAN -> READ -> CHANGE -> QC -> PERSIST`).  
+Use `gov_platform_change` only for OpenClaw platform control-plane targets (`~/.openclaw/openclaw.json`, `~/.openclaw/extensions/`).
+
+### Q12. Can I disable runtime hard gate hooks?
+Yes, but not recommended. Set plugin config `runtimeGateEnabled: false`.  
+Default is enabled.
 
 ---
 

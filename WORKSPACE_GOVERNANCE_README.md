@@ -56,6 +56,7 @@ Fail-Closed 原則：
 1. Mode A：一般對話（不寫檔、不作系統事實宣稱）
 2. Mode B：需證據回答（不寫檔）
 3. Mode C：任何寫入/更新/保存（必走完整 5 gates）
+   - 包括寫程式任務（例如 build/fix/refactor/implement）只要會改檔，一律屬 Mode C
 
 補充規則：
 1. OpenClaw 系統題：先核對本地 skills + `https://docs.openclaw.ai`
@@ -166,6 +167,8 @@ Fallback：
 4. `gov_audit` 為 12/12 PASS
 5. 平台設定修改經 `gov_platform_change`
 6. Brain Docs 寫入具備 `FILES_READ` + `TARGET_FILES_TO_CHANGE`
+7. Runtime hard gate hooks 已啟用：
+   - 缺少 PLAN/READ 證據時，可寫入工具調用會被阻擋
 
 ---
 

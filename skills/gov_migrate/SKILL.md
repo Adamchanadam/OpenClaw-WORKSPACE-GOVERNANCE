@@ -26,6 +26,9 @@ Execute the migration workflow defined by:
 9. Brain Docs routing:
    - If the task touches Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`), treat read-only asks as Mode B and any write/update as Mode C.
    - For Brain Docs writes, missing READ evidence is fail-closed.
+10. Coding-task routing:
+   - Any request that creates or modifies workspace code/files (for example: build, implement, fix, refactor) is Mode C, even without `/gov_*` command wording.
+   - If write intent is uncertain, treat as Mode C (Fail-Closed).
 
 ## Output requirements
 - Include `FILES_READ` (exact paths) and `TARGET_FILES_TO_CHANGE` (exact paths).

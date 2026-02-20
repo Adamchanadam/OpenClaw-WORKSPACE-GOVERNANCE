@@ -14,6 +14,11 @@ Default target is `~/.openclaw/openclaw.json`.
 1. `~/.openclaw/openclaw.json`
 2. `~/.openclaw/extensions/` only when plugin install/enable/disable/uninstall requires it
 
+## Not in scope (hard)
+1. Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`)
+2. Normal workspace coding/docs files under `<workspace-root>`
+3. If request is non-platform file change, re-route to normal Mode C lifecycle (`PLAN -> READ -> CHANGE -> QC -> PERSIST`)
+
 ## Required workflow (hard)
 1. Classify request as Mode C governance change.
 2. Output `PLAN GATE` first (no writes before PLAN + READ).

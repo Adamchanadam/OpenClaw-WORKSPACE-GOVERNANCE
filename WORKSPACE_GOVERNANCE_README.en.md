@@ -56,6 +56,7 @@ Fail-Closed:
 1. Mode A: conversational only (no writes, no system-truth claims)
 2. Mode B: evidence-based answer (no writes)
 3. Mode C: any write/update/save (full 5-gate flow)
+   - includes coding/development requests (build/fix/refactor/implement) whenever files will be changed
 
 Special rules:
 1. OpenClaw system claims: verify local skills + `https://docs.openclaw.ai`
@@ -166,6 +167,8 @@ Fallback:
 4. `gov_audit` reports 12/12 PASS
 5. Platform-change tasks route through `gov_platform_change`
 6. Brain Docs writes require `FILES_READ` + `TARGET_FILES_TO_CHANGE`
+7. Runtime hard gate hooks are active:
+   - write-capable tool calls are blocked if PLAN/READ evidence is missing
 
 ---
 

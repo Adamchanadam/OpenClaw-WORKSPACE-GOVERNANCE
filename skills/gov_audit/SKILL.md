@@ -28,6 +28,11 @@ Perform governance integrity checks after bootstrap, migration, or apply.
    - `FILES_READ` exact paths
    - `TARGET_FILES_TO_CHANGE` exact paths (or `none` for read-only)
    Missing either field => FAIL (evidence incomplete).
+8. If a run includes coding/workspace file writes (for example under `projects/`), verify it was treated as Mode C with:
+   - explicit PLAN gate evidence
+   - READ evidence
+   - QC 12/12 outcome
+   Missing evidence => FAIL (workflow bypass).
 
 ## Persistence
 - Write audit result into `_runs/` when the active governance flow requires persistence.

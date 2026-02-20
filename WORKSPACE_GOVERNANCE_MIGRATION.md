@@ -21,8 +21,10 @@ RUNTIME MODES (Hard)
   - Mode B3 (Date/time topics): MUST verify current time context first (use runtime session status), then answer with explicit absolute date when relevant.
   - Brain Docs read-only checks: when answering about `USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, or `memory/*.md`, MUST read the exact target files first and cite them in run-report evidence.
 - Mode C (Governance change): any write/update/save/persist operation; MUST run PLAN → READ → CHANGE → QC → PERSIST.
+  - Any coding/development task that creates or modifies workspace files is Mode C, even when requested in natural language without `/gov_*` commands.
   - Any create/update to Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`) is Mode C and must include explicit read evidence before write.
   - Platform control-plane changes (for example `~/.openclaw/openclaw.json`) MUST be routed through `gov_platform_change` (or `/skill gov_platform_change`) as the execution entrypoint.
+  - If it is unclear whether writes will occur, classify as Mode C (Fail-Closed).
 
 PATH COMPATIBILITY CONTRACT (Hard)
 - Treat workspace root as runtime-resolved `<workspace-root>`.

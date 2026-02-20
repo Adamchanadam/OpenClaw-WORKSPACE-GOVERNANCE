@@ -2,13 +2,19 @@
   "id": "openclaw-workspace-governance",
   "name": "OpenClaw Workspace Governance",
   "description": "Workspace governance lifecycle for OpenClaw: bootstrap, migrate, audit, and controlled BOOT apply.",
-  "version": "0.1.10",
+  "version": "0.1.13",
   "skills": [
     "./skills"
   ],
   "configSchema": {
     "type": "object",
     "additionalProperties": false,
-    "properties": {}
+    "properties": {
+      "runtimeGateEnabled": {
+        "type": "boolean",
+        "description": "Enable runtime hard gate hooks (before_prompt_build, before_tool_call, agent_end).",
+        "default": true
+      }
+    }
   }
 }
