@@ -189,6 +189,10 @@ Fallback：
 6. 出現 runtime gate 阻擋訊息：
    - 若屬寫入/更新/保存任務：先補 PLAN + READ 證據，加入 `WG_PLAN_GATE_OK` + `WG_READ_GATE_OK`，再重試 CHANGE
    - 若屬只讀診斷/測試：保持只讀命令並重新執行
+7. `gov_setup upgrade` 仍顯示卡在 governance gate：
+   - 更新 plugin 至最新版：`openclaw plugins update openclaw-workspace-governance`
+   - 重啟 gateway：`openclaw gateway restart`
+   - 重新執行：`/gov_setup check` 再 `/gov_setup upgrade`
 
 ---
 

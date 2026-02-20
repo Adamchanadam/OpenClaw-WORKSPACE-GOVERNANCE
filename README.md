@@ -301,6 +301,17 @@ Default is enabled.
 3. Include `WG_PLAN_GATE_OK` and `WG_READ_GATE_OK` in the governance response.
 4. If your task is only read/test commands, keep it read-only and rerun.
 
+### Q14. `gov_setup upgrade` says it's stuck at governance gate even after PLAN/READ. What now?
+1. Update the plugin to latest and restart gateway:
+   - `openclaw plugins update openclaw-workspace-governance`
+   - `openclaw gateway restart`
+2. Re-run:
+   - `/gov_setup check`
+   - `/gov_setup upgrade`
+3. If slash routing is unstable, use:
+   - `/skill gov_setup check`
+   - `/skill gov_setup upgrade`
+
 ---
 
 ## Deep Docs

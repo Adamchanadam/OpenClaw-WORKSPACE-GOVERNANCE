@@ -189,6 +189,10 @@ Fallback:
 6. Runtime gate block message appears:
    - if task is write/update/save: output PLAN + READ evidence, include `WG_PLAN_GATE_OK` + `WG_READ_GATE_OK`, then retry CHANGE
    - if task is read-only diagnostics/testing: keep command read-only and rerun
+7. `gov_setup upgrade` still stuck at governance gate:
+   - update plugin to latest: `openclaw plugins update openclaw-workspace-governance`
+   - restart gateway: `openclaw gateway restart`
+   - rerun: `/gov_setup check` then `/gov_setup upgrade`
 
 ---
 

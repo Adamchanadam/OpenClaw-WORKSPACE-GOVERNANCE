@@ -300,6 +300,17 @@ openclaw gateway restart
 3. 在治理回覆內加入 `WG_PLAN_GATE_OK` 與 `WG_READ_GATE_OK`。
 4. 若任務只是讀取/測試命令，保持只讀並重新執行。
 
+### Q14. `gov_setup upgrade` 顯示卡在 governance gate，即使已做 PLAN/READ，怎樣處理？
+1. 先更新 plugin 到最新版並重啟 gateway：
+   - `openclaw plugins update openclaw-workspace-governance`
+   - `openclaw gateway restart`
+2. 重新執行：
+   - `/gov_setup check`
+   - `/gov_setup upgrade`
+3. 若 slash 路由不穩，改用：
+   - `/skill gov_setup check`
+   - `/skill gov_setup upgrade`
+
 ---
 
 ## Deep Docs

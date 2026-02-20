@@ -85,6 +85,7 @@ If `openclaw plugins install ...` returns `plugin already exists`, use:
 1. Read-only diagnostics/testing commands are allowed and should not be blocked.
 2. Write/update/save commands require PLAN + READ evidence before CHANGE.
 3. If blocked by runtime gate, include `WG_PLAN_GATE_OK` + `WG_READ_GATE_OK` in governance output, then retry.
+4. If `gov_setup upgrade` still reports gate deadlock, update plugin to latest + restart gateway, then rerun `gov_setup check` and `gov_setup upgrade`.
 
 ## If slash routing is unstable
 Use fallback commands:
