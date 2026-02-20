@@ -22,11 +22,11 @@ Execute the migration workflow defined by:
    - official releases at `https://github.com/openclaw/openclaw/releases` for latest/version-sensitive claims
    - if verification cannot be completed, report uncertainty and required next check; do not infer
 7. For date/time-sensitive claims, verify runtime current time context first (session status).
-8. If the operator asks to change platform control-plane state (for example `~/.openclaw/openclaw.json`), route execution to `gov_platform_change` and do not patch platform files inside `gov_migrate`.
+8. If the operator asks to change platform control-plane state (for example `~/.openclaw/openclaw.json`), route execution to `gov_openclaw_json` and do not patch platform files inside `gov_migrate`.
 9. Brain Docs routing:
    - If the task touches Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`), treat read-only asks as Mode B and any write/update as Mode C.
    - For Brain Docs writes, missing READ evidence is fail-closed.
-   - For conservative Brain Docs behavior audits/fixes, route to `gov_brain_audit` (`preview` first).
+   - For conservative Brain Docs behavior audits/fixes, route to `gov_brain_audit` (single entry; preview by default).
 10. Coding-task routing:
    - Any request that creates or modifies workspace code/files (for example: build, implement, fix, refactor) is Mode C, even without `/gov_*` command wording.
    - If write intent is uncertain, treat as Mode C (Fail-Closed).

@@ -1,10 +1,10 @@
 ---
-name: gov_platform_change
+name: gov_openclaw_json
 description: Controlled OpenClaw platform config change with backup, validation, and rollback.
 user-invocable: true
 metadata: {"openclaw":{"emoji":"🧱","requires":{"bins":["openclaw"]}}}
 ---
-# /gov_platform_change
+# /gov_openclaw_json
 
 ## Purpose
 Handle OpenClaw platform control-plane changes safely.
@@ -18,7 +18,7 @@ Default target is `~/.openclaw/openclaw.json`.
 1. Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`)
 2. Normal workspace coding/docs files under `<workspace-root>`
 3. If request is non-platform file change, re-route to normal Mode C lifecycle (`PLAN -> READ -> CHANGE -> QC -> PERSIST`)
-4. For conservative Brain Docs behavior hardening, route to `gov_brain_audit` (preview-first).
+4. For conservative Brain Docs behavior hardening, route to `gov_brain_audit` (single entry; preview by default, then approved apply if needed).
 
 ## Required workflow (hard)
 1. Classify request as Mode C governance change.
@@ -65,4 +65,4 @@ Always report:
 
 ## Fallback
 - If slash command is unavailable or name-collided, use:
-  - `/skill gov_platform_change`
+  - `/skill gov_openclaw_json`

@@ -1,13 +1,13 @@
 ---
 name: gov_setup
-description: Install or upgrade governance prompt assets into the current OpenClaw workspace.
+description: Install or upgrade governance files into the current OpenClaw workspace.
 user-invocable: true
 metadata: {"openclaw":{"emoji":"🧰","requires":{"bins":["openclaw"]}}}
 ---
 # /gov_setup
 
 ## Purpose
-Deploy this plugin's governance prompt assets into the current workspace at `prompts/governance/`.
+Deploy this plugin's governance files into the current workspace at `prompts/governance/`.
 `check` mode is a read-only diagnostic for first-time setup and upgrade readiness.
 
 ## Inputs
@@ -18,7 +18,7 @@ When the request touches Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL
 1. Read-only ask -> Mode B (verified answer): read the exact target files before answering.
 2. Any write/update request -> Mode C: full governance lifecycle is mandatory.
 3. If the same request also includes OpenClaw system claims, apply Mode B2 verification (`docs.openclaw.ai` + releases when version-sensitive).
-4. If the request is specifically about auditing/hardening Brain Docs behavior wording, route to `gov_brain_audit` (start with `preview`).
+4. If the request is specifically about auditing/hardening Brain Docs behavior wording, route to `gov_brain_audit` (single entry; preview by default).
 
 ## Required behavior
 1. Resolve plugin root from this skill directory:
@@ -62,7 +62,7 @@ When the request touches Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL
    - Verify runtime current time context (session status) before answering.
 10. If operator asks to patch platform control-plane config (for example `~/.openclaw/openclaw.json`) during setup:
    - do not patch inside `gov_setup`
-   - route to `gov_platform_change`
+   - route to `gov_openclaw_json`
 
 ## Output requirements
 - Report source root, target root, files copied (or checked), and backup path if created.

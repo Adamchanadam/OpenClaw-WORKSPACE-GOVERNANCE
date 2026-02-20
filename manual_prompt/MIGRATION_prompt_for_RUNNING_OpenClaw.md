@@ -18,7 +18,7 @@ READ (must read and list read evidence in the run report):
 - skills/gov_migrate/SKILL.md (if present)
 - skills/gov_audit/SKILL.md (if present)
 - skills/gov_apply/SKILL.md (if present)
-- skills/gov_platform_change/SKILL.md (if present)
+- skills/gov_openclaw_json/SKILL.md (if present)
 - skills/gov_brain_audit/SKILL.md (if present)
 - prompts/governance/WORKSPACE_GOVERNANCE_MIGRATION.md
 - prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md (Canonical Source; if missing => FAIL-CLOSED)

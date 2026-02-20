@@ -23,7 +23,7 @@ Perform governance integrity checks after bootstrap, migration, or apply.
 6. If a run includes platform control-plane changes, verify:
    - backup path exists under `archive/_platform_backup_<ts>/...`
    - before/after key excerpts are present
-   - change was executed via `gov_platform_change` path (or equivalent documented fallback)
+   - change was executed via `gov_openclaw_json` path (or equivalent documented fallback)
 7. If a run touches Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`), verify run report includes:
    - `FILES_READ` exact paths
    - `TARGET_FILES_TO_CHANGE` exact paths (or `none` for read-only)
@@ -33,7 +33,7 @@ Perform governance integrity checks after bootstrap, migration, or apply.
    - READ evidence
    - QC 12/12 outcome
    Missing evidence => FAIL (workflow bypass).
-9. If a run includes `gov_brain_audit apply` or `gov_brain_audit rollback`, verify:
+9. If a run includes `gov_brain_audit APPROVE: ...` or `gov_brain_audit ROLLBACK`, verify:
    - backup path exists under `archive/_brain_docs_autofix_<ts>/...`
    - run report includes approved finding IDs (or rollback scope)
    - changed files are limited to approved Brain Docs/governance targets

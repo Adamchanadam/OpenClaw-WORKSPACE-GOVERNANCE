@@ -1,17 +1,24 @@
 ---
 name: gov_brain_audit
-description: Conservative Brain Docs auditor with preview-first findings, approval-based apply, and rollback for persona-safe hardening.
+description: Conservative Brain Docs auditor (single entry): preview by default, approval-based apply, rollback on demand.
 user-invocable: true
 metadata: {"openclaw":{"emoji":"🧠"}}
 ---
-# /gov_brain_audit [preview|apply|rollback]
+# /gov_brain_audit
 
 ## Purpose
 Audit Brain Docs conservatively to reduce two recurring risks:
 1. Action-before-verification behavior
 2. Unsupported certainty/completion claims without evidence
 
-Default mode is `preview` (read-only).
+Runtime integration:
+1. Governance runtime may automatically require this preview before write-capable actions
+2. Common trigger points: session/gateway start, after `gov_setup upgrade`, `gov_migrate`, `gov_audit`, or repeated write blocks
+
+Single-entry UX:
+1. Run `/gov_brain_audit` -> read-only preview (default)
+2. Approve selected items with `/gov_brain_audit APPROVE: ...`
+3. Roll back approved changes with `/gov_brain_audit ROLLBACK` (only after apply)
 
 ## In scope
 Brain Docs and governance docs that shape agent behavior:
@@ -38,40 +45,38 @@ Brain Docs and governance docs that shape agent behavior:
 4. Do not delete user content without explicit approval.
 5. If evidence is missing, mark uncertainty instead of guessing.
 
-## Mode contract
-1. `preview` (default):
-   - Read-only.
-   - Output findings + patch preview.
-   - No file writes.
-2. `apply`:
-   - Requires operator approval list.
-   - Create backup first under `archive/_brain_docs_autofix_<ts>/...`.
-   - Apply only approved items.
-   - Write run report under `_runs/`.
-3. `rollback`:
-   - Restore latest `archive/_brain_docs_autofix_<ts>/...` backup.
-   - Write rollback report under `_runs/`.
+## Trigger contract
+1. Preview mode (default):
+   - Triggered by `/gov_brain_audit` (or `/skill gov_brain_audit`) without approval/rollback token.
+   - Read-only: no file writes.
+2. Apply mode:
+   - Triggered when operator message includes `/gov_brain_audit APPROVE: ...`.
+   - Approval formats:
+     - `APPROVE: F001,F003`
+     - `APPROVE: APPLY_ALL_SAFE` (High + Medium)
+     - `APPROVE: APPLY_ALL`
+3. Rollback mode:
+   - Triggered when operator message is `/gov_brain_audit ROLLBACK`.
+   - Optional explicit path form: `/gov_brain_audit ROLLBACK: <backup-path>`.
+   - Valid only if a prior apply backup exists.
 
 ## Input contract
-1. If mode is omitted, use `preview`.
-2. `apply` must include one of:
-   - `APPROVE: F001,F003`
-   - `APPROVE: APPLY_ALL_SAFE` (High + Medium only)
-   - `APPROVE: APPLY_ALL`
-3. If approval is missing in `apply`, stop with `BLOCKED`.
-4. `rollback` can optionally include a backup path; otherwise use latest backup.
+1. Do not require users to memorize subcommands.
+2. If approval token is missing, stay in preview mode.
+3. If `APPROVE:` is malformed or references unknown finding IDs, stop with `BLOCKED`.
+4. If `ROLLBACK` is requested but no backup exists, stop with `BLOCKED`.
 
 ## Required workflow
 1. Classify mode:
-   - `preview` -> read-only
-   - `apply`/`rollback` -> Mode C (`PLAN -> READ -> CHANGE -> QC -> PERSIST`)
-2. For `preview`, return:
+   - Preview -> read-only
+   - Apply/Rollback -> Mode C (`PLAN -> READ -> CHANGE -> QC -> PERSIST`)
+2. For preview, return:
    - Executive Summary (risk level + top root causes)
    - Findings sorted by severity (ID, file:line, risky text, why risky, keep intent, proposed fix)
    - Patch Preview (BEFORE/AFTER snippets only; no write)
    - Approval Checklist
-   - Apply command hint
-3. For `apply`:
+   - Next-step hint with `APPROVE:` template
+3. For apply:
    - Backup all target files before change.
    - Apply only approved findings.
    - Validate:
@@ -79,7 +84,7 @@ Brain Docs and governance docs that shape agent behavior:
      - high-risk triggers reduced or guarded
      - no new rule conflicts introduced
    - Persist run report + update index if required.
-4. For `rollback`:
+4. For rollback:
    - Restore backed up files.
    - Persist rollback report.
 
@@ -103,9 +108,9 @@ Use this order:
 4. `COMMAND TO COPY`
 
 Always provide one primary next command and one `/skill ...` fallback.
+If a backup does not exist yet, do not suggest rollback in next-step options.
 
 ## Fallback
 If slash routing is unstable:
-1. `/skill gov_brain_audit preview`
-2. `/skill gov_brain_audit apply APPROVE: APPLY_ALL_SAFE`
-3. `/skill gov_brain_audit rollback`
+1. `/skill gov_brain_audit`
+2. `/skill gov_brain_audit APPROVE: ...` or `/skill gov_brain_audit ROLLBACK` as needed
