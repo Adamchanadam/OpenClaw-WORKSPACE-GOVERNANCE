@@ -2,7 +2,7 @@
   "id": "openclaw-workspace-governance",
   "name": "OpenClaw Workspace Governance",
   "description": "Workspace governance lifecycle for OpenClaw: bootstrap, migrate, audit, and controlled BOOT apply.",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "skills": [
     "./skills"
   ],

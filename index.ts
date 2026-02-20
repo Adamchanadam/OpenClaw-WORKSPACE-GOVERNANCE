@@ -13,6 +13,9 @@ type GateState = {
   planSeen: boolean;
   readSeen: boolean;
   modeCIntentSeen: boolean;
+  govEntrypointSeen: boolean;
+  govBypassUntil: number;
+  govBypassWritesLeft: number;
   writeSeen: boolean;
   blockedWrites: number;
   lastWriteTool?: string;
@@ -22,6 +25,8 @@ type GateState = {
 const states = new Map<string, GateState>();
 const DEFAULT_SESSION = "__default__";
 const STATE_TTL_MS = 45 * 60 * 1000;
+const GOV_BYPASS_WINDOW_MS = 8 * 60 * 1000;
+const GOV_BYPASS_MAX_WRITES = 64;
 
 const PLAN_EVIDENCE_PATTERNS = [
   /\bplan\s*gate\b/i,
@@ -121,6 +126,9 @@ function ensureState(sessionKey: string): GateState {
     planSeen: false,
     readSeen: false,
     modeCIntentSeen: false,
+    govEntrypointSeen: false,
+    govBypassUntil: 0,
+    govBypassWritesLeft: 0,
     writeSeen: false,
     blockedWrites: 0,
     updatedAt: Date.now(),
@@ -169,6 +177,10 @@ function latestUserText(messages: unknown): string {
   }
   if (userChunks.length > 0) return userChunks.join(" ");
   return flattenText(messages[messages.length - 1] ?? "");
+}
+
+function isGovEntrypointRequest(text: string): boolean {
+  return GOV_COMMAND_HINT.test(text);
 }
 
 function isReadToolCall(event: PluginHookBeforeToolCallEvent): boolean {
@@ -254,23 +266,25 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
       const userText = latestUserText(event.messages);
 
       const modeCRequired = inferWriteIntent(userText);
-      const recentPlanSeen = hasPlanEvidence(recentText);
-      const recentReadSeen = hasReadEvidence(recentText);
-
-      // Start of a new write-intent turn without fresh evidence: clear stale state.
-      if (modeCRequired && !recentPlanSeen && !recentReadSeen) {
-        state.planSeen = false;
-        state.readSeen = false;
-      }
+      const explicitGovEntrypoint = isGovEntrypointRequest(userText);
 
       state.modeCIntentSeen = state.modeCIntentSeen || modeCRequired;
       state.planSeen = state.planSeen || hasPlanEvidence(tailText);
       state.readSeen = state.readSeen || hasReadEvidence(tailText);
+      if (explicitGovEntrypoint) {
+        // gov_* entrypoints are dedicated governance workflows; allow them to execute
+        // their own PLAN/READ/CHANGE/QC/PERSIST steps without deadlocking at tool gate.
+        state.govEntrypointSeen = true;
+        state.govBypassUntil = Date.now() + GOV_BYPASS_WINDOW_MS;
+        state.govBypassWritesLeft = GOV_BYPASS_MAX_WRITES;
+        state.planSeen = true;
+        state.readSeen = true;
+      }
       state.updatedAt = Date.now();
 
       states.set(sessionKey, state);
 
-      if (modeCRequired && (!state.planSeen || !state.readSeen)) {
+      if (modeCRequired && !explicitGovEntrypoint && (!state.planSeen || !state.readSeen)) {
         return {
           prependContext:
             "Runtime governance gate active: This request appears to involve file changes. " +
@@ -304,6 +318,19 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
 
       const compliant = state.planSeen && state.readSeen;
       if (!compliant) {
+        const canBypassGovEntrypoint =
+          state.govEntrypointSeen &&
+          Date.now() <= state.govBypassUntil &&
+          state.govBypassWritesLeft > 0;
+        if (canBypassGovEntrypoint) {
+          state.govBypassWritesLeft -= 1;
+          state.writeSeen = true;
+          state.lastWriteTool = event.toolName;
+          state.updatedAt = Date.now();
+          states.set(sessionKey, state);
+          return;
+        }
+
         state.blockedWrites += 1;
         state.lastWriteTool = event.toolName;
         state.updatedAt = Date.now();
@@ -360,6 +387,10 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
         state.writeSeen = false;
         state.blockedWrites = 0;
       }
+      // gov_* bypass is single-turn scoped.
+      state.govEntrypointSeen = false;
+      state.govBypassUntil = 0;
+      state.govBypassWritesLeft = 0;
       state.updatedAt = Date.now();
       states.set(sessionKey, state);
     },
