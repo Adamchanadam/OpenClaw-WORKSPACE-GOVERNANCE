@@ -26,8 +26,12 @@ const DEFAULT_SESSION = "__default__";
 const STATE_TTL_MS = 45 * 60 * 1000;
 const GOV_BYPASS_WINDOW_MS = 8 * 60 * 1000;
 const GOV_BYPASS_MAX_WRITES = 64;
+const GOV_SETUP_FLOW_WINDOW_MS = 12 * 60 * 1000;
 const PRUNE_INTERVAL_MS = 60 * 1000;
 let lastPruneAt = 0;
+let globalGovBypassUntil = 0;
+let globalGovBypassWritesLeft = 0;
+let globalGovSetupFlowUntil = 0;
 
 const PLAN_EVIDENCE_PATTERNS = [
   /\bplan\s*gate\b/i,
@@ -245,6 +249,25 @@ function isReadonlyShellCommand(command: string): boolean {
   return READONLY_COMMAND_HINTS.some((re) => re.test(text));
 }
 
+function isGovSetupAssetDeployCommand(command: string): boolean {
+  const text = command.trim().toLowerCase();
+  if (!text) return false;
+
+  const hasGovPromptsTarget = text.includes("prompts/governance");
+  if (!hasGovPromptsTarget) return false;
+
+  const hasPluginSource = text.includes("openclaw-workspace-governance");
+  const hasBackupPath = text.includes("_gov_setup_backup_");
+  const hasCopyAction =
+    /(^|[\s;|&])(cp|copy|xcopy|robocopy|rsync|copy-item|install)\b/i.test(text) ||
+    text.includes("manual_prompt");
+  const hasMkdirAction = /(^|[\s;|&])(mkdir|md|new-item)\b/i.test(text);
+
+  if (hasBackupPath && (hasCopyAction || hasMkdirAction)) return true;
+  if (hasPluginSource && (hasCopyAction || hasMkdirAction)) return true;
+  return false;
+}
+
 function isWriteToolCall(event: PluginHookBeforeToolCallEvent): boolean {
   const name = (event.toolName || "").toLowerCase();
   if (HARD_WRITE_TOOL_NAMES.has(name)) return true;
@@ -304,6 +327,8 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
       const govRequestKindUser = detectGovRequestKind(userText);
       const govRequestKindTail = detectGovRequestKind(tailText);
       const govRequestKind = govRequestKindUser !== "none" ? govRequestKindUser : govRequestKindTail;
+      const setupRequestKindUser = detectGovSetupRequestKind(userText);
+      const setupRequestKindTail = detectGovSetupRequestKind(tailText);
 
       const modeCRequired = inferWriteIntent(userText) || govRequestKindTail === "write";
       const explicitGovEntrypoint = govRequestKind === "write" || govRequestKindTail === "write";
@@ -316,6 +341,11 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
         state.govEntrypointSeen = true;
         state.govBypassUntil = Date.now() + GOV_BYPASS_WINDOW_MS;
         state.govBypassWritesLeft = GOV_BYPASS_MAX_WRITES;
+        globalGovBypassUntil = Date.now() + GOV_BYPASS_WINDOW_MS;
+        globalGovBypassWritesLeft = GOV_BYPASS_MAX_WRITES;
+      }
+      if (setupRequestKindUser === "write" || setupRequestKindTail === "write") {
+        globalGovSetupFlowUntil = Date.now() + GOV_SETUP_FLOW_WINDOW_MS;
       }
       state.updatedAt = Date.now();
 
@@ -356,12 +386,30 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
 
       const compliant = state.planSeen && state.readSeen;
       if (!compliant) {
+        const shellCommand = isShellLikeTool((event.toolName || "").toLowerCase())
+          ? flattenText((event.params as Record<string, unknown>)?.command || "")
+          : "";
         const canBypassGovEntrypoint =
           state.govEntrypointSeen &&
           Date.now() <= state.govBypassUntil &&
           state.govBypassWritesLeft > 0;
+        const canBypassGlobalGovEntrypoint =
+          Date.now() <= globalGovBypassUntil && globalGovBypassWritesLeft > 0;
+        const canBypassGovSetupDeploy =
+          Date.now() <= globalGovSetupFlowUntil &&
+          isGovSetupAssetDeployCommand(shellCommand);
         if (canBypassGovEntrypoint) {
           state.govBypassWritesLeft -= 1;
+          state.writeSeen = true;
+          state.lastWriteTool = event.toolName;
+          state.updatedAt = Date.now();
+          states.set(sessionKey, state);
+          return;
+        }
+        if (canBypassGlobalGovEntrypoint || canBypassGovSetupDeploy) {
+          if (canBypassGlobalGovEntrypoint && globalGovBypassWritesLeft > 0) {
+            globalGovBypassWritesLeft -= 1;
+          }
           state.writeSeen = true;
           state.lastWriteTool = event.toolName;
           state.updatedAt = Date.now();
@@ -428,6 +476,12 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
       state.govEntrypointSeen = false;
       state.govBypassUntil = 0;
       state.govBypassWritesLeft = 0;
+      if (Date.now() > globalGovBypassUntil) {
+        globalGovBypassWritesLeft = 0;
+      }
+      if (Date.now() > globalGovSetupFlowUntil) {
+        globalGovSetupFlowUntil = 0;
+      }
       state.updatedAt = Date.now();
       states.set(sessionKey, state);
     },
