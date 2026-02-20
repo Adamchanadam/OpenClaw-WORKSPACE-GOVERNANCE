@@ -24,7 +24,7 @@ It covers:
 1. Plugin package:
    - `@adamchanadam/openclaw-workspace-governance`
 2. Required skills:
-   - `gov_setup`, `gov_migrate`, `gov_audit`, `gov_apply`, `gov_platform_change`, `gov_brain_audit`
+   - `gov_setup`, `gov_migrate`, `gov_audit`, `gov_apply`, `gov_openclaw_json`, `gov_brain_audit`
 3. If slash routing is unstable, use `/skill ...` fallback.
 
 Host-side checks:
@@ -76,17 +76,17 @@ Special rules:
 
 ## 5) File-Scope Map (Important)
 
-1. Workspace governance assets:
+1. Workspace governance files:
    - `<workspace-root>/prompts/governance/`
    - managed by `gov_setup install|upgrade|check`
 2. Platform control plane:
    - `~/.openclaw/openclaw.json`
    - `~/.openclaw/extensions/` (only when explicitly needed)
-   - managed by `gov_platform_change`
+   - managed by `gov_openclaw_json`
 3. Brain Docs:
    - `USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`
-   - not handled by `gov_platform_change`
-   - use `gov_brain_audit` for conservative preview/apply/rollback hardening
+   - not handled by `gov_openclaw_json`
+   - use `gov_brain_audit` (single entry; preview by default, approval-driven apply/rollback)
 
 ---
 
@@ -126,25 +126,37 @@ openclaw gateway restart
 
 ### D) Brain Docs conservative hardening
 
+Use this flow when you want to reduce "act-first" or unsupported-certainty wording without flattening persona.
+
 1. Start read-only preview:
 
 ```text
-/gov_brain_audit preview
+/gov_brain_audit
 ```
 
 2. Approve only selected findings (or safe batch):
 
 ```text
-/gov_brain_audit apply APPROVE: F001,F003
+/gov_brain_audit APPROVE: F001,F003
 # or
-/gov_brain_audit apply APPROVE: APPLY_ALL_SAFE
+/gov_brain_audit APPROVE: APPLY_ALL_SAFE
 ```
 
 3. If result is not acceptable:
 
 ```text
-/gov_brain_audit rollback
+/gov_brain_audit ROLLBACK
 ```
+
+### E) Runtime automatic health-check trigger (`gov_brain_audit`)
+
+Implemented behavior (read-only; never auto-apply):
+1. Trigger window starts at session/gateway start
+2. Trigger window refreshes after `gov_setup upgrade`
+3. Trigger window refreshes after `gov_migrate`
+4. Trigger window refreshes after `gov_audit`
+5. Trigger window refreshes when repeated write blocks hit threshold
+6. During active trigger window, write-capable actions can be blocked until `/gov_brain_audit` preview runs
 
 ---
 
@@ -152,7 +164,7 @@ openclaw gateway restart
 
 Use this only for control-plane files.
 
-1. Request via `gov_platform_change`
+1. Request via `gov_openclaw_json`
 2. Create workspace-local backup under `archive/_platform_backup_<ts>/...`
 3. Apply minimal config change
 4. Validate
@@ -162,7 +174,7 @@ Use this only for control-plane files.
 Fallback:
 
 ```text
-/skill gov_platform_change
+/skill gov_openclaw_json
 ```
 
 ---
@@ -192,19 +204,19 @@ Fallback:
 ## 9) UAT Checklist
 
 1. `gov_setup check` returns status + next step
-2. `gov_setup install|upgrade` deploys expected governance assets
+2. `gov_setup install|upgrade` deploys expected governance files
 3. `gov_migrate` completes without blocked QC
 4. `gov_audit` reports 12/12 PASS
-5. Platform-change tasks route through `gov_platform_change`
+5. Platform-change tasks route through `gov_openclaw_json`
 6. Brain Docs writes require `FILES_READ` + `TARGET_FILES_TO_CHANGE`
 7. Runtime hard gate hooks are active:
    - write-capable tool calls are blocked if PLAN/READ evidence is missing
    - read-only shell/testing commands should remain allowed
    - for blocked write tasks, include `WG_PLAN_GATE_OK` and `WG_READ_GATE_OK` before retry
 8. Brain Docs auditor flow works end-to-end:
-   - `gov_brain_audit preview` returns findings and approval checklist
-   - `gov_brain_audit apply ...` creates backup and run report
-   - `gov_brain_audit rollback` restores latest approved backup
+   - `gov_brain_audit` returns findings and approval checklist
+   - `gov_brain_audit APPROVE: ...` creates backup and run report
+   - `gov_brain_audit ROLLBACK` restores latest approved backup
 
 ---
 
@@ -228,12 +240,13 @@ Fallback:
    - update plugin to latest: `openclaw plugins update openclaw-workspace-governance`
    - restart gateway: `openclaw gateway restart`
    - rerun: `/gov_setup check` then `/gov_setup upgrade`
+   - or ask in natural language: `Please run gov_setup in upgrade mode for this workspace.`
 8. Auto-update expectation:
    - no background auto-update
    - use manual flow: `openclaw plugins update ...` -> `openclaw gateway restart` -> `gov_setup upgrade` -> `gov_migrate` -> `gov_audit`
-9. `gov_brain_audit apply` reports blocked:
+9. `gov_brain_audit APPROVE: ...` reports blocked:
    - include explicit approval input (`APPROVE: F001,F003` or `APPROVE: APPLY_ALL_SAFE`)
-   - rerun apply
+   - rerun with `/gov_brain_audit APPROVE: ...`
 
 ---
 

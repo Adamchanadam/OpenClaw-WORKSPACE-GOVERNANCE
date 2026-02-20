@@ -10,11 +10,16 @@ import type {
 } from "openclaw/plugin-sdk";
 
 type GateState = {
+  createdAt: number;
   planSeen: boolean;
   readSeen: boolean;
   govEntrypointSeen: boolean;
   govBypassUntil: number;
   govBypassWritesLeft: number;
+  brainAuditRequiredUntil: number;
+  brainAuditRequiredReason?: string;
+  brainAuditPreviewSeenAt: number;
+  brainAuditNudgedAt: number;
   writeSeen: boolean;
   blockedWrites: number;
   lastWriteTool?: string;
@@ -27,6 +32,10 @@ const STATE_TTL_MS = 45 * 60 * 1000;
 const GOV_BYPASS_WINDOW_MS = 8 * 60 * 1000;
 const GOV_BYPASS_MAX_WRITES = 64;
 const GOV_SETUP_FLOW_WINDOW_MS = 12 * 60 * 1000;
+const BRAIN_AUDIT_STARTUP_WINDOW_MS = 20 * 60 * 1000;
+const BRAIN_AUDIT_REQUIRE_WINDOW_MS = 30 * 60 * 1000;
+const BRAIN_AUDIT_NUDGE_COOLDOWN_MS = 5 * 60 * 1000;
+const BRAIN_AUDIT_BLOCK_THRESHOLD = 3;
 const PRUNE_INTERVAL_MS = 60 * 1000;
 let lastPruneAt = 0;
 let globalGovBypassUntil = 0;
@@ -114,6 +123,14 @@ const READONLY_COMMAND_HINTS = [
 ];
 
 const WRITE_INTENT_HINT = /\b(create|write|edit|update|modify|fix|refactor|implement|build|add|remove|delete|rename|move|patch|save|generate|scaffold)\b|寫|修改|更新|修正|新增|刪除|重構|建立|生成/i;
+const PLATFORM_CHANGE_HINT =
+  /openclaw\.json|platform\s+config|control[-\s]*plane|plugins\.entries|extensions\/|修改\s*openclaw\.json|平台設定|控制面/i;
+const BRAIN_AUDIT_HINT =
+  /(brain\s*docs?|user\.md|identity\.md|tools\.md|soul\.md|memory\.md|heartbeat\.md|memory\/\*\.md|brain\s*doc|人格|記憶|行為提示|思維|習慣)/i;
+const BRAIN_FIX_ACTION_HINT =
+  /(audit|harden|fix|repair|review|conservative|risk|修補|審核|檢查|修正|改善|保守)/i;
+const GOV_SETUP_UPGRADE_INTENT_HINT =
+  /(?:\b(?:upgrade|update|sync|refresh|redeploy|re-deploy)\b.*\b(?:governance|gov_setup|prompts\/governance|governance\s+files?|governance\s+prompts?)\b)|(?:(?:升級|更新|同步|重新部署).*(?:治理文件|治理|governance|prompts\/governance))/i;
 
 function classifyGovCommandRequest(
   command: string,
@@ -128,11 +145,20 @@ function classifyGovCommandRequest(
   if (cmd === "gov_audit") {
     return "read";
   }
-  if (cmd === "gov_migrate" || cmd === "gov_apply" || cmd === "gov_platform_change") {
+  if (cmd === "gov_migrate" || cmd === "gov_apply" || cmd === "gov_openclaw_json") {
     return "write";
   }
   if (cmd === "gov_brain_audit") {
-    return mode === "apply" || mode === "rollback" ? "write" : "read";
+    if (
+      mode === "apply" ||
+      mode === "rollback" ||
+      mode.startsWith("approve:") ||
+      mode === "approve" ||
+      mode.startsWith("rollback:")
+    ) {
+      return "write";
+    }
+    return "read";
   }
   return "none";
 }
@@ -147,15 +173,21 @@ function ensureState(sessionKey: string): GateState {
     if (Date.now() - existing.updatedAt <= STATE_TTL_MS) return existing;
     states.delete(sessionKey);
   }
+  const now = Date.now();
   const created: GateState = {
+    createdAt: now,
     planSeen: false,
     readSeen: false,
     govEntrypointSeen: false,
     govBypassUntil: 0,
     govBypassWritesLeft: 0,
+    brainAuditRequiredUntil: now + BRAIN_AUDIT_STARTUP_WINDOW_MS,
+    brainAuditRequiredReason: "session start",
+    brainAuditPreviewSeenAt: 0,
+    brainAuditNudgedAt: 0,
     writeSeen: false,
     blockedWrites: 0,
-    updatedAt: Date.now(),
+    updatedAt: now,
   };
   states.set(sessionKey, created);
   return created;
@@ -181,6 +213,18 @@ function inferWriteIntent(prompt: string): boolean {
   return WRITE_INTENT_HINT.test(prompt) || detectGovRequestKind(prompt) === "write";
 }
 
+function isPlatformChangeIntent(text: string): boolean {
+  return PLATFORM_CHANGE_HINT.test(text);
+}
+
+function isBrainAuditIntent(text: string): boolean {
+  return BRAIN_AUDIT_HINT.test(text) && BRAIN_FIX_ACTION_HINT.test(text);
+}
+
+function isGovSetupUpgradeIntent(text: string): boolean {
+  return GOV_SETUP_UPGRADE_INTENT_HINT.test(text);
+}
+
 function hasPlanEvidence(text: string): boolean {
   return hasAnyPattern(text, PLAN_EVIDENCE_PATTERNS);
 }
@@ -201,6 +245,19 @@ function latestUserText(messages: unknown): string {
   }
   if (userChunks.length > 0) return userChunks.join(" ");
   return flattenText(messages[messages.length - 1] ?? "");
+}
+
+function latestUserTurnText(messages: unknown): string {
+  if (!Array.isArray(messages)) return flattenText(messages);
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const item = messages[i];
+    if (!item || typeof item !== "object") continue;
+    const msg = item as Record<string, unknown>;
+    const role = String(msg.role ?? msg.sender ?? msg.author ?? "").toLowerCase();
+    if (role !== "user") continue;
+    return flattenText(msg.content ?? msg.text ?? msg.message ?? msg);
+  }
+  return "";
 }
 
 function detectGovRequestKind(text: string): "none" | "read" | "write" {
@@ -236,6 +293,33 @@ function detectGovCommandKindByName(
     if (classified !== "none") latest = classified;
   }
   return latest;
+}
+
+function detectGovCommandMode(text: string, command: string): string {
+  if (!text.trim()) return "";
+  const escaped = command.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(
+    `(^|\\s)\\/?(?:skill\\s+)?(${escaped})\\b(?:\\s+([a-z0-9_:-]+))?`,
+    "gi",
+  );
+  let latest = "";
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    latest = String(m[3] || "").toLowerCase();
+  }
+  return latest;
+}
+
+function isBrainAuditRequirementActive(state: GateState, now: number): boolean {
+  return state.brainAuditRequiredUntil > now;
+}
+
+function markBrainAuditRequired(state: GateState, reason: string, now: number): void {
+  const nextUntil = now + BRAIN_AUDIT_REQUIRE_WINDOW_MS;
+  if (state.brainAuditRequiredUntil < nextUntil) {
+    state.brainAuditRequiredUntil = nextUntil;
+    state.brainAuditRequiredReason = reason;
+  }
 }
 
 function isReadToolCall(event: PluginHookBeforeToolCallEvent): boolean {
@@ -304,8 +388,21 @@ function governanceBlockReason(state: GateState): string {
     `Missing evidence: ${missingText}.`,
     "If your task is read-only diagnostics/testing, rerun with read-only commands only.",
     "If your task writes/updates files, complete PLAN -> READ first, include WG_PLAN_GATE_OK + WG_READ_GATE_OK, then retry CHANGE.",
-    "If this is a platform control-plane change, use gov_platform_change.",
+    "If this is a platform control-plane change, use gov_openclaw_json.",
+    "If this is Brain Docs hardening, start with /gov_brain_audit and continue with /gov_brain_audit APPROVE: ... only after preview.",
   ].join(" ");
+}
+
+function brainAuditBlockReason(state: GateState): string {
+  const reason = state.brainAuditRequiredReason
+    ? ` Trigger: ${state.brainAuditRequiredReason}.`
+    : "";
+  return [
+    "WORKSPACE_GOVERNANCE health-check gate activated (this is a safety block, not a system error).",
+    "Before write-capable actions, run /gov_brain_audit (read-only preview) first.",
+    "Then continue with your write task (or /gov_brain_audit APPROVE: ... if you approve fixes).",
+    "Fallback: /skill gov_brain_audit.",
+  ].join(" ") + reason;
 }
 
 function maybePruneExpiredStates(): void {
@@ -339,41 +436,124 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
       const tailMessages = Array.isArray(event.messages) ? event.messages.slice(-10) : [];
       const tailText = flattenText(tailMessages).toLowerCase();
       const userText = latestUserText(event.messages);
+      const latestUserTurn = latestUserTurnText(event.messages);
       const govRequestKindUser = detectGovRequestKind(userText);
       const govRequestKindTail = detectGovRequestKind(tailText);
       const govRequestKind = govRequestKindUser !== "none" ? govRequestKindUser : govRequestKindTail;
-      const setupRequestKindUser = detectGovCommandKindByName(userText, "gov_setup");
+      const setupRequestKindUser = detectGovCommandKindByName(latestUserTurn, "gov_setup");
       const setupRequestKindTail = detectGovCommandKindByName(tailText, "gov_setup");
+      const setupModeUser = detectGovCommandMode(latestUserTurn, "gov_setup");
+      const setupUpgradeIntentUser = isGovSetupUpgradeIntent(latestUserTurn);
+      const migrateKindUser = detectGovCommandKindByName(latestUserTurn, "gov_migrate");
+      const auditKindUser = detectGovCommandKindByName(latestUserTurn, "gov_audit");
+      const brainAuditKindUser = detectGovCommandKindByName(latestUserTurn, "gov_brain_audit");
 
       const modeCRequired = inferWriteIntent(userText) || govRequestKindTail === "write";
       const explicitGovEntrypoint = govRequestKind === "write" || govRequestKindTail === "write";
+      const now = Date.now();
 
       state.planSeen = state.planSeen || hasPlanEvidence(tailText);
       state.readSeen = state.readSeen || hasReadEvidence(tailText);
+      if (brainAuditKindUser === "none") {
+        const setupUpgradeRequested = setupModeUser === "upgrade";
+        const migrateRequested = migrateKindUser === "write";
+        const auditRequested = auditKindUser === "read";
+        if (setupUpgradeRequested) {
+          markBrainAuditRequired(state, "post gov_setup upgrade", now);
+        }
+        if (migrateRequested) {
+          markBrainAuditRequired(state, "post gov_migrate", now);
+        }
+        if (auditRequested) {
+          markBrainAuditRequired(state, "post gov_audit", now);
+        }
+        if (state.blockedWrites >= BRAIN_AUDIT_BLOCK_THRESHOLD) {
+          markBrainAuditRequired(state, "repeated blocked writes", now);
+        }
+      } else {
+        state.brainAuditNudgedAt = now;
+        if (brainAuditKindUser === "read") {
+          state.brainAuditPreviewSeenAt = now;
+          state.brainAuditRequiredUntil = 0;
+          state.brainAuditRequiredReason = undefined;
+          state.blockedWrites = 0;
+        }
+      }
       if (explicitGovEntrypoint) {
         // gov_* entrypoints are dedicated governance workflows; allow them to execute
         // their own PLAN/READ/CHANGE/QC/PERSIST steps without deadlocking at tool gate.
         state.govEntrypointSeen = true;
-        state.govBypassUntil = Date.now() + GOV_BYPASS_WINDOW_MS;
+        state.govBypassUntil = now + GOV_BYPASS_WINDOW_MS;
         state.govBypassWritesLeft = GOV_BYPASS_MAX_WRITES;
-        globalGovBypassUntil = Date.now() + GOV_BYPASS_WINDOW_MS;
+        globalGovBypassUntil = now + GOV_BYPASS_WINDOW_MS;
         globalGovBypassWritesLeft = GOV_BYPASS_MAX_WRITES;
       }
-      if (setupRequestKindUser === "write" || setupRequestKindTail === "write") {
-        globalGovSetupFlowUntil = Date.now() + GOV_SETUP_FLOW_WINDOW_MS;
+      if (
+        setupRequestKindUser === "write" ||
+        setupRequestKindTail === "write" ||
+        setupUpgradeIntentUser
+      ) {
+        globalGovSetupFlowUntil = now + GOV_SETUP_FLOW_WINDOW_MS;
       }
-      state.updatedAt = Date.now();
+      state.updatedAt = now;
 
       states.set(sessionKey, state);
 
-      if (modeCRequired && !explicitGovEntrypoint && (!state.planSeen || !state.readSeen)) {
+      const brainAuditRequired = isBrainAuditRequirementActive(state, now);
+      if (brainAuditRequired && modeCRequired && !explicitGovEntrypoint && !setupUpgradeIntentUser) {
+        return {
+          prependContext:
+            "Automatic governance health-check is active for this session. " +
+            "First action in this turn MUST be /gov_brain_audit (read-only preview). Do not run any write-capable step before it. " +
+            "After preview, continue your requested task (or use /gov_brain_audit APPROVE: ... if you approve fixes). " +
+            (state.brainAuditRequiredReason
+              ? `Trigger: ${state.brainAuditRequiredReason}. `
+              : "") +
+            "Fallback: /skill gov_brain_audit.",
+        };
+      }
+      if (
+        !brainAuditRequired &&
+        state.brainAuditPreviewSeenAt === 0 &&
+        modeCRequired &&
+        now - state.brainAuditNudgedAt > BRAIN_AUDIT_NUDGE_COOLDOWN_MS
+      ) {
+        state.brainAuditNudgedAt = now;
+        state.updatedAt = now;
+        states.set(sessionKey, state);
+        return {
+          prependContext:
+            "Governance health-check suggestion: run /gov_brain_audit first (read-only preview) before high-risk write tasks. " +
+            "Then proceed with PLAN/READ/CHANGE/QC/PERSIST.",
+        };
+      }
+
+      if (
+        modeCRequired &&
+        !explicitGovEntrypoint &&
+        !setupUpgradeIntentUser &&
+        (!state.planSeen || !state.readSeen)
+      ) {
+        const routeHints: string[] = [];
+        if (isPlatformChangeIntent(userText)) {
+          routeHints.push(
+            "Route platform control-plane changes via /gov_openclaw_json (fallback: /skill gov_openclaw_json).",
+          );
+        }
+        if (isBrainAuditIntent(userText)) {
+          routeHints.push(
+            "Route Brain Docs risk reviews via /gov_brain_audit (then /gov_brain_audit APPROVE: ... only when approved).",
+          );
+        }
+        const routeHintText = routeHints.length > 0 ? ` ${routeHints.join(" ")}` : "";
         return {
           prependContext:
             "Runtime governance guard preflight: write intent detected. This is a safety check, not a system failure. " +
             "Before any write-capable tool call, complete PLAN GATE and READ GATE evidence first. " +
             "Include WG_PLAN_GATE_OK and WG_READ_GATE_OK in your governance response. " +
             "If this task is read-only diagnostics/testing, keep it read-only and rerun. " +
-            "If write intent is uncertain, treat as Mode C (fail-closed).",
+            "If write intent is uncertain, treat as Mode C (fail-closed)." +
+            routeHintText,
         };
       }
       return;
@@ -399,25 +579,40 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
 
       if (!isWriteToolCall(event)) return;
 
+      const now = Date.now();
+      const shellCommand = isShellLikeTool((event.toolName || "").toLowerCase())
+        ? flattenText((event.params as Record<string, unknown>)?.command || "")
+        : "";
+      const canBypassGovEntrypoint =
+        state.govEntrypointSeen &&
+        now <= state.govBypassUntil &&
+        state.govBypassWritesLeft > 0;
+      const canBypassGlobalGovEntrypoint =
+        now <= globalGovBypassUntil && globalGovBypassWritesLeft > 0;
+      const canBypassGovSetupDeploy =
+        now <= globalGovSetupFlowUntil &&
+        isGovSetupAssetDeployCommand(shellCommand);
+      const canBypassAny =
+        canBypassGovEntrypoint || canBypassGlobalGovEntrypoint || canBypassGovSetupDeploy;
+
+      if (isBrainAuditRequirementActive(state, now) && !canBypassAny) {
+        state.blockedWrites += 1;
+        state.lastWriteTool = event.toolName;
+        state.updatedAt = now;
+        states.set(sessionKey, state);
+        return {
+          block: true,
+          blockReason: brainAuditBlockReason(state),
+        };
+      }
+
       const compliant = state.planSeen && state.readSeen;
       if (!compliant) {
-        const shellCommand = isShellLikeTool((event.toolName || "").toLowerCase())
-          ? flattenText((event.params as Record<string, unknown>)?.command || "")
-          : "";
-        const canBypassGovEntrypoint =
-          state.govEntrypointSeen &&
-          Date.now() <= state.govBypassUntil &&
-          state.govBypassWritesLeft > 0;
-        const canBypassGlobalGovEntrypoint =
-          Date.now() <= globalGovBypassUntil && globalGovBypassWritesLeft > 0;
-        const canBypassGovSetupDeploy =
-          Date.now() <= globalGovSetupFlowUntil &&
-          isGovSetupAssetDeployCommand(shellCommand);
         if (canBypassGovEntrypoint) {
           state.govBypassWritesLeft -= 1;
           state.writeSeen = true;
           state.lastWriteTool = event.toolName;
-          state.updatedAt = Date.now();
+          state.updatedAt = now;
           states.set(sessionKey, state);
           return;
         }
@@ -427,14 +622,14 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
           }
           state.writeSeen = true;
           state.lastWriteTool = event.toolName;
-          state.updatedAt = Date.now();
+          state.updatedAt = now;
           states.set(sessionKey, state);
           return;
         }
 
         state.blockedWrites += 1;
         state.lastWriteTool = event.toolName;
-        state.updatedAt = Date.now();
+        state.updatedAt = now;
         states.set(sessionKey, state);
         return {
           block: true,
@@ -444,7 +639,7 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
 
       state.writeSeen = true;
       state.lastWriteTool = event.toolName;
-      state.updatedAt = Date.now();
+      state.updatedAt = now;
       states.set(sessionKey, state);
       return;
     },

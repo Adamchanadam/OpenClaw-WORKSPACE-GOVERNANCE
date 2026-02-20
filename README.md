@@ -63,11 +63,11 @@ npm view @adamchanadam/openclaw-workspace-governance version
 ### Scenario C: Platform control-plane config change (for example `openclaw.json`)
 1. In OpenClaw TUI, run:
 ```text
-/gov_platform_change
+/gov_openclaw_json
 ```
 2. If slash routing is unstable, use:
 ```text
-/skill gov_platform_change
+/skill gov_openclaw_json
 ```
 3. Then run:
 ```text
@@ -77,24 +77,29 @@ npm view @adamchanadam/openclaw-workspace-governance version
 ### Scenario D: Brain Docs risk review and conservative hardening
 1. In OpenClaw TUI, start with read-only preview:
 ```text
-/gov_brain_audit preview
+/gov_brain_audit
 ```
 2. Approve only selected findings (or safe batch):
 ```text
-/gov_brain_audit apply APPROVE: F001,F003
+/gov_brain_audit APPROVE: F001,F003
 # or
-/gov_brain_audit apply APPROVE: APPLY_ALL_SAFE
+/gov_brain_audit APPROVE: APPLY_ALL_SAFE
 ```
-3. If needed, rollback to latest backup:
+3. If needed (after an approved apply), rollback to latest approved backup:
 ```text
-/gov_brain_audit rollback
+/gov_brain_audit ROLLBACK
 ```
 4. If slash routing is unstable, use:
 ```text
-/skill gov_brain_audit preview
-/skill gov_brain_audit apply APPROVE: APPLY_ALL_SAFE
-/skill gov_brain_audit rollback
+/skill gov_brain_audit
+/skill gov_brain_audit APPROVE: APPLY_ALL_SAFE
+/skill gov_brain_audit ROLLBACK
 ```
+
+What `gov_brain_audit` gives you (short):
+1. Finds risky wording that can cause "act first" or "claim certainty without evidence".
+2. Keeps persona/style direction while applying minimal-diff safety fixes.
+3. Uses approval-driven apply + rollback, so you keep control before changes are persisted.
 
 ---
 
@@ -136,6 +141,7 @@ What this solution adds:
 2. Verification gates for system/date/version claims
 3. Run-report evidence for review, handover, and rollback
 4. BOOT read-only proposals with human approval before apply
+5. Conservative Brain Docs hardening (`gov_brain_audit`): preview first, approve selected fixes only, rollback if needed
 
 ### Positioning and Boundaries
 
@@ -190,15 +196,15 @@ Runtime mode routing:
 
 | Task goal | Use this command | In-scope targets | Do not use for |
 |---|---|---|---|
-| First-time governance asset deployment | `/gov_setup install` | `<workspace-root>/prompts/governance/` | Editing platform config directly |
-| Upgrade existing governance assets | `/gov_setup upgrade` | `<workspace-root>/prompts/governance/` | Platform control-plane patching |
+| First-time governance file deployment | `/gov_setup install` | `<workspace-root>/prompts/governance/` | Editing platform config directly |
+| Upgrade existing governance files | `/gov_setup upgrade` | `<workspace-root>/prompts/governance/` | Platform control-plane patching |
 | Apply governance alignment updates | `/gov_migrate` | Workspace governance files | BOOT proposal apply |
 | Verify consistency (read-only) | `/gov_audit` | Governance evidence and checks | Writing new changes |
 | Apply approved BOOT proposal | `/gov_apply <NN>` | Approved BOOT item only | Ad-hoc unapproved edits |
-| Change OpenClaw platform control plane safely | `/gov_platform_change` | `~/.openclaw/openclaw.json`, `~/.openclaw/extensions/` | Brain Docs and normal workspace docs |
-| Audit and harden Brain Docs conservatively | `/gov_brain_audit preview|apply|rollback` | Brain Docs + governance behavior prompts | Direct broad rewrite without approval |
+| Change OpenClaw platform control plane safely | `/gov_openclaw_json` | `~/.openclaw/openclaw.json`, `~/.openclaw/extensions/` | Brain Docs and normal workspace docs |
+| Audit and harden Brain Docs conservatively | `/gov_brain_audit` (single entry) | Brain Docs + governance behavior prompts | Direct broad rewrite without approval |
 
-`gov_platform_change` is not for Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`).
+`gov_openclaw_json` is not for Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`).
 
 All `gov_*` commands should end with:
 1. `STATUS`
@@ -215,14 +221,19 @@ All `gov_*` commands should end with:
 3. Date/time claims must verify runtime current time first and answer with explicit dates
 4. Brain Docs read-only asks must read exact target files first
 5. Brain Docs writes must include run-report evidence: `FILES_READ` + `TARGET_FILES_TO_CHANGE`
-6. Platform config changes must route via `gov_platform_change` with backup/validate/rollback evidence
-7. Brain Docs hardening should use `gov_brain_audit` in preview-first mode, then approval-based apply
+6. Platform config changes must route via `gov_openclaw_json` with backup/validate/rollback evidence
+7. Brain Docs hardening should use `gov_brain_audit` (preview by default, apply/rollback by explicit approval input)
 8. Runtime hard gate is enabled by default:
    - `before_prompt_build`: injects Mode C reminder for write-intent tasks
    - `before_tool_call`: blocks write-capable tool calls when PLAN/READ evidence is missing
    - read-only shell/testing commands are allowed and should not be blocked
    - if blocked, provide explicit evidence tokens in governance output: `WG_PLAN_GATE_OK` and `WG_READ_GATE_OK`
    - `agent_end`: warns when write runs miss required evidence fields
+9. Runtime health-check trigger for `gov_brain_audit` is enabled (read-only):
+   - auto-trigger window starts at session/gateway start, and is refreshed after `gov_setup upgrade`, `gov_migrate`, `gov_audit`, or repeated blocked writes
+   - write-capable actions can be paused until `/gov_brain_audit` preview is executed
+   - natural-language governance-upgrade intent is auto-routed to `gov_setup upgrade` deploy window to reduce false blocks
+   - never auto-apply changes without human approval
 
 ---
 
@@ -256,7 +267,7 @@ clawhub install Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/clawhub/openclaw-work
 
 ## First Deployment
 
-After plugin installation, deploy governance assets to workspace:
+After plugin installation, deploy governance files to workspace:
 
 ```text
 /gov_setup install
@@ -270,7 +281,7 @@ If slash is unavailable:
 
 Important:
 - `openclaw plugins install ...` only installs plugin files to extensions
-- Governance prompt assets are deployed to workspace by `gov_setup install` / `gov_setup upgrade`
+- Governance files are deployed to workspace by `gov_setup install` / `gov_setup upgrade`
 
 ---
 
@@ -295,7 +306,7 @@ openclaw gateway restart
 
 ```text
 /gov_setup install   # first deployment
-/gov_setup upgrade   # upgrade existing assets
+/gov_setup upgrade   # upgrade existing governance files
 /gov_setup check     # read-only status check
 ```
 
@@ -311,7 +322,7 @@ openclaw gateway restart
    - `gov_setup upgrade` -> `gov_migrate` -> `gov_audit`
    - if BOOT gives numbered proposals: `gov_apply <NN>` then `gov_audit`
 4. Brain Docs quality hardening:
-   - `gov_brain_audit preview` -> approve selected findings -> `gov_brain_audit apply ...` -> `gov_audit`
+   - `/gov_brain_audit` -> approve selected findings via `/gov_brain_audit APPROVE: ...` -> `gov_audit`
 
 ---
 
@@ -348,7 +359,7 @@ Direct platform edits are fragile in long-running systems. Governance flow keeps
 ### Q4. When should I use `gov_apply <NN>`?
 Only after BOOT outputs numbered proposals and you approve one item.
 
-### Q5. Can `gov_platform_change` edit Brain Docs?
+### Q5. Can `gov_openclaw_json` edit Brain Docs?
 No. Brain Docs are not platform control-plane targets.
 
 ### Q6. Plugin installed, but no governance files in workspace?
@@ -358,7 +369,7 @@ Run `gov_setup install` (or `gov_setup upgrade` for existing deployments).
 `gov_setup upgrade` -> `gov_migrate` -> `gov_audit`.
 
 ### Q8. If slash is unstable, can I use `/skill ...` permanently?
-Yes: `/skill gov_setup ...`, `/skill gov_migrate`, `/skill gov_audit`, `/skill gov_apply <NN>`, `/skill gov_platform_change`, `/skill gov_brain_audit ...`.
+Yes: `/skill gov_setup ...`, `/skill gov_migrate`, `/skill gov_audit`, `/skill gov_apply <NN>`, `/skill gov_openclaw_json`, `/skill gov_brain_audit ...`.
 
 ### Q9. What happens when AI makes mistakes?
 Mistakes are recorded in run reports; repeated patterns can be escalated via BOOT proposals and applied in a controlled loop.
@@ -368,7 +379,7 @@ See the links below.
 
 ### Q11. Do I need a separate `/gov_code_task` command for coding work?
 No. Coding/file-change requests in natural language are expected to route to Mode C automatically (`PLAN -> READ -> CHANGE -> QC -> PERSIST`).  
-Use `gov_platform_change` only for OpenClaw platform control-plane targets (`~/.openclaw/openclaw.json`, `~/.openclaw/extensions/`).
+Use `gov_openclaw_json` only for OpenClaw platform control-plane targets (`~/.openclaw/openclaw.json`, `~/.openclaw/extensions/`).
 
 ### Q12. Can I disable runtime hard gate hooks?
 Yes, but not recommended. Set plugin config `runtimeGateEnabled: false`.  
@@ -391,6 +402,8 @@ This usually means governance protection worked as designed, not that the system
 3. If slash routing is unstable, use:
    - `/skill gov_setup check`
    - `/skill gov_setup upgrade`
+4. Or use natural language:
+   - `Please run gov_setup in upgrade mode for this workspace.`
 
 ### Q15. Does this plugin support auto-update?
 Not yet. Use manual update flow:
@@ -400,9 +413,13 @@ Not yet. Use manual update flow:
 
 ### Q16. How do I improve risky Brain Docs wording without breaking persona?
 Use `gov_brain_audit`:
-1. Start with `preview` (read-only findings and patch preview).
-2. Approve only selected findings (`APPROVE: F001,F003` or `APPLY_ALL_SAFE`).
-3. Use `rollback` if result is not acceptable.
+1. Start with `/gov_brain_audit` (read-only findings and patch preview).
+2. Apply only approved items with `/gov_brain_audit APPROVE: F001,F003` or `/gov_brain_audit APPROVE: APPLY_ALL_SAFE`.
+3. Roll back with `/gov_brain_audit ROLLBACK` if the result is not acceptable.
+
+### Q17. Does `gov_brain_audit` auto-change my files?
+No. Auto health-check can require a read-only preview first, but apply is never automatic.
+Only explicit approval input (`APPROVE: ...`) can write changes.
 
 ---
 
