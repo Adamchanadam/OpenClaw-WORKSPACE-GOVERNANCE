@@ -22,6 +22,7 @@
   "files": [
     "index.ts",
     "openclaw.plugin.json",
+    "tools/**",
     "skills/**",
     "manual_prompt/**",
     "OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md",
