@@ -97,9 +97,25 @@ npm view @adamchanadam/openclaw-workspace-governance version
 ```
 
 What `gov_brain_audit` gives you (short):
-1. Finds risky wording that can cause "act first" or "claim certainty without evidence".
-2. Keeps persona/style direction while applying minimal-diff safety fixes.
-3. Uses approval-driven apply + rollback, so you keep control before changes are persisted.
+1. Uses a script-backed ruleset (`tools/brain_audit_rules.mjs`) so findings are reproducible, not free-form guesses.
+2. Detects risky wording that can cause "act first" or "claim certainty without evidence", plus evidence-mismatch patterns in recent run reports.
+3. Keeps persona/style direction with minimal-diff fixes, and only writes after explicit approval.
+
+`/gov_brain_audit` practical steps:
+1. Run `/gov_brain_audit` (read-only preview).
+2. Review findings (`F001...`) with file path + line + suggested fix.
+3. Approve selected items: `/gov_brain_audit APPROVE: F001,F003` or `/gov_brain_audit APPROVE: APPLY_ALL_SAFE`.
+4. If needed, run `/gov_brain_audit ROLLBACK`.
+
+`/gov_brain_audit` actual checks:
+1. It scans Brain Docs + governance docs + recent memory/run reports (read-only in preview).
+2. It checks fixed risk classes:
+   - action-before-verification wording
+   - over-confidence wording without evidence
+   - completion/pass claims without required evidence structure
+   - read-claim vs file-existence mismatch
+   - speculative memory statements presented as facts
+3. It outputs structured findings with stable IDs (`F001...`), file path, line, risky text, and proposed fix.
 
 ---
 
@@ -416,12 +432,11 @@ Use `gov_brain_audit`:
 1. Start with `/gov_brain_audit` (read-only findings and patch preview).
 2. Apply only approved items with `/gov_brain_audit APPROVE: F001,F003` or `/gov_brain_audit APPROVE: APPLY_ALL_SAFE`.
 3. Roll back with `/gov_brain_audit ROLLBACK` if the result is not acceptable.
+4. The flow is script-backed (`tools/brain_audit_rules.mjs`) and returns stable finding IDs (`F001...`).
 
 ### Q17. Does `gov_brain_audit` auto-change my files?
 No. Auto health-check can require a read-only preview first, but apply is never automatic.
 Only explicit approval input (`APPROVE: ...`) can write changes.
-
----
 
 ## Deep Docs
 

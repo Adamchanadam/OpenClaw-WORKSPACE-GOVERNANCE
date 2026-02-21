@@ -97,9 +97,25 @@ npm view @adamchanadam/openclaw-workspace-governance version
 ```
 
 `gov_brain_audit` 的直接價值（簡版）：
-1. 可找出容易導致「先行動、後核實」或「無證據下過度肯定」的高風險語句。
-2. 以最小差異修補，保留原有人設與語氣方向。
-3. 套用前需批准，且可回退，避免一次性大改造成不可控風險。
+1. 以腳本規則集（`tools/brain_audit_rules.mjs`）執行，可重現，不靠自由發揮。
+2. 可檢出「先行動、後核實」「無證據下過度肯定」等高風險語句，以及近期 run report 的證據不一致模式。
+3. 以最小差異修補，保留原有人設與語氣方向，且只可在明確批准後寫入。
+
+`/gov_brain_audit` 實際執行步驟：
+1. 執行 `/gov_brain_audit`（只讀預覽）。
+2. 查看 findings（`F001...`），每項會附檔案路徑、行號與建議修補句。
+3. 批准要套用的項目：`/gov_brain_audit APPROVE: F001,F003` 或 `/gov_brain_audit APPROVE: APPLY_ALL_SAFE`。
+4. 如需回退，再執行 `/gov_brain_audit ROLLBACK`。
+
+`/gov_brain_audit` 實際檢查項：
+1. 先掃描 Brain Docs + 治理文件 + 最近 memory/run reports（preview 階段只讀）。
+2. 按固定風險類別檢查：
+   - 先行動後核實語句
+   - 無證據下過度肯定語句
+   - 缺少必要證據欄位但宣稱完成/通過
+   - 聲稱已讀與檔案實際存在不一致
+   - 把推測內容寫成記憶事實
+3. 輸出固定編號 findings（`F001...`），包含檔案路徑、行號、原文與建議修補句。
 
 ---
 
@@ -415,6 +431,7 @@ openclaw gateway restart
 1. 先執行 `/gov_brain_audit`（只讀輸出風險與 patch 預覽）。
 2. 只套用已批准項目：`/gov_brain_audit APPROVE: F001,F003` 或 `/gov_brain_audit APPROVE: APPLY_ALL_SAFE`。
 3. 如結果不理想，可執行 `/gov_brain_audit ROLLBACK` 回退。
+4. 全流程由腳本規則集（`tools/brain_audit_rules.mjs`）產生固定編號 findings（`F001...`）。
 
 ### Q17. `gov_brain_audit` 會自動改檔嗎？
 不會。自動健康檢查只會要求先做只讀預覽，並不會自動套用修改。  

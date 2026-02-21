@@ -127,6 +127,14 @@ openclaw gateway restart
 ### D) Brain Docs conservative hardening
 
 Use this flow when you want to reduce "act-first" or unsupported-certainty wording without flattening persona.
+`gov_brain_audit` is now backed by a rules script (`tools/brain_audit_rules.mjs`) for reproducible findings.
+
+What it checks (fixed classes):
+1. action-before-verification wording
+2. unsupported certainty wording
+3. completion/pass claims without required evidence fields
+4. read-claim vs file-existence mismatch
+5. speculative memory statements presented as facts
 
 1. Start read-only preview:
 
