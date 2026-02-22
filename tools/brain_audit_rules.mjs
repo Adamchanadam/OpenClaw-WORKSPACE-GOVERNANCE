@@ -19,6 +19,7 @@ function parseArgs(argv) {
     format: "md",
     failOnHigh: false,
     failOnAny: false,
+    enableLexicalHints: false,
     help: false,
   };
   for (let i = 0; i < argv.length; i += 1) {
@@ -42,6 +43,10 @@ function parseArgs(argv) {
       opts.failOnAny = true;
       continue;
     }
+    if (arg === "--enable-lexical-hints") {
+      opts.enableLexicalHints = true;
+      continue;
+    }
     if (arg === "--help" || arg === "-h") {
       opts.help = true;
       continue;
@@ -55,11 +60,12 @@ function printHelp() {
     "brain_audit_rules.mjs",
     "",
     "Usage:",
-    "  node tools/brain_audit_rules.mjs [--workspace <path>] [--format md|json] [--fail-on-high] [--fail-on-any]",
+    "  node tools/brain_audit_rules.mjs [--workspace <path>] [--format md|json] [--fail-on-high] [--fail-on-any] [--enable-lexical-hints]",
     "",
     "Defaults:",
     "  --workspace <current working directory>",
     "  --format md",
+    "  lexical checks disabled (structural evidence checks only)",
   ].join("\n");
   process.stdout.write(text + "\n");
 }
@@ -157,73 +163,105 @@ function makeFinding(seed) {
   };
 }
 
-function scanFileForRules(workspace, fullPath, findings) {
+function isSectionBoundary(line) {
+  return /^\s*[A-Z][A-Z0-9_\s-]{2,}\s*:/.test(line) || /^\s*#{1,6}\s+/.test(line);
+}
+
+function extractSectionEntries(lines, headerRe) {
+  const start = lines.findIndex((line) => headerRe.test(line));
+  if (start < 0) {
+    return { found: false, startLine: 0, entries: [] };
+  }
+  const entries = [];
+  const first = lines[start];
+  const colonIdx = first.indexOf(":");
+  if (colonIdx >= 0) {
+    const tail = first.slice(colonIdx + 1).trim();
+    if (tail) entries.push({ text: tail, line: start + 1 });
+  }
+  for (let i = start + 1; i < lines.length; i += 1) {
+    const raw = lines[i];
+    if (!raw.trim()) {
+      if (entries.length > 0) break;
+      continue;
+    }
+    if (isSectionBoundary(raw)) break;
+    entries.push({ text: raw.trim(), line: i + 1 });
+  }
+  return { found: true, startLine: start + 1, entries };
+}
+
+function scanFileForRules(workspace, fullPath, findings, opts) {
   const rel = safeRelative(workspace, fullPath);
   const lines = readLines(fullPath);
   const lowerRel = rel.toLowerCase();
   const isMemoryFile = lowerRel.startsWith("memory/");
   const isRunReport = lowerRel.startsWith("_runs/");
 
-  const impulseRe = /\b(immediately|do not wait|always act)\b|唔使等指令|即刻|立即/i;
-  const confidenceRe = /\b(always answer|never uncertain|must complete|100%\s*sure)\b|一定正確|必定完成/i;
-  const completionClaimRe = /\b(completed|done|pass(?:ed)?|12\/12)\b|完成|通過|已完成/i;
-  const readWordRe = /\b(read|reading|files?\s+read)\b|已讀|讀取/i;
-  const speculativeRe = /\b(likely|probably|maybe|estimate)\b|可能|估計|大概/i;
-
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i];
-    if (!line.trim()) continue;
-    if (impulseRe.test(line)) {
-      findings.push(
-        makeFinding({
-          severity: "high",
-          rule: "ACT_BEFORE_VERIFY",
-          file: rel,
-          line: i + 1,
-          riskyText: line.trim().slice(0, 300),
-          whyRisky: "Encourages execution before verification/evidence checks.",
-          proposedFix: "Require verify-first wording before any action.",
-        }),
-      );
-    }
-    if (confidenceRe.test(line)) {
-      findings.push(
-        makeFinding({
-          severity: "high",
-          rule: "OVER_CONFIDENCE",
-          file: rel,
-          line: i + 1,
-          riskyText: line.trim().slice(0, 300),
-          whyRisky: "Claims certainty/completion without requiring verifiable evidence.",
-          proposedFix: "Replace absolute certainty with evidence-required wording.",
-        }),
-      );
-    }
-    if (isMemoryFile && speculativeRe.test(line)) {
-      findings.push(
-        makeFinding({
-          severity: "medium",
-          rule: "SPECULATIVE_MEMORY",
-          file: rel,
-          line: i + 1,
-          riskyText: line.trim().slice(0, 300),
-          whyRisky: "Speculative statement may be stored as factual memory.",
-          proposedFix: "Mark uncertainty explicitly and attach source/evidence path.",
-        }),
-      );
+  if (opts.enableLexicalHints) {
+    const impulseRe = /\b(immediately|do not wait|always act)\b|唔使等指令|不用等指令|即刻|立即/i;
+    const confidenceRe = /\b(always answer|never uncertain|must complete|100%\s*sure)\b|一定正確|必定完成/i;
+    const speculativeRe = /\b(likely|probably|maybe|estimate)\b|可能|估計|大概/i;
+    for (let i = 0; i < lines.length; i += 1) {
+      const line = lines[i];
+      if (!line.trim()) continue;
+      if (impulseRe.test(line)) {
+        findings.push(
+          makeFinding({
+            severity: "low",
+            rule: "LEXICAL_HINT_ACT_BEFORE_VERIFY",
+            file: rel,
+            line: i + 1,
+            riskyText: line.trim().slice(0, 300),
+            whyRisky: "Lexical hint suggests action-before-verification intent.",
+            proposedFix: "Run semantic review and require verify-first wording if intent is risky.",
+          }),
+        );
+      }
+      if (confidenceRe.test(line)) {
+        findings.push(
+          makeFinding({
+            severity: "low",
+            rule: "LEXICAL_HINT_OVER_CONFIDENCE",
+            file: rel,
+            line: i + 1,
+            riskyText: line.trim().slice(0, 300),
+            whyRisky: "Lexical hint suggests unsupported certainty/completion intent.",
+            proposedFix: "Run semantic review and add evidence-required wording if needed.",
+          }),
+        );
+      }
+      if (isMemoryFile && speculativeRe.test(line)) {
+        findings.push(
+          makeFinding({
+            severity: "low",
+            rule: "LEXICAL_HINT_SPECULATIVE_MEMORY",
+            file: rel,
+            line: i + 1,
+            riskyText: line.trim().slice(0, 300),
+            whyRisky: "Lexical hint suggests speculation may be treated as fact.",
+            proposedFix: "Run semantic review and mark uncertainty with evidence/source path.",
+          }),
+        );
+      }
     }
   }
 
   if (isRunReport) {
     const allText = lines.join("\n");
-    const hasCompletionClaim = completionClaimRe.test(allText);
-    const hasFilesRead = /files[_\s-]*read/i.test(allText);
-    const hasTargets = /target[_\s-]*files[_\s-]*to[_\s-]*change/i.test(allText);
+    const completionClaimRe = /^\s*(status|result|outcome)\s*:\s*(pass|passed|done|completed)\b/i;
+    const scoreCompletionRe = /\b(12\/12|100%\s*(pass|complete)?)\b/i;
+    const hasCompletionClaim =
+      lines.some((line) => completionClaimRe.test(line)) || scoreCompletionRe.test(allText);
+    const filesReadSection = extractSectionEntries(lines, /^\s*files[_\s-]*read\s*:/i);
+    const targetSection = extractSectionEntries(
+      lines,
+      /^\s*target[_\s-]*files[_\s-]*to[_\s-]*change\s*:/i,
+    );
+    const hasFilesRead = filesReadSection.found;
+    const hasTargets = targetSection.found;
     if (hasCompletionClaim && (!hasFilesRead || !hasTargets)) {
-      const lineNo = Math.max(
-        1,
-        lines.findIndex((l) => completionClaimRe.test(l)) + 1,
-      );
+      const lineNo = Math.max(1, lines.findIndex((line) => completionClaimRe.test(line)) + 1);
       findings.push(
         makeFinding({
           severity: "high",
@@ -237,25 +275,28 @@ function scanFileForRules(workspace, fullPath, findings) {
       );
     }
 
-    for (let i = 0; i < lines.length; i += 1) {
-      const line = lines[i];
-      if (!readWordRe.test(line)) continue;
-      for (const base of BRAIN_DOC_BASENAMES) {
-        if (!line.includes(base)) continue;
-        const target = path.join(workspace, base);
-        if (!fileExists(target)) {
-          findings.push(
-            makeFinding({
-              severity: "high",
-              rule: "READ_CLAIM_MISMATCH",
-              file: rel,
-              line: i + 1,
-              riskyText: line.trim().slice(0, 300),
-              whyRisky: `Run report claims read evidence for missing file: ${base}.`,
-              proposedFix: `Do not claim ${base} as read unless file exists; otherwise report it as missing.`,
-            }),
-          );
-        }
+    const filesReadText = filesReadSection.entries.map((entry) => entry.text).join("\n").toUpperCase();
+    for (const base of BRAIN_DOC_BASENAMES) {
+      if (!filesReadText.includes(base.toUpperCase())) continue;
+      const target = path.join(workspace, base);
+      if (!fileExists(target)) {
+        const sourceLine =
+          filesReadSection.entries.find((entry) =>
+            entry.text.toUpperCase().includes(base.toUpperCase()),
+          )?.line ?? filesReadSection.startLine;
+        findings.push(
+          makeFinding({
+            severity: "high",
+            rule: "READ_CLAIM_MISMATCH",
+            file: rel,
+            line: sourceLine,
+            riskyText:
+              lines[sourceLine - 1]?.trim().slice(0, 300) ||
+              `FILES_READ claims ${base} is read`,
+            whyRisky: `Run report claims read evidence for missing file: ${base}.`,
+            proposedFix: `Do not claim ${base} as read unless file exists; otherwise report it as missing.`,
+          }),
+        );
       }
     }
   }
@@ -281,14 +322,24 @@ function summarize(findings) {
   return out;
 }
 
-function toMarkdown(workspace, scanned, findings, summary, blocked, noScope) {
+function scannerMode(opts) {
+  return opts.enableLexicalHints ? "structural_plus_lexical_hints" : "structural_only";
+}
+
+function toMarkdown(workspace, scanned, findings, summary, blocked, noScope, opts) {
   const lines = [];
   lines.push("BRAIN DOCS AUDIT REPORT");
   lines.push(`workspace: ${workspace.replace(/\\/g, "/")}`);
+  lines.push(`scanner mode: ${scannerMode(opts)}`);
   lines.push(`status: ${blocked ? "BLOCKED" : findings.length > 0 ? "WARN" : "PASS"}`);
   lines.push(
     `summary: total=${summary.total}, high=${summary.high}, medium=${summary.medium}, low=${summary.low}`,
   );
+  if (!opts.enableLexicalHints) {
+    lines.push(
+      "note: semantic risk detection is handled by /gov_brain_audit review; this script checks deterministic evidence structure.",
+    );
+  }
   lines.push("");
   lines.push("scanned files:");
   for (const f of scanned) lines.push(`- ${f}`);
@@ -330,7 +381,7 @@ function main() {
   const files = collectScopeFiles(workspace);
   const noScope = files.length === 0;
   const findings = [];
-  for (const fullPath of files) scanFileForRules(workspace, fullPath, findings);
+  for (const fullPath of files) scanFileForRules(workspace, fullPath, findings, opts);
   stableSortFindings(findings);
   const summary = summarize(findings);
   const blocked =
@@ -341,6 +392,7 @@ function main() {
   if (opts.format === "json") {
     const payload = {
       workspace: workspace.replace(/\\/g, "/"),
+      scannerMode: scannerMode(opts),
       status: blocked ? "BLOCKED" : summary.total > 0 ? "WARN" : "PASS",
       noScope,
       summary,
@@ -357,6 +409,7 @@ function main() {
         summary,
         blocked,
         noScope,
+        opts,
       ) + "\n",
     );
   }

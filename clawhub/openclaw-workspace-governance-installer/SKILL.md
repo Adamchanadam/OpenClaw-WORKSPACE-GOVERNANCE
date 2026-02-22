@@ -32,6 +32,9 @@ openclaw skills list --eligible
 In OpenClaw chat:
 ```text
 /gov_setup check
+# if check output says allowlist is not ready (for example plugins.allow needs alignment):
+/gov_openclaw_json
+/gov_setup check
 /gov_setup install
 /gov_audit
 ```
@@ -45,6 +48,9 @@ openclaw gateway restart
 
 Then in OpenClaw chat:
 ```text
+/gov_setup check
+# if check output says allowlist is not ready (for example plugins.allow needs alignment):
+/gov_openclaw_json
 /gov_setup check
 /gov_setup upgrade
 /gov_migrate
@@ -66,25 +72,29 @@ Then in OpenClaw chat:
    - rollback only when an approved backup exists
 
 ## When to use which command (quick map)
-1. New setup in workspace: `gov_setup install`
-2. Upgrade existing governance files: `gov_setup upgrade`
-3. Apply governance alignment changes: `gov_migrate`
-4. Verify consistency (read-only): `gov_audit`
-5. Apply approved BOOT menu item: `gov_apply <NN>`
-6. Edit OpenClaw platform config safely: `gov_openclaw_json`
-7. Review/harden Brain Docs safely: `gov_brain_audit -> gov_brain_audit APPROVE: ... -> gov_brain_audit ROLLBACK (if needed)`
+1. Readiness decision first: `gov_setup check` (returns workspace status, trust readiness, and next action)
+2. First deployment path: `gov_setup install` (only after `check` says install path)
+3. Existing deployment update: `gov_setup upgrade` (only after `check` says upgrade path)
+4. Policy alignment after deploy/update: `gov_migrate`
+5. Final verification before claiming done: `gov_audit`
+6. Apply approved BOOT menu item only: `gov_apply <NN>`
+7. Edit OpenClaw platform config safely: `gov_openclaw_json`
+8. Review/harden Brain Docs safely: `gov_brain_audit -> gov_brain_audit APPROVE: ... -> gov_brain_audit ROLLBACK (if needed)`
 
 ## First-run status map
 After `/gov_setup check`:
-1. `NOT_INSTALLED` -> run `/gov_setup install`
-2. `PARTIAL` -> run `/gov_setup upgrade`
-3. `READY` -> run `/gov_migrate` then `/gov_audit`
+1. if check output says allowlist is not ready -> run `/gov_openclaw_json`, then rerun `/gov_setup check`
+2. `NOT_INSTALLED` -> run `/gov_setup install`
+3. `PARTIAL` -> run `/gov_setup upgrade`
+4. `READY` -> run `/gov_migrate` then `/gov_audit`
 
 ## Important update rule
 If `openclaw plugins install ...` returns `plugin already exists`, use:
 1. `openclaw plugins update openclaw-workspace-governance`
 2. `openclaw gateway restart`
-3. `/gov_setup upgrade` -> `/gov_migrate` -> `/gov_audit`
+3. `/gov_setup check` (if needed, align allowlist via `/gov_openclaw_json`)
+4. `/gov_setup upgrade` -> `/gov_migrate` -> `/gov_audit`
+5. If `/gov_setup check` says `READY`, that does not cancel an explicitly requested `/gov_setup upgrade` during update flow.
 
 Version check (operator-side):
 1. Installed: `openclaw plugins info openclaw-workspace-governance`
@@ -128,3 +138,6 @@ Please use gov_setup in check mode (read-only) and return workspace root, status
 2. English README: https://github.com/Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/blob/main/README.md
 3. 繁體中文版: https://github.com/Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/blob/main/README.zh-HK.md
 4. Governance handbook (EN): https://github.com/Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/blob/main/WORKSPACE_GOVERNANCE_README.en.md
+5. Governance handbook (繁中): https://github.com/Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/blob/main/WORKSPACE_GOVERNANCE_README.md
+6. Positioning (EN): https://github.com/Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/blob/main/VALUE_POSITIONING_AND_FACTORY_GAP.en.md
+7. Positioning (繁中): https://github.com/Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE/blob/main/VALUE_POSITIONING_AND_FACTORY_GAP.md

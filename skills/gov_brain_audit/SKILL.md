@@ -10,10 +10,12 @@ metadata: {"openclaw":{"emoji":"🧠"}}
 Audit Brain Docs conservatively to reduce two recurring risks:
 1. Action-before-verification behavior
 2. Unsupported certainty/completion claims without evidence
+3. Evidence/report mismatches that can hide governance drift
 
 Runtime integration:
-1. Governance runtime may automatically require this preview before write-capable actions
-2. Common trigger points: session/gateway start, after `gov_setup upgrade`, `gov_migrate`, `gov_audit`, or repeated write blocks
+1. Governance runtime may suggest this preview before write-capable actions.
+2. Hard-require trigger points are post-change windows (after `gov_setup upgrade`, `gov_migrate`, `gov_audit`) or repeated blocked writes.
+3. Session/gateway start should default to nudge-only (not hard block) to avoid daily-flow self-lock.
 
 Single-entry UX:
 1. Run `/gov_brain_audit` -> read-only preview (default)
@@ -44,6 +46,8 @@ Brain Docs and governance docs that shape agent behavior:
 3. Preview first; never apply before operator approval.
 4. Do not delete user content without explicit approval.
 5. If evidence is missing, mark uncertainty instead of guessing.
+6. Semantic-first, language-agnostic review is mandatory (global users; not keyword-limited).
+7. Keyword examples are only hints; absence of a listed keyword is not evidence of safety.
 
 ## Trigger contract
 1. Preview mode (default):
@@ -52,9 +56,10 @@ Brain Docs and governance docs that shape agent behavior:
 2. Apply mode:
    - Triggered when operator message includes `/gov_brain_audit APPROVE: ...`.
    - Approval formats:
-     - `APPROVE: F001,F003`
+     - `APPROVE: <PASTE_IDS_FROM_PREVIEW>`
      - `APPROVE: APPLY_ALL_SAFE` (High + Medium)
      - `APPROVE: APPLY_ALL`
+   - `PASTE_IDS_FROM_PREVIEW` means finding IDs from the current preview output; IDs like `F001` are examples only.
 3. Rollback mode:
    - Triggered when operator message is `/gov_brain_audit ROLLBACK`.
    - Optional explicit path form: `/gov_brain_audit ROLLBACK: <backup-path>`.
@@ -71,6 +76,10 @@ Brain Docs and governance docs that shape agent behavior:
    - Preview -> read-only
    - Apply/Rollback -> Mode C (`PLAN -> READ -> CHANGE -> QC -> PERSIST`)
 2. For preview, return:
+   - Semantic Review (required): evaluate intent/meaning across all languages in-scope, not only token matches
+   - If available, run `tools/brain_audit_rules.mjs` as deterministic cross-check (supplement only; not final authority)
+     - Default script mode should stay structural-only (evidence format/integrity checks).
+     - If `--enable-lexical-hints` is used, treat `LEXICAL_HINT_*` findings as advisory only; semantic review must confirm before escalation/blocking.
    - Executive Summary (risk level + top root causes)
    - Findings sorted by severity (ID, file:line, risky text, why risky, keep intent, proposed fix)
    - Patch Preview (BEFORE/AFTER snippets only; no write)
@@ -88,10 +97,10 @@ Brain Docs and governance docs that shape agent behavior:
    - Restore backed up files.
    - Persist rollback report.
 
-## Risk detection hints
-1. Impulse trigger wording:
+## Risk classes (semantic-first; examples only)
+1. Action-before-verification intent:
    - "immediately", "do not wait", "always act", "唔使等指令", "即刻"
-2. Over-confidence wording:
+2. Unsupported certainty/completion intent:
    - "always answer", "never uncertain", "must complete"
 3. Completion-claim leakage:
    - declares done/pass without evidence fields
@@ -99,6 +108,16 @@ Brain Docs and governance docs that shape agent behavior:
    - claims file read but file missing
 5. Memory pollution:
    - speculative words ("likely", "可能", "估計") written as facts
+
+### Deterministic script classes (supplement only)
+1. `COMPLETION_WITHOUT_EVIDENCE`
+2. `READ_CLAIM_MISMATCH`
+3. `LEXICAL_HINT_*` (optional mode only) is low-signal advisory and never a sole block reason.
+
+Important:
+1. Treat examples above as non-exhaustive.
+2. Include semantically equivalent phrasing in any language/script.
+3. Never use keyword-only pass/fail as the final decision for high-risk classes.
 
 ## Output requirements (UX)
 Use this order:
@@ -114,3 +133,4 @@ If a backup does not exist yet, do not suggest rollback in next-step options.
 If slash routing is unstable:
 1. `/skill gov_brain_audit`
 2. `/skill gov_brain_audit APPROVE: ...` or `/skill gov_brain_audit ROLLBACK` as needed
+

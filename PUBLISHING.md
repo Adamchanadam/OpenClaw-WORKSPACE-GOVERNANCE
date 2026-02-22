@@ -1,6 +1,7 @@
 # Publishing Guide (Plugin + ClawHub)
 
 This document is for maintainers of `OpenClaw-WORKSPACE-GOVERNANCE`.
+Validation asset index: `dev/README.md`
 
 ## 1. Release Strategy
 
@@ -25,6 +26,35 @@ Use a dual-channel release model:
    - `skills/gov_apply/SKILL.md`
    - `skills/gov_openclaw_json/SKILL.md`
    - `skills/gov_brain_audit/SKILL.md`
+4. Run regression suites before release:
+   - `dev/RUNTIME_GATE_MINIMAL_CASES.md` (quick gate)
+   - `dev/OPENCLAW_PUBLIC_FLOW_REGRESSION.md` (full public-user flow gate)
+5. Run machine consistency check:
+   - `node dev/check_release_consistency.mjs`
+6. Run runtime-gate executable regression:
+   - `npx -y tsc index.ts --target ES2020 --module ES2020 --moduleResolution node --lib ES2020 --skipLibCheck --noEmitOnError false --outDir dev/.tmp`
+   - `node dev/run_runtime_regression.mjs`
+
+## 2.1 Mandatory Release Gate (Hard)
+
+Do not publish if any gate below fails:
+
+1. `node dev/check_release_consistency.mjs` must return `ALL_CHECKS_PASS`.
+2. `node dev/run_runtime_regression.mjs` must return `SUMMARY 11/11 passed`.
+3. Public-flow regression required phases must pass (`A/B/C/D/F/G`) per:
+   - `dev/OPENCLAW_PUBLIC_FLOW_REGRESSION.md`
+4. BOOT post-flow acceptance must be recorded and pass:
+   - `dev/BOOT_POSTFLOW_ACCEPTANCE_TEMPLATE.md` with `G1=PASS` and `G2=PASS`.
+5. If any gate fails, mark release as `BLOCKED`, fix issue, rerun full gate set; partial reruns are not valid signoff.
+
+## 2.2 Refactor Preservation Gate (Hard)
+
+For any structural refactor (logic consolidation, contract centralization, skill rewrites):
+
+1. Baseline must be reviewed:
+   - `dev/GOVERNANCE_BASELINE_INVENTORY.md`
+2. Release notes or PR notes must include explicit mapping of changed logic to preserved baseline items.
+3. A refactor release is blocked if any baseline hard contract is removed without replacement.
 
 ## 3. Publish Plugin to npm
 

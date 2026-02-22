@@ -92,20 +92,37 @@ Special rules:
 
 ## 6) Standard Runbooks
 
+### Command Value Map (Operator Decision Aid)
+
+| Command | Use it when | Immediate value |
+| --- | --- | --- |
+| `gov_setup check` | Before any install/upgrade decision | Exposes workspace status, trust-readiness, and explicit next action so you do not guess |
+| `gov_setup install` | First governance deployment in this workspace | Creates baseline governance files in one controlled step |
+| `gov_setup upgrade` | Governance files already exist but need latest version | Refreshes governance package files without skipping safety checks |
+| `gov_migrate` | After install/upgrade when policy alignment is required | Brings active workspace behavior in line with current governance rules |
+| `gov_audit` | After changes and before declaring completion | Verifies fixed checklist/evidence and catches drift early |
+| `gov_openclaw_json` | Need control-plane edits (`openclaw.json`/extensions) | Applies minimal change with backup/validate/rollback path |
+| `gov_apply <NN>` | BOOT emitted numbered proposal and human approved | Prevents ad-hoc apply; only approved item is executed |
+| `gov_brain_audit` | Need Brain Docs risk review/hardening | Semantic-first preview, approval-based apply, and rollback support |
+
 ### A) Brand-new OpenClaw / brand-new workspace
 
 1. Install plugin
-2. `gov_setup install`
-3. Run bootstrap prompt (`OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`)
-4. `gov_audit`
+2. `gov_setup check` (verify file status + trust readiness)
+3. If check output says allowlist is not ready (for example asks to align `plugins.allow`): run `gov_openclaw_json`, then `gov_setup check` again
+4. `gov_setup install`
+5. Run bootstrap prompt (`OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`)
+6. `gov_audit`
 
 ### B) Running workspace, first governance adoption
 
 1. Install/enable plugin
-2. `gov_setup install`
-3. Run bootstrap prompt
-4. If workspace is already active: `gov_migrate`
-5. `gov_audit`
+2. `gov_setup check` (verify file status + trust readiness)
+3. If check output says allowlist is not ready (for example asks to align `plugins.allow`): run `gov_openclaw_json`, then `gov_setup check` again
+4. `gov_setup install`
+5. Run bootstrap prompt
+6. If workspace is already active: `gov_migrate`
+7. `gov_audit`
 
 ### C) Governance already installed (daily maintenance)
 
@@ -119,22 +136,31 @@ openclaw gateway restart
 2. In OpenClaw:
 
 ```text
+/gov_setup check
+# if check output says allowlist is not ready (for example plugins.allow needs alignment):
+/gov_openclaw_json
+/gov_setup check
 /gov_setup upgrade
 /gov_migrate
 /gov_audit
 ```
 
+Note (to avoid upgrade misclassification):
+1. `READY` from `/gov_setup check` means "currently operable/aligned enough", not "skip an explicitly requested upgrade".
+2. If operator explicitly runs `/gov_setup upgrade`, upgrade should execute (at most `PASS: already up-to-date`), never `SKIPPED (No-op upgrade)`.
+
 ### D) Brain Docs conservative hardening
 
 Use this flow when you want to reduce "act-first" or unsupported-certainty wording without flattening persona.
-`gov_brain_audit` is now backed by a rules script (`tools/brain_audit_rules.mjs`) for reproducible findings.
+`gov_brain_audit` is semantic-first (language-agnostic), with optional rules script (`tools/brain_audit_rules.mjs`) as a deterministic structural cross-check.
 
-What it checks (fixed classes):
+What it checks (semantic + deterministic evidence classes):
 1. action-before-verification wording
 2. unsupported certainty wording
 3. completion/pass claims without required evidence fields
 4. read-claim vs file-existence mismatch
 5. speculative memory statements presented as facts
+6. optional lexical-hint mode is advisory only and must be confirmed by semantic review
 
 1. Start read-only preview:
 
@@ -143,9 +169,10 @@ What it checks (fixed classes):
 ```
 
 2. Approve only selected findings (or safe batch):
+   - Finding IDs like `F001` are examples only; copy actual IDs from the latest preview findings list.
 
 ```text
-/gov_brain_audit APPROVE: F001,F003
+/gov_brain_audit APPROVE: <PASTE_IDS_FROM_PREVIEW>
 # or
 /gov_brain_audit APPROVE: APPLY_ALL_SAFE
 ```
@@ -213,15 +240,16 @@ Fallback:
 
 1. `gov_setup check` returns status + next step
 2. `gov_setup install|upgrade` deploys expected governance files
-3. `gov_migrate` completes without blocked QC
-4. `gov_audit` reports 12/12 PASS
-5. Platform-change tasks route through `gov_openclaw_json`
-6. Brain Docs writes require `FILES_READ` + `TARGET_FILES_TO_CHANGE`
-7. Runtime hard gate hooks are active:
+3. `gov_setup check` reports `allow_status=ALLOW_OK` before final install/upgrade completion
+4. `gov_migrate` completes without blocked QC
+5. `gov_audit` reports 12/12 PASS
+6. Platform-change tasks route through `gov_openclaw_json`
+7. Brain Docs writes require `FILES_READ` + `TARGET_FILES_TO_CHANGE`
+8. Runtime hard gate hooks are active:
    - write-capable tool calls are blocked if PLAN/READ evidence is missing
    - read-only shell/testing commands should remain allowed
    - for blocked write tasks, include `WG_PLAN_GATE_OK` and `WG_READ_GATE_OK` before retry
-8. Brain Docs auditor flow works end-to-end:
+9. Brain Docs auditor flow works end-to-end:
    - `gov_brain_audit` returns findings and approval checklist
    - `gov_brain_audit APPROVE: ...` creates backup and run report
    - `gov_brain_audit ROLLBACK` restores latest approved backup
@@ -238,23 +266,38 @@ Fallback:
    - run `gov_setup install`
 4. `gov_setup check` returns `PARTIAL`:
    - run `gov_setup upgrade`
-5. Audit mismatch after update:
+5. `openclaw plugins list` warns `plugins.allow is empty`:
+   - this is trust-allowlist warning, not governance crash
+   - run `gov_setup check`, if `allow_status!=ALLOW_OK` run `/gov_openclaw_json`, then rerun `gov_setup check`
+6. Official setup/config commands changed `openclaw.json` (for example `openclaw onboard`, `openclaw configure`):
+   - expected behavior: governance may require trust realignment before install/upgrade
+   - run `/gov_setup check` -> if trust is not ready run `/gov_openclaw_json` -> rerun `/gov_setup check`
+7. Audit mismatch after update:
    - run `gov_migrate` then `gov_audit` again
-6. Runtime gate block message appears:
+8. Runtime gate block message appears:
    - this usually means governance guard worked (not a system crash)
+   - official `openclaw ...` system commands are allow-by-default and should not be blocked by runtime gate
    - if task is write/update/save: output PLAN + READ evidence, include `WG_PLAN_GATE_OK` + `WG_READ_GATE_OK`, then retry CHANGE
    - if task is read-only diagnostics/testing: keep command read-only and rerun
-7. `gov_setup upgrade` still stuck at governance gate:
+9. `gov_setup upgrade` still stuck at governance gate:
    - update plugin to latest: `openclaw plugins update openclaw-workspace-governance`
    - restart gateway: `openclaw gateway restart`
    - rerun: `/gov_setup check` then `/gov_setup upgrade`
    - or ask in natural language: `Please run gov_setup in upgrade mode for this workspace.`
-8. Auto-update expectation:
+10. `gov_setup` / `gov_migrate` source looks mixed (shadow case):
+   - check source first: `openclaw skills info gov_setup --json`, `openclaw skills info gov_migrate --json`
+   - if `gov_migrate` source is `openclaw-workspace` and points to old `<workspace>/skills/gov_*` copies, run `/gov_setup upgrade` first
+   - latest `gov_setup` auto-reconciles `<workspace>/skills/gov_*` legacy copies into `archive/_gov_setup_shadow_backup_<ts>/...` before normal upgrade flow
+11. Auto-update expectation:
    - no background auto-update
    - use manual flow: `openclaw plugins update ...` -> `openclaw gateway restart` -> `gov_setup upgrade` -> `gov_migrate` -> `gov_audit`
-9. `gov_brain_audit APPROVE: ...` reports blocked:
-   - include explicit approval input (`APPROVE: F001,F003` or `APPROVE: APPLY_ALL_SAFE`)
+12. `gov_brain_audit APPROVE: ...` reports blocked:
+   - include explicit approval input (`APPROVE: <PASTE_IDS_FROM_PREVIEW>` or `APPROVE: APPLY_ALL_SAFE`)
+   - `PASTE_IDS_FROM_PREVIEW` means finding IDs from your current preview output, not fixed IDs
    - rerun with `/gov_brain_audit APPROVE: ...`
+13. `BOOT AUDIT REPORT` warns about an old blocked migration run:
+   - if a newer PASS exists for the same flow family (`migrate_governance_*`), treat it as resolved history (informational), not an active blocker
+   - if no newer PASS exists, run `/gov_migrate` then `/gov_audit`
 
 ---
 
@@ -264,3 +307,4 @@ Fallback:
 2. Homepage (繁中): [`README.zh-HK.md`](./README.zh-HK.md)
 3. Positioning (EN): [`VALUE_POSITIONING_AND_FACTORY_GAP.en.md`](./VALUE_POSITIONING_AND_FACTORY_GAP.en.md)
 4. Positioning (繁中): [`VALUE_POSITIONING_AND_FACTORY_GAP.md`](./VALUE_POSITIONING_AND_FACTORY_GAP.md)
+

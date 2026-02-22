@@ -2,7 +2,7 @@
   "id": "openclaw-workspace-governance",
   "name": "OpenClaw Workspace Governance",
   "description": "Workspace governance lifecycle for OpenClaw: bootstrap, migrate, audit, and controlled BOOT apply.",
-  "version": "0.1.24",
+  "version": "0.1.40",
   "skills": [
     "./skills"
   ],
@@ -14,6 +14,41 @@
         "type": "boolean",
         "description": "Enable runtime hard gate hooks (before_prompt_build, before_tool_call, agent_end).",
         "default": true
+      },
+      "runtimeGatePolicy": {
+        "type": "object",
+        "description": "Optional runtime allow/deny policy for non-system custom shell commands. Official `openclaw ...` system-channel commands are allow-by-default and not deny-blocked.",
+        "additionalProperties": false,
+        "properties": {
+          "allowShellPrefixes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Case-insensitive shell command prefixes that may bypass governance write preflight (single-command only; no shell operators)."
+          },
+          "allowShellRegex": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Case-insensitive regex rules that may bypass governance write preflight (single-command only; no shell operators)."
+          },
+          "denyShellPrefixes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Case-insensitive shell command prefixes that are always blocked by governance runtime policy."
+          },
+          "denyShellRegex": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Case-insensitive regex rules that are always blocked by governance runtime policy."
+          }
+        }
       }
     }
   }

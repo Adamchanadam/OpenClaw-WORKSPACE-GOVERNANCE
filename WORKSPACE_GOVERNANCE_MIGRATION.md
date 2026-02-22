@@ -4,6 +4,7 @@ GOAL
 Apply the latest governance hardening to an ALREADY-RUNNING workspace without destructive overwrites:
 - Patch core governance invariants via AUTOGEN blocks (deterministic, one-match).
 - Preserve LOG documents and existing workspace-specific content.
+- Enforce the Official Flow Compatibility SOP (anti-self-lock): governance must not falsely block official OpenClaw daily flows or governance lifecycle flows.
 - Ensure the learning loop is enforced via `_control/ACTIVE_GUARDS.md` + `_control/LESSONS.md`.
 - Ensure `BOOT.md` exists for startup read-only audit (boot-md hook).
 - Ensure `prompts/governance/APPLY_UPGRADE_FROM_BOOT.md` exists (guided runner for BOOT upgrade menu approvals).
@@ -11,6 +12,19 @@ Apply the latest governance hardening to an ALREADY-RUNNING workspace without de
   - `gov_migrate` / `gov_audit` / `gov_apply <NN>` / `gov_openclaw_json` / `gov_brain_audit` (backed by `skills/gov_migrate/`, `skills/gov_audit/`, `skills/gov_apply/`, `skills/gov_openclaw_json/`, `skills/gov_brain_audit/`).
   - Slash commands should be invoked as standalone command messages.
   - If slash command is unavailable or name-collided, use `/skill <name> [input]` fallback.
+
+MIGRATION BLOCKER HANDLING (Hard)
+- Historical mismatch records in `_runs/` are evidence, not pre-run blockers.
+- Pre-patch canonical mismatch is expected on drifted workspaces and MUST NOT cause early STOP.
+- Canonical equality check is a POST-CHANGE QC check only.
+- CHANGE first, then canonical equality at QC.
+- Required order for mismatch handling:
+  1) run CHANGE GATE deterministic patch first,
+  2) run QC canonical equality,
+  3) if mismatch -> run one deterministic repair pass,
+  4) re-run equality once,
+  5) only then, if still mismatch, fail-closed as BLOCKED.
+- Any response that blocks before CHANGE due only to existing mismatch history is non-compliant.
 
 RUNTIME MODES (Hard)
 - Mode A (Conversation): casual or stylistic chat; no persistence, no system claims.
@@ -42,13 +56,13 @@ CANONICAL SOURCE (hard)
 - Canonical mapping (deterministic extraction; no paraphrase):
   - `AGENTS_CORE_v1` canonical content:
     - From canonical source payload `<<BEGIN FILE: AGENTS.md>> ... <<END FILE>>`
-    - Extract starting at heading `## Non-negotiable rules` through end of that file payload.
+    - Extract ONLY the content between `<!-- AUTOGEN:BEGIN AGENTS_CORE_v1 -->` and `<!-- AUTOGEN:END AGENTS_CORE_v1 -->` (exclude markers).
   - `GOV_CORE_v1` canonical content:
     - From canonical source payload `<<BEGIN FILE: _control/GOVERNANCE_BOOTSTRAP.md>> ... <<END FILE>>`
-    - Extract starting at heading `## 0) Prime Directive (Fail-Closed)` through end of that file payload.
+    - Extract ONLY the content between `<!-- AUTOGEN:BEGIN GOV_CORE_v1 -->` and `<!-- AUTOGEN:END GOV_CORE_v1 -->` (exclude markers).
   - `REGRESSION_12_v1` canonical content:
     - From canonical source payload `<<BEGIN FILE: _control/REGRESSION_CHECK.md>> ... <<END FILE>>`
-    - Extract starting at line `# Regression Checklist` through end of that file payload.
+    - Extract ONLY the content between `<!-- AUTOGEN:BEGIN REGRESSION_12_v1 -->` and `<!-- AUTOGEN:END REGRESSION_12_v1 -->` (exclude markers).
   - Canonical payload (for any patch target that says "use canonical payload"):
     - From canonical source file `prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`,
       locate the exact file payload block `<<BEGIN FILE: <path>>> ... <<END FILE>>` that matches the target path.
@@ -116,18 +130,25 @@ HARD ORDER (NO SKIP)
      - Read relevant local skill docs first (`skills/*/SKILL.md` that map to the operation).
      - Verify claims against official docs at `https://docs.openclaw.ai` and record source URLs in the run report.
      - For latest/version-sensitive claims, also verify official releases at `https://github.com/openclaw/openclaw/releases` and record source URLs in the run report.
+     - Run Official Flow Compatibility SOP pre-check and record verdict in run report:
+       - whether request is official OpenClaw flow and/or governance lifecycle flow,
+       - whether governance decision is ALLOW/ROUTE/BLOCKED,
+       - if BLOCKED, include copy-paste unblock commands and explicit policy-gate wording.
    - If task content includes date/time statements (e.g., today/current year/current month):
      - Verify runtime current time context first (session status).
      - Record the observed absolute date/time in the run report before making conclusions.
+   - Historical blocker policy (hard):
+     - If prior `_runs/` mentions canonical mismatch, record it as context only.
+     - Do NOT stop here for mismatch history; continue to CHANGE GATE.
 
 4) CHANGE GATE (patch-only)
    4.1 Create backup tree:
        `archive/_migration_backup_<ts>/` (and subfolders mirroring targets)
    4.2 For each patch target you will modify, copy exact BEFORE into backup tree.
    4.3 Apply deterministic patches:
-       - `AGENTS.md`: ensure AUTOGEN block `AGENTS_CORE_v1` exists exactly once; replace its content with canonical content extracted per "CANONICAL SOURCE (hard)" mapping rules.
-       - `_control/GOVERNANCE_BOOTSTRAP.md`: ensure AUTOGEN block `GOV_CORE_v1` exists exactly once; replace its content with canonical content extracted per "CANONICAL SOURCE (hard)" mapping rules.
-       - `_control/REGRESSION_CHECK.md`: ensure AUTOGEN block `REGRESSION_12_v1` exists exactly once; replace its content with canonical content extracted per "CANONICAL SOURCE (hard)" mapping rules.
+       - `AGENTS.md`: ensure AUTOGEN block `AGENTS_CORE_v1` exists exactly once; replace INNER content only (keep BEGIN/END marker lines unchanged) with canonical content extracted per "CANONICAL SOURCE (hard)" mapping rules.
+       - `_control/GOVERNANCE_BOOTSTRAP.md`: ensure AUTOGEN block `GOV_CORE_v1` exists exactly once; replace INNER content only (keep BEGIN/END marker lines unchanged) with canonical content extracted per "CANONICAL SOURCE (hard)" mapping rules.
+       - `_control/REGRESSION_CHECK.md`: ensure AUTOGEN block `REGRESSION_12_v1` exists exactly once; replace INNER content only (keep BEGIN/END marker lines unchanged) with canonical content extracted per "CANONICAL SOURCE (hard)" mapping rules.
        - `_control/WORKSPACE_INDEX.md`: ensure it contains links to:
          `./ACTIVE_GUARDS.md`, `./LESSONS.md`, `../BOOT.md`, `../prompts/governance/WORKSPACE_GOVERNANCE_MIGRATION.md`, `../prompts/governance/APPLY_UPGRADE_FROM_BOOT.md`,
          `../skills/gov_migrate/`, `../skills/gov_audit/`, `../skills/gov_apply/`, `../skills/gov_openclaw_json/`, `../skills/gov_brain_audit/`
@@ -145,10 +166,14 @@ HARD ORDER (NO SKIP)
       - `skills/gov_migrate/SKILL.md`, `skills/gov_audit/SKILL.md`, `skills/gov_apply/SKILL.md`, `skills/gov_openclaw_json/SKILL.md`, `skills/gov_brain_audit/SKILL.md`:
          - If missing: create each using canonical payload (create directories as needed).
          - If present: compare against canonical payload; if any differs, STOP and output a conflict report (do not overwrite).
-       - `BOOT.md`:
-         - If missing: create it using canonical payload.
-         - If present but clearly unrelated: backup and overwrite with canonical payload.
+      - `BOOT.md`:
+        - If missing: create it using canonical payload.
+        - If present but clearly unrelated: backup and overwrite with canonical payload.
+        - If present and related: PATCH-only to ensure Active-blocker rule + Status rule wording exists (do not erase workspace-local operator notes).
    4.4 Update `_control/WORKSPACE_INDEX.md` to include the migration run report link (after the run report is written).
+   4.5 Canonical timing rule (hard):
+       - Do NOT run canonical equality as a pre-change blocker.
+       - Canonical equality belongs to QC GATE after patches are applied.
 
 5) QC GATE (fixed denominator)
    - Execute `_control/REGRESSION_CHECK.md` EXACTLY 12 items in order.
@@ -163,6 +188,11 @@ HARD ORDER (NO SKIP)
      - If this run makes OpenClaw system claims, run report must include source URLs from `https://docs.openclaw.ai`.
      - If this run makes latest/version-sensitive OpenClaw claims, run report must include source URLs from `https://github.com/openclaw/openclaw/releases`.
      - If this run makes date/time claims, run report must include runtime-verified absolute date/time evidence (from session status).
+   - Official-flow compatibility self-check (Fail-Closed):
+     - If this run touches OpenClaw system operation flow (`openclaw ...`, including plugin-added/future commands) or governance lifecycle (`gov_setup check/install/upgrade`, `gov_migrate`, `gov_audit`, `gov_openclaw_json`, `gov_brain_audit`):
+       - run report must include compatibility verdict (`ALLOW` / `ROUTE` / `BLOCKED` with reason),
+       - any block must be labeled as governance policy gate (not system error),
+       - run report must include copy-paste unblock commands.
    - Brain Docs evidence self-check (Fail-Closed):
      - If this run touches Brain Docs, run report must include:
        - `FILES_READ` with exact Brain Docs paths
@@ -175,7 +205,10 @@ HARD ORDER (NO SKIP)
      - Extract the three canonical contents from `prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md` using the mapping rules above.
      - Normalize both sides using the normalization rules above.
      - Compute sha256 for each (record first 12 chars).
-     - Any mismatch => STOP and output Blocked/Remediation (do NOT claim completion).
+     - If any mismatch appears, run one deterministic repair pass:
+       - re-overwrite the three AUTOGEN inner contents from canonical extraction (markers unchanged),
+       - then rerun the canonical equality check once.
+     - If mismatch remains after repair pass => STOP and output Blocked/Remediation (do NOT claim completion).
 
 6) PERSIST GATE
    - Write run report under `_runs/` named:

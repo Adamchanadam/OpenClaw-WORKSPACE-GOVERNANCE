@@ -92,20 +92,37 @@ Fail-Closed 原則：
 
 ## 6) 標準操作流程
 
+### 指令價值地圖（決策輔助）
+
+| 指令 | 何時使用 | 立即價值 |
+| --- | --- | --- |
+| `gov_setup check` | 任何 install/upgrade 前 | 直接給出狀態、信任清單就緒度與下一步，避免憑感覺操作 |
+| `gov_setup install` | 此工作區首次部署治理 | 一次建立治理基線檔案，避免手動遺漏 |
+| `gov_setup upgrade` | 已有治理檔案但需升到最新 | 更新治理包內容，同時保留前置檢查與安全邏輯 |
+| `gov_migrate` | install/upgrade 後需做策略對齊 | 讓既有工作區行為對齊新治理規則 |
+| `gov_audit` | 變更後、宣稱完成前 | 以固定清單驗證證據，及早發現漂移 |
+| `gov_openclaw_json` | 需改平台控制面（`openclaw.json`/extensions） | 以備份/驗證/回退路徑進行最小改動 |
+| `gov_apply <NN>` | BOOT 已產生編號提案且人類已批准 | 僅執行已批准項目，避免臨時拼接變更 |
+| `gov_brain_audit` | 需審核或修補 Brain Docs 風險語句 | 語義優先預覽、批准後才套用、可回退 |
+
 ### A) 全新 OpenClaw / 全新工作區
 
 1. 安裝 plugin
-2. `gov_setup install`
-3. 執行 bootstrap prompt（`OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`）
-4. `gov_audit`
+2. `gov_setup check`（同時檢查檔案狀態與信任清單是否就緒）
+3. 若回覆顯示 allowlist 未就緒（例如提示 `plugins.allow` 需要對齊）：先跑 `gov_openclaw_json`，再重跑 `gov_setup check`
+4. `gov_setup install`
+5. 執行 bootstrap prompt（`OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`）
+6. `gov_audit`
 
 ### B) 已運作工作區，首次導入治理
 
 1. 安裝並啟用 plugin
-2. `gov_setup install`
-3. 執行 bootstrap prompt
-4. 如工作區已在運作：`gov_migrate`
-5. `gov_audit`
+2. `gov_setup check`（同時檢查檔案狀態與信任清單是否就緒）
+3. 若回覆顯示 allowlist 未就緒（例如提示 `plugins.allow` 需要對齊）：先跑 `gov_openclaw_json`，再重跑 `gov_setup check`
+4. `gov_setup install`
+5. 執行 bootstrap prompt
+6. 如工作區已在運作：`gov_migrate`
+7. `gov_audit`
 
 ### C) 已安裝治理（日常維護）
 
@@ -119,22 +136,31 @@ openclaw gateway restart
 2. OpenClaw 對話中：
 
 ```text
+/gov_setup check
+# 若 check 回覆顯示 allowlist 未就緒（例如提示 plugins.allow 需對齊）：
+/gov_openclaw_json
+/gov_setup check
 /gov_setup upgrade
 /gov_migrate
 /gov_audit
 ```
 
+補充（避免升級誤判）：
+1. `/gov_setup check` 的 `READY` 只代表「當下檔案齊全且可運作」，不是「可跳過你已明確要求的 upgrade」。
+2. 只要你明確下達 `/gov_setup upgrade`，就應執行 upgrade（最多是 `PASS: already up-to-date`），不應回覆 `SKIPPED (No-op upgrade)`。
+
 ### D) Brain Docs 保守修補流程
 
 此流程適用於要降低「先行動、後核實」或「無證據下過度肯定」風險，同時保留人設語氣。
-`gov_brain_audit` 由腳本規則集（`tools/brain_audit_rules.mjs`）提供可重現檢測結果，而非自由發揮摘要。
+`gov_brain_audit` 以語義審核為主（跨語言），可選用腳本規則集（`tools/brain_audit_rules.mjs`）作可重現的結構化輔助對照。
 
-固定檢查類別：
+檢查類別（語義 + 結構證據）：
 1. 先行動後核實語句
 2. 無證據下過度肯定語句
 3. 缺少必要證據欄位但宣稱完成/通過
 4. 聲稱已讀與檔案實際存在不一致
 5. 把推測內容寫成記憶事實
+6. 詞面提示模式僅作輔助，必須由語義審核確認，不能單獨作封鎖依據
 
 1. 先做只讀預覽：
 
@@ -143,9 +169,10 @@ openclaw gateway restart
 ```
 
 2. 只批准指定項目（或安全批次）：
+   - `F001` 這類 ID 只是示例；請貼上你最新 preview findings 清單中的實際 ID。
 
 ```text
-/gov_brain_audit APPROVE: F001,F003
+/gov_brain_audit APPROVE: <PASTE_IDS_FROM_PREVIEW>
 # 或
 /gov_brain_audit APPROVE: APPLY_ALL_SAFE
 ```
@@ -213,15 +240,16 @@ Fallback：
 
 1. `gov_setup check` 有狀態與下一步
 2. `gov_setup install|upgrade` 正確部署治理檔案
-3. `gov_migrate` 完成且無 QC 阻擋
-4. `gov_audit` 為 12/12 PASS
-5. 平台設定修改經 `gov_openclaw_json`
-6. Brain Docs 寫入具備 `FILES_READ` + `TARGET_FILES_TO_CHANGE`
-7. Runtime hard gate hooks 已啟用：
+3. `gov_setup` 完成前，`allow_status` 已達 `ALLOW_OK`
+4. `gov_migrate` 完成且無 QC 阻擋
+5. `gov_audit` 為 12/12 PASS
+6. 平台設定修改經 `gov_openclaw_json`
+7. Brain Docs 寫入具備 `FILES_READ` + `TARGET_FILES_TO_CHANGE`
+8. Runtime hard gate hooks 已啟用：
    - 缺少 PLAN/READ 證據時，可寫入工具調用會被阻擋
    - 只讀 shell/測試命令應保持可執行
    - 寫入任務被阻擋時，先補 `WG_PLAN_GATE_OK` + `WG_READ_GATE_OK` 再重試
-8. Brain Docs 審核流程可完整運作：
+9. Brain Docs 審核流程可完整運作：
    - `gov_brain_audit` 會產生 findings + approval checklist
    - `gov_brain_audit APPROVE: ...` 會產生備份與 run report
    - `gov_brain_audit ROLLBACK` 可回復最近備份
@@ -238,23 +266,38 @@ Fallback：
    - 執行 `gov_setup install`
 4. `gov_setup check` 顯示 `PARTIAL`：
    - 執行 `gov_setup upgrade`
-5. 升級後 audit mismatch：
+5. `openclaw plugins list` 顯示 `plugins.allow is empty`：
+   - 這是信任 allowlist 警告，不是 governance 崩潰
+   - 先跑 `gov_setup check`，若 `allow_status!=ALLOW_OK`，先跑 `/gov_openclaw_json`，再重跑 `gov_setup check`
+6. 官方初始化/設定指令改動了 `openclaw.json`（例如 `openclaw onboard`、`openclaw configure`）：
+   - 屬預期情境：治理流程可能先要求信任清單重新對齊
+   - 先跑 `/gov_setup check` -> 若信任未就緒跑 `/gov_openclaw_json` -> 再跑 `/gov_setup check`
+7. 升級後 audit mismatch：
    - 先 `gov_migrate`，再 `gov_audit`
-6. 出現 runtime gate 阻擋訊息：
+8. 出現 runtime gate 阻擋訊息：
    - 這通常表示治理保護已生效，並非系統崩潰
+   - 官方 `openclaw ...` 系統指令預設允許，不應被 runtime gate 誤擋
    - 若屬寫入/更新/保存任務：先補 PLAN + READ 證據，加入 `WG_PLAN_GATE_OK` + `WG_READ_GATE_OK`，再重試 CHANGE
    - 若屬只讀診斷/測試：保持只讀命令並重新執行
-7. `gov_setup upgrade` 仍顯示卡在 governance gate：
+9. `gov_setup upgrade` 仍顯示卡在 governance gate：
    - 更新 plugin 至最新版：`openclaw plugins update openclaw-workspace-governance`
    - 重啟 gateway：`openclaw gateway restart`
    - 重新執行：`/gov_setup check` 再 `/gov_setup upgrade`
    - 或用自然語言：`請在此工作區執行 gov_setup 的 upgrade 模式。`
-8. 關於自動更新：
+10. `gov_setup` / `gov_migrate` 指令來源疑似混用（shadow）：
+   - 先檢查來源：`openclaw skills info gov_setup --json`、`openclaw skills info gov_migrate --json`
+   - 若 `gov_migrate` 來源顯示 `openclaw-workspace` 且指向 `<workspace>/skills/gov_*` 舊檔，先跑 `/gov_setup upgrade`
+   - 最新 `gov_setup` 會自動把 `<workspace>/skills/gov_*` 舊副本搬到 `archive/_gov_setup_shadow_backup_<ts>/...`，再走正常升級流程
+11. 關於自動更新：
    - 目前沒有背景自動更新機制
    - 請使用手動流程：`openclaw plugins update ...` -> `openclaw gateway restart` -> `gov_setup upgrade` -> `gov_migrate` -> `gov_audit`
-9. `gov_brain_audit APPROVE: ...` 顯示 blocked：
-   - 請提供明確批准輸入（`APPROVE: F001,F003` 或 `APPROVE: APPLY_ALL_SAFE`）
+12. `gov_brain_audit APPROVE: ...` 顯示 blocked：
+   - 請提供明確批准輸入（`APPROVE: <PASTE_IDS_FROM_PREVIEW>` 或 `APPROVE: APPLY_ALL_SAFE`）
+   - `PASTE_IDS_FROM_PREVIEW` 指的是你當次 preview 輸出的 finding IDs，不是固定代碼
    - 再以 `/gov_brain_audit APPROVE: ...` 重試
+13. `BOOT AUDIT REPORT` 顯示舊的 migration blocked 警告：
+   - 若同一流程族（`migrate_governance_*`）已有較新的 PASS，應視為已解決歷史（資訊提示），不是 active blocker
+   - 若未有較新 PASS，先跑 `/gov_migrate`，再跑 `/gov_audit`
 
 ---
 
@@ -264,3 +307,4 @@ Fallback：
 2. 首頁（English）：[`README.md`](./README.md)
 3. 定位文件（繁中）：[`VALUE_POSITIONING_AND_FACTORY_GAP.md`](./VALUE_POSITIONING_AND_FACTORY_GAP.md)
 4. 定位文件（English）：[`VALUE_POSITIONING_AND_FACTORY_GAP.en.md`](./VALUE_POSITIONING_AND_FACTORY_GAP.en.md)
+

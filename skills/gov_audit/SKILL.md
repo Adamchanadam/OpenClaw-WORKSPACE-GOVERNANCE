@@ -38,6 +38,9 @@ Perform governance integrity checks after bootstrap, migration, or apply.
    - run report includes approved finding IDs (or rollback scope)
    - changed files are limited to approved Brain Docs/governance targets
    Missing evidence => FAIL (unsafe Brain Docs mutation).
+10. Official-flow compatibility SOP check (anti-self-lock):
+   - verify governance does not falsely block OpenClaw system operation flows (`openclaw ...`, including plugin-added/future commands) and governance lifecycle flows (`gov_setup check/install/upgrade`, `gov_migrate`, `gov_audit`, `gov_openclaw_json`, `gov_brain_audit`, `gov_uninstall check/uninstall`).
+   - if a governance block occurred, verify run report labels it as governance policy gate (not system error) and provides copy-paste unblock commands.
 
 ## Persistence
 - Write audit result into `_runs/` when the active governance flow requires persistence.
