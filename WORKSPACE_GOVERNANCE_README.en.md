@@ -26,7 +26,9 @@ It covers:
 2. Required skills:
    - GA: `gov_setup`, `gov_migrate`, `gov_audit`, `gov_openclaw_json`, `gov_brain_audit`, `gov_uninstall`
    - Experimental: `gov_apply`
-3. If slash routing is unstable, use `/skill ...` fallback.
+3. Built-in command catalog:
+   - `gov_help` (read-only command list + one-click entry suggestions)
+4. If slash routing is unstable, use `/skill ...` fallback.
 
 Host-side checks:
 
@@ -102,6 +104,8 @@ Tool exposure root-fix (security default):
 
 | Command | Use it when | Immediate value |
 | --- | --- | --- |
+| `gov_help` | Need full command list in-session | Gives zero-memory operator menu and one-click entrypoints |
+| `gov_setup quick` | Daily default for install/upgrade alignment | One-click chain: check -> install/upgrade/skip -> migrate -> audit |
 | `gov_setup check` | Before any install/upgrade decision | Exposes workspace status, trust-readiness, and explicit next action so you do not guess |
 | `gov_setup install` | First governance deployment in this workspace | Creates baseline governance files in one controlled step |
 | `gov_setup upgrade` | Governance files already exist but need latest version | Refreshes governance package files without skipping safety checks |
@@ -110,6 +114,7 @@ Tool exposure root-fix (security default):
 | `gov_openclaw_json` | Need control-plane edits (`openclaw.json`/extensions) | Applies minimal change with backup/validate/rollback path |
 | `gov_apply <NN>` (Experimental) | BOOT emitted numbered proposal and human approved in controlled UAT | Preserves human-approved single-item apply path; do not treat as unattended GA automation |
 | `gov_brain_audit` | Need Brain Docs risk review/hardening | Semantic-first preview, approval-based apply, and rollback support |
+| `gov_uninstall quick` | Need workspace governance cleanup before package uninstall | One-click chain: check -> uninstall (with backup/restore evidence) |
 
 ### Shared Trust-Alignment Branch (Use when `gov_setup check` says allowlist/trust is not ready)
 
@@ -121,20 +126,18 @@ Tool exposure root-fix (security default):
 ### A) Brand-new OpenClaw / brand-new workspace
 
 1. Install plugin
-2. `gov_setup check` (verify file status + trust readiness)
+2. `gov_setup quick` (default one-click path)
 3. If check output says allowlist is not ready: run the shared trust-alignment branch above.
-4. `gov_setup install`
-5. `gov_migrate` (auto-reconciles missing baseline `_control` files)
-6. `gov_audit`
+4. If operator requires strict step-by-step, use manual chain:
+   - `gov_setup check` -> `gov_setup install` -> `gov_migrate` -> `gov_audit`
 
 ### B) Running workspace, first governance adoption
 
 1. Install/enable plugin
-2. `gov_setup check` (verify file status + trust readiness)
+2. `gov_setup quick` (default one-click path)
 3. If check output says allowlist is not ready: run the shared trust-alignment branch above.
-4. `gov_setup install`
-5. `gov_migrate` (auto-reconciles missing baseline `_control` files)
-6. `gov_audit`
+4. If operator requires strict step-by-step, use manual chain:
+   - `gov_setup check` -> `gov_setup install` -> `gov_migrate` -> `gov_audit`
 
 ### C) Governance already installed (daily maintenance)
 
@@ -148,10 +151,10 @@ openclaw gateway restart
 2. In OpenClaw:
 
 ```text
-/gov_setup check
+/gov_setup quick
 # if check output says allowlist is not ready (for example plugins.allow needs alignment):
 /gov_openclaw_json
-/gov_setup check
+/gov_setup quick
 /gov_setup upgrade
 /gov_migrate
 /gov_audit
@@ -273,8 +276,9 @@ Maturity boundary:
 10. Optional Experimental UAT only:
    - if BOOT emits approved menu item, verify `/gov_apply <NN>` then close with `/gov_migrate` + `/gov_audit`
 11. Uninstall acceptance (mandatory):
-   - run `/gov_uninstall check` -> `/gov_uninstall uninstall` -> `/gov_uninstall check`
-   - expected: `RESIDUAL` -> `PASS` -> `CLEAN`
+   - run `/gov_uninstall quick`
+   - optional strict verification: `/gov_uninstall check`
+   - expected: `PASS`/`CLEAN`, then `CLEAN` on verification check
    - confirm `_runs/gov_uninstall_<ts>.md` and `archive/_gov_uninstall_backup_<ts>/...` exist
 
 ---
@@ -286,9 +290,9 @@ Maturity boundary:
 2. Slash not responding:
    - use `/skill ...` fallback or natural-language request to invoke the skill
 3. `gov_setup check` returns `NOT_INSTALLED`:
-   - run `gov_setup install`
+   - run `gov_setup quick` (or manual `gov_setup install`)
 4. `gov_setup check` returns `PARTIAL`:
-   - run `gov_setup upgrade`
+   - run `gov_setup quick` (or manual `gov_setup upgrade`)
 5. `openclaw plugins list` warns `plugins.allow is empty`:
    - this is trust-allowlist warning, not governance crash
    - run `gov_setup check`, if `allow_status!=ALLOW_OK` run `/gov_openclaw_json`, then rerun `gov_setup check`
@@ -323,7 +327,7 @@ Maturity boundary:
    - if no newer PASS exists, run `/gov_migrate` then `/gov_audit`
 14. You already ran `openclaw plugins uninstall` before workspace cleanup:
    - reinstall plugin first so `/gov_uninstall` is available
-   - run `/gov_uninstall check` -> `/gov_uninstall uninstall` -> `/gov_uninstall check`
+   - run `/gov_uninstall quick` (optional strict verify: `/gov_uninstall check`)
    - if Brain Docs autofix backups exist (`archive/_brain_docs_autofix_<ts>/...`), `/gov_uninstall` reports restore strategy and evidence fields
 
 ---

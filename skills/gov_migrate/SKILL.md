@@ -42,7 +42,7 @@ Execute the migration workflow defined by:
    - Do not treat pre-change mismatch or historical mismatch run reports as immediate blockers.
    - Required sequence: CHANGE first, then canonical equality + optional repair pass at QC.
 12. Official-flow compatibility SOP (anti-self-lock):
-   - Treat OpenClaw system operation flows (`openclaw ...`, including plugin-added/future commands) and governance lifecycle flows (`gov_setup check/install/upgrade`, `gov_migrate`, `gov_audit`, `gov_openclaw_json`, `gov_brain_audit`, `gov_uninstall check/uninstall`) as default ALLOW/ROUTE paths, not generic blocks.
+   - Treat OpenClaw system operation flows (`openclaw ...`, including plugin-added/future commands) and governance lifecycle flows (`gov_help`, `gov_setup quick/check/install/upgrade`, `gov_migrate`, `gov_audit`, `gov_openclaw_json`, `gov_brain_audit`, `gov_uninstall quick/check/uninstall`) as default ALLOW/ROUTE paths, not generic blocks.
    - If a hard prerequisite requires block, label it as governance policy gate (not system error) and provide copy-paste unblock commands.
 
 ## Output requirements

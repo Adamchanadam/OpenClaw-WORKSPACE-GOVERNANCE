@@ -56,8 +56,9 @@ These are workflow-gate problems, not only model-quality problems.
 ## 5) Maturity Boundary (Current)
 
 GA baseline today:
-1. `gov_setup`, `gov_migrate`, `gov_audit`, `gov_openclaw_json`, `gov_brain_audit`, `gov_uninstall`
-2. Runtime hard-gate and explicit governance-command intent guard
+1. `gov_help` command catalog + one-click operator entrypoints (`/gov_setup quick`, `/gov_uninstall quick`)
+2. Deterministic core lifecycle: `gov_setup`, `gov_migrate`, `gov_audit`, `gov_openclaw_json`, `gov_brain_audit`, `gov_uninstall`
+3. Runtime hard-gate and explicit governance-command intent guard
 
 Experimental today:
 1. `gov_apply <NN>` (BOOT controlled apply)

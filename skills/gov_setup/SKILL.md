@@ -12,7 +12,10 @@ Deploy this plugin's governance files into the current workspace at `prompts/gov
 In all modes, verify OpenClaw plugin trust allowlist alignment (`plugins.allow`) for this plugin.
 
 ## Inputs
-- Optional mode: `install` (default), `upgrade`, or `check`.
+- Optional mode:
+  - `quick` (default command-level one-click chain)
+  - `install`, `upgrade`, `check`
+  - alias: `auto` (same as `quick`)
 
 ## Mode precedence (hard)
 1. Explicit operator intent takes precedence:
@@ -21,6 +24,9 @@ In all modes, verify OpenClaw plugin trust allowlist alignment (`plugins.allow`)
    - `/gov_setup check` is diagnostics only.
 2. Never downgrade explicit `install`/`upgrade` into `check`.
 3. Never return `SKIPPED (No-op upgrade)` for explicit `upgrade`.
+4. `quick`/`auto` must run full chain in-order:
+   - `check` -> (`install`/`upgrade`/`skip`) -> `migrate` -> `audit`
+   - if any stage fails, stop at that stage and return deterministic next-step remediation.
 
 ## Deterministic runner (hard)
 1. `gov_setup` decisions must be driven by:
@@ -57,7 +63,7 @@ When the request touches Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL
 5. Mandatory compatibility SOP check (every run):
    - Evaluate whether governance is compatible with official OpenClaw daily flows and governance lifecycle flows:
      - official flow families: `openclaw ...` system-channel operations (including plugin-added/future commands and chained `openclaw` segments)
-    - governance lifecycle: `gov_setup check/install/upgrade`, `gov_migrate`, `gov_audit`, `gov_openclaw_json`, `gov_brain_audit`, `gov_uninstall check/uninstall`
+    - governance lifecycle: `gov_help`, `gov_setup quick/check/install/upgrade`, `gov_migrate`, `gov_audit`, `gov_openclaw_json`, `gov_brain_audit`, `gov_uninstall quick/check/uninstall`
    - Decision rules:
      - default outcome is `ALLOW/ROUTE` for these flows (no generic false block),
      - if prerequisite fails (for example allowlist misalignment), return governance policy warning with explicit copy-paste unblock commands.
@@ -71,6 +77,11 @@ When the request touches Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL
    - `check` -> `node {plugin_root}/tools/gov_setup_sync.mjs check`
    - `install` -> `node {plugin_root}/tools/gov_setup_sync.mjs install`
    - `upgrade` -> `node {plugin_root}/tools/gov_setup_sync.mjs upgrade`
+   - `quick`/`auto` -> orchestrated deterministic chain:
+     - setup check runner
+     - setup install/upgrade runner when required by check result
+     - migrate runner
+     - audit runner
 8. If mode is `check`:
    - Use runner JSON as source of truth for:
      - `status` (`NOT_INSTALLED` / `PARTIAL` / `READY`)

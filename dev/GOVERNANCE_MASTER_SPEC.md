@@ -26,7 +26,7 @@ Out of scope:
    - Applies tool-exposure guard (default fail-closed explicit governance intent).
    - Preserves official `openclaw ...` system command operability.
 3. Deterministic command layer:
-   - `gov_setup`, `gov_migrate`, `gov_apply`, `gov_audit`, `gov_uninstall`.
+   - `gov_help`, `gov_setup`, `gov_migrate`, `gov_apply`, `gov_audit`, `gov_uninstall`.
    - Output format: `STATUS -> WHY -> NEXT STEP (Operator) -> COMMAND TO COPY`.
 4. Skill contract layer:
    - Defines command intent, constraints, and fallback behavior.
@@ -39,12 +39,15 @@ Out of scope:
 
 ### 2.1 GA Baseline
 
-1. `/gov_setup check|install|upgrade` (deterministic command + runner)
+1. `/gov_setup quick|check|install|upgrade` (deterministic command + runner)
+   - includes one-click `quick|auto` command orchestration
 2. `/gov_migrate` (deterministic command + runner)
 3. `/gov_audit` (deterministic command + runner)
-4. `/gov_uninstall check|uninstall` (deterministic command + runner)
-5. `/gov_openclaw_json` (skill contract, controlled platform change path)
-6. `/gov_brain_audit` (skill contract, preview/approve/rollback path)
+4. `/gov_uninstall quick|check|uninstall` (deterministic command + runner)
+   - includes one-click `quick|auto` command orchestration
+5. `/gov_help` (deterministic command catalog for operator UX)
+6. `/gov_openclaw_json` (skill contract, controlled platform change path)
+7. `/gov_brain_audit` (skill contract, preview/approve/rollback path)
 7. Runtime gate + tool exposure guard in plugin hooks.
 
 ### 2.2 Experimental Baseline
@@ -72,6 +75,7 @@ Out of scope:
 ## 4) Deterministic Command Contracts
 
 1. `gov_setup`:
+   - `quick`/`auto` one-click path: check -> install/upgrade/skip -> migrate -> audit
    - `check` returns status + allowlist readiness + next action
    - `install` deploys plugin-local governance assets
    - `upgrade` refreshes assets and reconciles shadow `skills/gov_*`
@@ -95,6 +99,7 @@ Out of scope:
    - fixed denominator discipline
    - folder checks + canonical equality checks
 5. `gov_uninstall`:
+   - `quick`/`auto` one-click path: check -> uninstall (if residual exists)
    - residual detection + backup-first cleanup + restore plan from bootstrap backup and brain-doc autofix backups
    - cleanup scope is explicit-target only (no broad recursive delete of shared user folders)
    - `check` reports brain backup roots/candidates/strategy when detected

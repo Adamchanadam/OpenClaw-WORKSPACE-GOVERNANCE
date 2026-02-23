@@ -7,7 +7,8 @@ Use this file as the first read in every new session.
 1. Version baseline in repo:
    - `package.json` and `openclaw.plugin.json` currently aligned.
 2. Deterministic command set:
-   - `gov_setup`, `gov_migrate`, `gov_apply`, `gov_audit`, `gov_uninstall`
+   - `gov_help`, `gov_setup`, `gov_migrate`, `gov_apply`, `gov_audit`, `gov_uninstall`
+   - one-click operator paths: `gov_setup quick`, `gov_uninstall quick`
 3. Experimental boundary:
    - `gov_apply <NN>` remains controlled-UAT scope (deterministic-covered, not unattended GA).
 4. Runtime regression denominator baseline:

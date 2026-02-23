@@ -13,6 +13,7 @@ Important:
 Release is blocked if any of these fail:
 1. Official `openclaw ...` system-channel flows are falsely blocked by governance.
 2. Governance lifecycle (`gov_setup`, `gov_migrate`, `gov_apply`, `gov_audit`, `gov_openclaw_json`, `gov_brain_audit`, `gov_uninstall`) dead-locks itself.
+   - including one-click entrypoints: `gov_setup quick`, `gov_uninstall quick`
 3. BLOCK messages do not clearly say this is governance safety gate (not OpenClaw system error) and do not provide copy-paste unblock steps.
 4. Upgrade path (`plugins update` -> `gov_setup upgrade` -> `gov_migrate` -> `gov_audit`) cannot complete on existing workspace.
 5. First-install path misroutes users from `/gov_setup install` directly into `/gov_migrate` before bootstrap.
@@ -67,13 +68,14 @@ Expected:
 ## 4) Phase B: Governance Lifecycle Compatibility (Must not self-lock)
 
 Run in OpenClaw TUI:
-1. `/gov_setup check`
-2. If allowlist not ready: `/gov_openclaw_json` -> `/gov_setup check`
-3. If `workspace_gov_skill_dirs_detected` is non-empty (legacy shadow copies): status must be `PARTIAL` and next step must be `/gov_setup upgrade`
-4. `/gov_setup upgrade`
-5. `/gov_migrate`
-6. `/gov_audit`
-7. `/gov_apply <NN>` (only when an approved BOOT menu item exists)
+1. `/gov_setup quick`
+2. `/gov_setup check` (manual verification path still valid)
+3. If allowlist not ready: `/gov_openclaw_json` -> `/gov_setup quick`
+4. If `workspace_gov_skill_dirs_detected` is non-empty (legacy shadow copies): status must be `PARTIAL` and next step must be `/gov_setup upgrade`
+5. `/gov_setup upgrade`
+6. `/gov_migrate`
+7. `/gov_audit`
+8. `/gov_apply <NN>` (only when an approved BOOT menu item exists)
 
 Expected:
 1. No dead-lock where governance blocks governance lifecycle itself.
@@ -82,10 +84,11 @@ Expected:
 4. Explicit `/gov_setup upgrade` must execute upgrade workflow (or `PASS: already up-to-date`), never `SKIPPED (No-op upgrade)`.
 5. After upgrade, legacy `<workspace>/skills/gov_*` shadow copies (if any) are reconciled into `archive/_gov_setup_shadow_backup_<ts>/...`.
 6. `gov_setup` / `gov_migrate` / `gov_apply` / `gov_audit` should execute deterministic plugin command handlers first (not LLM free-form skill reasoning path).
-7. `/gov_uninstall check` must detect governance residuals after prior install/bootstrap.
-8. `/gov_uninstall uninstall` must clear governance residuals with backup + run report and restore legacy files from `archive/_bootstrap_backup_*` when present.
-9. Uninstall must not delete user non-governance files that share parent folders (for example custom files under `prompts/governance/` or `_runs/`).
-10. If Brain Docs autofix backups exist (`archive/_brain_docs_autofix_*`), uninstall check/output must expose restore candidates/strategy.
+7. `/gov_uninstall quick` must execute safe check->uninstall chain when residual exists.
+8. `/gov_uninstall check` must still detect governance residuals after prior install/bootstrap.
+9. `/gov_uninstall uninstall` must clear governance residuals with backup + run report and restore legacy files from `archive/_bootstrap_backup_*` when present.
+10. Uninstall must not delete user non-governance files that share parent folders (for example custom files under `prompts/governance/` or `_runs/`).
+11. If Brain Docs autofix backups exist (`archive/_brain_docs_autofix_*`), uninstall check/output must expose restore candidates/strategy.
 
 ## 4.0) Phase B0: First-Install + Control-Plane Alignment (Mandatory)
 
@@ -109,14 +112,13 @@ Expected:
 ## 4.1) Phase B2: Uninstall Cleanup Integrity (Must not leave governance residue)
 
 Run in OpenClaw TUI:
-1. `/gov_uninstall check`
-2. `/gov_uninstall uninstall`
-3. `/gov_uninstall check`
+1. `/gov_uninstall quick`
+2. Optional strict verification: `/gov_uninstall check`
 
 Expected:
-1. Pre-uninstall check returns `RESIDUAL` when governance artifacts exist.
+1. Quick path returns `PASS` or `CLEAN`.
 2. Uninstall returns `PASS` and writes `_runs/gov_uninstall_<ts>.md`.
-3. Post-uninstall check returns `CLEAN` (or residual only if explicitly warned/manual by runner).
+3. Optional post-check returns `CLEAN` (or residual only if explicitly warned/manual by runner).
 4. Uninstall creates `archive/_gov_uninstall_backup_<ts>/...` and never performs destructive remove without backup.
 5. If `archive/_brain_docs_autofix_*` exists, check output includes:
    - `brain_docs_backup_roots_found`

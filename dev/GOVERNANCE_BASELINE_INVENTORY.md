@@ -27,7 +27,7 @@ Must-preserve functional pillars:
 1. Fixed lifecycle for write-capable work: `PLAN -> READ -> CHANGE -> QC -> PERSIST`.
 2. Compatibility SOP: governance must not falsely block official OpenClaw daily flows.
 3. Governance lifecycle chain must stay executable:
-   - GA: `/gov_setup check/install/upgrade`, `/gov_migrate`, `/gov_audit`, `/gov_openclaw_json`, `/gov_brain_audit`, `/gov_uninstall`
+   - GA: `/gov_help`, `/gov_setup quick/check/install/upgrade`, `/gov_migrate`, `/gov_audit`, `/gov_openclaw_json`, `/gov_brain_audit`, `/gov_uninstall quick/check/uninstall`
    - Experimental: `/gov_apply <NN>` (BOOT controlled apply; deterministic runner coverage exists, but rollout remains controlled-UAT).
 4. BOOT model remains read-only proposal first, human approval second, controlled apply third (`/gov_apply <NN>` only for approved item).
 5. Every block must be presented as governance policy gate (not system crash) with copy-paste remediation.
@@ -81,6 +81,7 @@ Source references:
 
 `gov_setup`:
 1. Function:
+   - `quick`: one-click chain (`check -> install/upgrade/skip -> migrate -> audit`)
    - `check`: readiness diagnosis (files + allowlist + sync state)
    - `install`: first deployment
    - `upgrade`: package refresh for existing workspace
@@ -157,6 +158,7 @@ Source references:
 
 `gov_uninstall`:
 1. Function:
+   - `quick`: one-click cleanup (`check -> uninstall` when residual exists)
    - deterministic workspace cleanup for governance artifacts before package uninstall
    - `check` + `uninstall` dual-mode flow with run-report evidence
 2. User value:

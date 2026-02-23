@@ -56,8 +56,9 @@ OpenClaw 出廠基線主要強調：
 ## 5) 當前成熟度邊界
 
 目前 GA 基線：
-1. `gov_setup`、`gov_migrate`、`gov_audit`、`gov_openclaw_json`、`gov_brain_audit`、`gov_uninstall`
-2. Runtime hard-gate 與顯式治理指令意圖 guard
+1. `gov_help` 指令目錄 + 一鍵入口（`/gov_setup quick`、`/gov_uninstall quick`）
+2. 可確定性核心生命周期：`gov_setup`、`gov_migrate`、`gov_audit`、`gov_openclaw_json`、`gov_brain_audit`、`gov_uninstall`
+3. Runtime hard-gate 與顯式治理指令意圖 guard
 
 目前 Experimental：
 1. `gov_apply <NN>`（BOOT 受控套用）

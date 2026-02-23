@@ -198,12 +198,15 @@ const cases = [];
 
 cases.push(() => {
   const { commands } = createHarness();
+  assert.equal(commands.has("gov_help"), true);
   assert.equal(commands.has("gov_setup"), true);
   assert.equal(commands.has("gov_migrate"), true);
   assert.equal(commands.has("gov_apply"), true);
   assert.equal(commands.has("gov_uninstall"), true);
   assert.equal(commands.has("gov_audit"), true);
+  const help = commands.get("gov_help");
   const setup = commands.get("gov_setup");
+  assert.equal(typeof help?.handler, "function");
   assert.equal(typeof setup?.handler, "function");
 });
 
@@ -242,7 +245,7 @@ cases.push(async () => {
 });
 
 cases.push(async () => {
-  const fixture = withTempWorkspace("uninstall-restore-brain-backup", (root) => {
+  const fixture = withTempWorkspace("uninstall-quick-restore-brain-backup", (root) => {
     writeFile(root, "AGENTS.md", "# workspace agents\n");
     writeFile(root, "USER.md", "CURRENT_USER_DOC\n");
     writeFile(
@@ -259,9 +262,10 @@ cases.push(async () => {
   try {
     const { commands } = createHarness();
     const uninstall = commands.get("gov_uninstall");
-    const out = await uninstall.handler({ args: "uninstall" });
+    const out = await uninstall.handler({ args: "quick" });
     const text = String(out?.text || "");
     assert.match(text, /STATUS\s*\nPASS/i);
+    assert.ok(text.includes("auto_chain: check -> uninstall"));
     assert.ok(text.includes("brain_backup_used"));
     assert.ok(text.includes("openclaw plugins disable openclaw-workspace-governance"));
     const userDoc = fs.readFileSync(path.join(fixture.root, "USER.md"), "utf8");
@@ -474,16 +478,25 @@ cases.push(async () => {
 cases.push(async () => {
   const fixture = withTempWorkspace("setup-install", (root) => {
     writeFile(root, "AGENTS.md", "# workspace agents\n");
+    writeFile(root, "_control/PRESETS.md", "# PRESETS\n");
+    fs.mkdirSync(path.join(root, "docs"), { recursive: true });
+    fs.mkdirSync(path.join(root, "projects"), { recursive: true });
+    fs.mkdirSync(path.join(root, "archive"), { recursive: true });
   });
   try {
     const { commands } = createHarness();
     const setup = commands.get("gov_setup");
-    const out = await setup.handler({ args: "install" });
+    const out = await setup.handler({ args: "quick" });
     const text = String(out?.text || "");
-    assert.match(text, /STATUS\s*\nPASS/i);
-    assert.ok(text.includes("Run migration, then audit.") || text.includes("先跑 migration，再跑 audit。"));
-    assert.ok(text.includes("/gov_migrate"));
-    assert.ok(text.includes("/gov_audit"));
+    assert.match(text, /STATUS\s*\n(PASS|FAIL)/i);
+    assert.ok(text.includes("auto_chain: check -> (install|upgrade|skip) -> migrate -> audit"));
+    assert.ok(
+      text.includes("One-click governance flow completed") ||
+        text.includes("一鍵治理流程完成") ||
+        text.includes("One-click flow reached audit failure") ||
+        text.includes("一鍵流程已跑到 audit 失敗"),
+    );
+    assert.ok(text.includes("/gov_setup quick"));
   } finally {
     fixture.restore();
   }

@@ -212,7 +212,7 @@ Platform Channel (Control Plane) exception (Hard):
 Official Flow Compatibility SOP (Anti-Self-Lock, Hard):
 - For every governance task, you MUST run this compatibility pre-check before deciding to block:
   1) Does the request belong to OpenClaw system operation flow (`openclaw ...`, including plugin-added or future commands)?
-  2) Does the request belong to governance lifecycle operations (`gov_setup check/install/upgrade`, `gov_migrate`, `gov_audit`, `gov_openclaw_json`, `gov_brain_audit`)?
+  2) Does the request belong to governance lifecycle operations (`gov_help`, `gov_setup quick/check/install/upgrade`, `gov_migrate`, `gov_audit`, `gov_openclaw_json`, `gov_brain_audit`, `gov_uninstall quick/check/uninstall`)?
   3) If command is plugin-added/custom and unknown to local rules, route to runtime policy self-service (`runtimeGatePolicy`) instead of dead-end blocking.
 - If yes, default action is ALLOW/ROUTE (not generic BLOCK) unless a hard safety prerequisite fails.
 - If blocked due governance prerequisite (for example trust allowlist not aligned), message MUST explicitly say "governance safety block, not OpenClaw system error" and include copy-paste unblock commands.
@@ -278,9 +278,9 @@ ClawHub installer page:
 
 | Version | Published (UTC) | Key Changes | Practical Impact |
 | --- | --- | --- | --- |
+| `v0.1.45` | 2026-02-23 | Added deterministic `gov_help` command catalog and one-click orchestration (`/gov_setup quick|auto`, `/gov_uninstall quick|auto`), then aligned all lifecycle/docs runbooks to quick-first with manual fallback | Daily UX is now one-command by default, while preserving strict/manual control and reducing operator misrouting |
 | `v0.1.44` | 2026-02-23 | Root-fixed uninstall integrity: scope-limited cleanup (no broad shared-folder wipe), Brain Docs backup detection/restore evidence fields, runtime regression expanded to 33/33 | Plugin uninstall flow is now safer for mixed workspaces and less likely to remove non-governance user files |
 | `v0.1.43` | 2026-02-23 | Reworked `gov_audit` into executable 12-item QC evaluation with deterministic evidence checks, expanded runtime regression to 30/30 | Removes template-style fake PASS and makes audit verdict traceable |
-| `v0.1.41` | 2026-02-23 | Added deterministic `/gov_apply` command runner (`tools/gov_apply_sync.mjs`), expanded runtime regression to 28/28, added governance master spec/matrix/gap/handoff docs | BOOT apply path is now deterministic-covered with clearer engineering continuity and release gates |
 
 Source: GitHub Releases (`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`)
 
@@ -301,18 +301,19 @@ Without governance, user pain compounds quickly:
 
 What you get immediately:
 1. Predictable lifecycle: `PLAN -> READ -> CHANGE -> QC -> PERSIST`.
-2. Clear operating order: `check -> install/upgrade -> migrate -> audit`.
+2. Clear operating order: one-click `gov_setup quick`, or manual `check -> install/upgrade -> migrate -> audit`.
 3. Safer control-plane updates with backup, validation, and rollback evidence.
 
 ## Feature Maturity (No-Misleading Contract)
 
 GA (production default):
-1. `/gov_setup check|install|upgrade`
-2. `/gov_migrate`
-3. `/gov_audit`
-4. `/gov_openclaw_json`
-5. `/gov_brain_audit`
-6. `/gov_uninstall`
+1. `/gov_help` (one-shot command catalog)
+2. `/gov_setup quick|check|install|upgrade`
+3. `/gov_migrate`
+4. `/gov_audit`
+5. `/gov_openclaw_json`
+6. `/gov_brain_audit`
+7. `/gov_uninstall quick|check|uninstall`
 
 Experimental:
 1. `/gov_apply <NN>` keeps the BOOT proposal-apply model available for controlled UAT, and is now covered by deterministic runtime regression baseline.
@@ -332,6 +333,16 @@ Experimental:
 
 <a id="install"></a>
 ## 60-Second Start
+
+### Fastest Operator Entry (Recommended)
+In OpenClaw TUI:
+```text
+/gov_help
+/gov_setup quick
+```
+`/gov_setup quick` auto-runs:
+`check -> (install|upgrade|skip) -> migrate -> audit`
+and returns one clear next step when blocked.
 
 ### Shared Allowlist Quick Fix
 Use this only when a command reports `Error: not in allowlist`.
@@ -356,14 +367,14 @@ Some OpenClaw builds do not auto-append new plugins into `plugins.allow` during 
 If `openclaw plugins info openclaw-workspace-governance` shows `Error: not in allowlist`, run **Shared Allowlist Quick Fix** first.
 3. In OpenClaw TUI chat:
 ```text
-/gov_setup check
+/gov_setup quick
 ```
 4. If the reply says trust/allowlist is not ready (for example `plugins.allow is empty` or asks to align `openclaw.json`), run:
 ```text
 /gov_openclaw_json
-/gov_setup check
+/gov_setup quick
 ```
-5. Continue:
+5. For strict/manual chain (or if operator requests step-by-step), continue:
 ```text
 /gov_setup install
 prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md
@@ -381,14 +392,14 @@ openclaw gateway restart
 2. If plugin becomes disabled with `Error: not in allowlist`, run **Shared Allowlist Quick Fix** first.
 3. In OpenClaw TUI chat:
 ```text
-/gov_setup check
+/gov_setup quick
 ```
 4. If the reply says trust/allowlist is not ready, run:
 ```text
 /gov_openclaw_json
-/gov_setup check
+/gov_setup quick
 ```
-5. Continue:
+5. For strict/manual chain (or if operator requests step-by-step), continue:
 ```text
 /gov_setup upgrade
 /gov_migrate
@@ -405,14 +416,13 @@ openclaw plugins info openclaw-workspace-governance
 If it shows `Error: not in allowlist`, run **Shared Allowlist Quick Fix** first.
 2. In OpenClaw TUI chat:
 ```text
-/gov_uninstall check
-/gov_uninstall uninstall
+/gov_uninstall quick
+# optional strict verification:
 /gov_uninstall check
 ```
 Expected:
-- First check: `RESIDUAL`
-- Uninstall: `PASS`
-- Final check: `CLEAN`
+- Quick run: `PASS` or `CLEAN`
+- Optional strict verify after quick: `CLEAN`
 
 3. Then remove plugin package:
 ```text
@@ -433,12 +443,15 @@ If you already uninstalled plugin package first:
 
 | If your goal is... | Run this first | Then run | Detailed user value |
 | --- | --- | --- | --- |
-| Avoid wrong first steps before any change | `/gov_setup check` | follow returned next action | Converts uncertainty into a concrete action path, so new users do not branch into wrong install/upgrade sequences |
+| List all governance commands in one shot | `/gov_help` | choose one quick/manual entry | Gives users a zero-memory command menu in-session |
+| One-click governance deployment/upgrade/audit | `/gov_setup quick` | follow returned next step only if blocked | Runs check/install-or-upgrade/migrate/audit automatically with deterministic evidence |
+| Avoid wrong first steps before any change (manual) | `/gov_setup check` | follow returned next action | Converts uncertainty into a concrete action path, so new users do not branch into wrong install/upgrade sequences |
 | Clear platform trust warning before governance deployment | `/gov_openclaw_json` | `/gov_setup check` | Prevents setup from failing later due to trust misalignment and gives operators one deterministic trust-fix route |
 | First governance deployment in this workspace | `/gov_setup install` | `/gov_migrate` -> `/gov_audit` | Installs governance package files, then deterministically reconciles missing baseline `_control` files during migration |
 | Upgrade existing governance workspace | `/gov_setup upgrade` | `/gov_migrate` -> `/gov_audit` | Updates package files, aligns workspace policy, and confirms readiness after change |
 | Safely change OpenClaw control-plane config | `/gov_openclaw_json` | `/gov_audit` | Replaces risky direct editing with backup/validate/rollback evidence for recoverable platform operations |
 | Improve Brain Docs quality with minimal risk | `/gov_brain_audit` | approve findings -> `/gov_audit` | Detects high-risk wording, preserves persona intent, and only applies approved patches with rollback support |
+| One-click workspace cleanup before package removal | `/gov_uninstall quick` | optional `/gov_uninstall check` | Cleans governance artifacts with backup+restore evidence while reducing operator step count |
 | Apply one BOOT proposal item (Experimental) | `/gov_apply <NN>` | `/gov_migrate` -> `/gov_audit` | Executes only one human-approved item in controlled UAT; do not treat as unattended GA automation |
 
 ## Core Capability: `/gov_brain_audit` for Brain Docs Performance
@@ -486,7 +499,7 @@ Copy-paste this natural-language request:
 ```text
 Please run governance readiness check for this workspace (read-only), then tell me exactly what to run next.
 ```
-If slash fallback is needed: `/gov_setup check`
+If slash fallback is needed: `/gov_setup quick`
 
 2. I ran official commands like `openclaw onboard` or `openclaw configure`, then governance looks blocked. What should I ask AI to do?
 Copy-paste:
@@ -496,7 +509,7 @@ I just ran official OpenClaw setup/config commands. Please re-check governance r
 If slash fallback is needed:
 ```text
 /gov_openclaw_json
-/gov_setup check
+/gov_setup quick
 ```
 
 3. I installed plugin, but workspace governance files are still missing. What should I ask?
@@ -591,6 +604,7 @@ Official references:
 4. https://docs.openclaw.ai/cli/plugins
 5. https://docs.openclaw.ai/cli/skills
 6. https://github.com/openclaw/openclaw/releases
+
 <<END FILE>>
 
 <<BEGIN FILE: BOOT.md>>
@@ -1056,7 +1070,7 @@ HARD ORDER (NO SKIP)
      - If this run makes latest/version-sensitive OpenClaw claims, run report must include source URLs from `https://github.com/openclaw/openclaw/releases`.
      - If this run makes date/time claims, run report must include runtime-verified absolute date/time evidence (from session status).
    - Official-flow compatibility self-check (Fail-Closed):
-     - If this run touches OpenClaw system operation flow (`openclaw ...`, including plugin-added/future commands) or governance lifecycle (`gov_setup check/install/upgrade`, `gov_migrate`, `gov_audit`, `gov_openclaw_json`, `gov_brain_audit`):
+     - If this run touches OpenClaw system operation flow (`openclaw ...`, including plugin-added/future commands) or governance lifecycle (`gov_help`, `gov_setup quick/check/install/upgrade`, `gov_migrate`, `gov_audit`, `gov_openclaw_json`, `gov_brain_audit`, `gov_uninstall quick/check/uninstall`):
        - run report must include compatibility verdict (`ALLOW` / `ROUTE` / `BLOCKED` with reason),
        - any block must be labeled as governance policy gate (not system error),
        - run report must include copy-paste unblock commands.
@@ -1162,7 +1176,7 @@ Required pre-check:
 - Determine if the operator intent is in official OpenClaw flow:
   - Any `openclaw ...` system-channel operation (including plugin-added/future commands and chained `openclaw` segments)
 - Determine if the intent is governance lifecycle:
-  - `gov_setup check/install/upgrade`, `gov_migrate`, `gov_audit`, `gov_openclaw_json`, `gov_brain_audit`
+  - `gov_help`, `gov_setup quick/check/install/upgrade`, `gov_migrate`, `gov_audit`, `gov_openclaw_json`, `gov_brain_audit`, `gov_uninstall quick/check/uninstall`
 
 Decision rules:
 - If intent is official flow or governance lifecycle, default is ALLOW/ROUTE, not generic block.
@@ -1515,7 +1529,7 @@ Execute the migration workflow defined by:
    - Do not treat pre-change mismatch or historical mismatch run reports as immediate blockers.
    - Required sequence: CHANGE first, then canonical equality + optional repair pass at QC.
 12. Official-flow compatibility SOP (anti-self-lock):
-   - Treat OpenClaw system operation flows (`openclaw ...`, including plugin-added/future commands) and governance lifecycle flows (`gov_setup check/install/upgrade`, `gov_migrate`, `gov_audit`, `gov_openclaw_json`, `gov_brain_audit`, `gov_uninstall check/uninstall`) as default ALLOW/ROUTE paths, not generic blocks.
+   - Treat OpenClaw system operation flows (`openclaw ...`, including plugin-added/future commands) and governance lifecycle flows (`gov_help`, `gov_setup quick/check/install/upgrade`, `gov_migrate`, `gov_audit`, `gov_openclaw_json`, `gov_brain_audit`, `gov_uninstall quick/check/uninstall`) as default ALLOW/ROUTE paths, not generic blocks.
    - If a hard prerequisite requires block, label it as governance policy gate (not system error) and provide copy-paste unblock commands.
 
 ## Output requirements
@@ -1581,7 +1595,7 @@ Perform governance integrity checks after bootstrap, migration, or apply.
    - changed files are limited to approved Brain Docs/governance targets
    Missing evidence => FAIL (unsafe Brain Docs mutation).
 10. Official-flow compatibility SOP check (anti-self-lock):
-   - verify governance does not falsely block OpenClaw system operation flows (`openclaw ...`, including plugin-added/future commands) and governance lifecycle flows (`gov_setup check/install/upgrade`, `gov_migrate`, `gov_audit`, `gov_openclaw_json`, `gov_brain_audit`, `gov_uninstall check/uninstall`).
+   - verify governance does not falsely block OpenClaw system operation flows (`openclaw ...`, including plugin-added/future commands) and governance lifecycle flows (`gov_help`, `gov_setup quick/check/install/upgrade`, `gov_migrate`, `gov_audit`, `gov_openclaw_json`, `gov_brain_audit`, `gov_uninstall quick/check/uninstall`).
    - if a governance block occurred, verify run report labels it as governance policy gate (not system error) and provides copy-paste unblock commands.
 
 ## Persistence
@@ -1891,7 +1905,6 @@ If slash routing is unstable:
 <<END FILE>>
 
 END TASK
-
 
 
 

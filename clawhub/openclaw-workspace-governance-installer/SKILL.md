@@ -31,10 +31,12 @@ openclaw skills list --eligible
 
 In OpenClaw chat:
 ```text
-/gov_setup check
-# if check output says allowlist is not ready (for example plugins.allow needs alignment):
+/gov_help
+/gov_setup quick
+# if quick output says allowlist is not ready (for example plugins.allow needs alignment):
 /gov_openclaw_json
-/gov_setup check
+/gov_setup quick
+# manual fallback (step-by-step):
 /gov_setup install
 prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md
 # if this workspace was already active before first governance adoption:
@@ -51,28 +53,34 @@ openclaw gateway restart
 
 Then in OpenClaw chat:
 ```text
-/gov_setup check
-# if check output says allowlist is not ready (for example plugins.allow needs alignment):
+/gov_setup quick
+# if quick output says allowlist is not ready (for example plugins.allow needs alignment):
 /gov_openclaw_json
-/gov_setup check
+/gov_setup quick
+/gov_setup upgrade
+/gov_migrate
+/gov_audit
+# manual fallback:
 /gov_setup upgrade
 /gov_migrate
 /gov_audit
 ```
 
 ## What you get
-1. `gov_setup` with `install | upgrade | check`.
-2. `gov_migrate` for governance upgrades.
-3. `gov_audit` for 12/12 consistency checks.
-4. `gov_apply <NN>` for controlled BOOT proposal apply (**Experimental**, controlled UAT only).
-5. `gov_openclaw_json` for controlled platform control-plane updates:
+1. `gov_help` for one-shot command list and one-click entry suggestions.
+2. `gov_setup` with `quick | install | upgrade | check`.
+3. `gov_migrate` for governance upgrades.
+4. `gov_audit` for 12/12 consistency checks.
+5. `gov_apply <NN>` for controlled BOOT proposal apply (**Experimental**, controlled UAT only).
+6. `gov_openclaw_json` for controlled platform control-plane updates:
    - in scope: `~/.openclaw/openclaw.json`
    - in scope when explicitly needed: `~/.openclaw/extensions/`
    - not for Brain Docs (`USER.md`, `SOUL.md`, `memory/*.md`) or normal workspace docs
-6. `gov_brain_audit` for conservative Brain Docs risk review:
+7. `gov_brain_audit` for conservative Brain Docs risk review:
    - single entry (read-only preview by default)
    - approval-based minimal diff + backup
    - rollback only when an approved backup exists
+8. `gov_uninstall quick|check|uninstall` for safe workspace cleanup before package removal.
 
 ## Feature maturity (important)
 1. GA flow for production rollout: `gov_setup -> gov_migrate -> gov_audit`, plus `gov_openclaw_json`, `gov_brain_audit`, `gov_uninstall`.
@@ -80,28 +88,31 @@ Then in OpenClaw chat:
 3. If you use `gov_apply <NN>`, keep it in controlled UAT and always close with `/gov_migrate` then `/gov_audit`.
 
 ## When to use which command (quick map)
-1. Readiness decision first: `gov_setup check` (returns workspace status, trust readiness, and next action)
-2. First deployment path: `gov_setup install` (only after `check` says install path)
-3. Existing deployment update: `gov_setup upgrade` (only after `check` says upgrade path)
-4. Policy alignment after deploy/update: `gov_migrate`
-5. Final verification before claiming done: `gov_audit`
-6. Apply approved BOOT menu item only (Experimental): `gov_apply <NN>`
-7. Edit OpenClaw platform config safely: `gov_openclaw_json`
-8. Review/harden Brain Docs safely: `gov_brain_audit -> gov_brain_audit APPROVE: ... -> gov_brain_audit ROLLBACK (if needed)`
+1. Need command list fast: `gov_help`
+2. Daily default path: `gov_setup quick` (one-click chain)
+3. Readiness decision first (manual path): `gov_setup check`
+4. First deployment path (manual): `gov_setup install`
+5. Existing deployment update (manual): `gov_setup upgrade`
+6. Policy alignment after deploy/update: `gov_migrate`
+7. Final verification before claiming done: `gov_audit`
+8. Apply approved BOOT menu item only (Experimental): `gov_apply <NN>`
+9. Edit OpenClaw platform config safely: `gov_openclaw_json`
+10. Review/harden Brain Docs safely: `gov_brain_audit -> gov_brain_audit APPROVE: ... -> gov_brain_audit ROLLBACK (if needed)`
+11. Cleanup workspace governance artifacts safely: `gov_uninstall quick`
 
 ## First-run status map
-After `/gov_setup check`:
-1. if check output says allowlist is not ready -> run `/gov_openclaw_json`, then rerun `/gov_setup check`
-2. `NOT_INSTALLED` -> run `/gov_setup install`
-3. `PARTIAL` -> run `/gov_setup upgrade`
-4. `READY` -> run `/gov_migrate` then `/gov_audit`
+After `/gov_setup quick`:
+1. if output says allowlist is not ready -> run `/gov_openclaw_json`, then rerun `/gov_setup quick`
+2. if output is `PASS` -> lifecycle is aligned
+3. if output is `FAIL/BLOCKED` -> follow returned next-step commands
+4. manual fallback remains available: `check -> install/upgrade -> migrate -> audit`
 
 ## Important update rule
 If `openclaw plugins install ...` returns `plugin already exists`, use:
 1. `openclaw plugins update openclaw-workspace-governance`
 2. `openclaw gateway restart`
 3. `/gov_setup check` (if needed, align allowlist via `/gov_openclaw_json`)
-4. `/gov_setup upgrade` -> `/gov_migrate` -> `/gov_audit`
+4. `/gov_setup quick` (or manual `/gov_setup upgrade` -> `/gov_migrate` -> `/gov_audit`)
 5. If `/gov_setup check` says `READY`, that does not cancel an explicitly requested `/gov_setup upgrade` during update flow.
 
 Version check (operator-side):

@@ -16,9 +16,9 @@ ClawHub 安裝頁：
 
 | 版本 | 發佈時間（UTC） | 關鍵變更 | 對使用者的直接影響 |
 | --- | --- | --- | --- |
+| `v0.1.45` | 2026-02-23 | 新增 deterministic `gov_help` 指令目錄與一鍵流程編排（`/gov_setup quick|auto`、`/gov_uninstall quick|auto`），並把全套生命周期/文檔手冊統一成 quick-first（保留手動備援） | 日常操作改為一鍵優先，仍保留嚴格手動控制，同時降低用戶走錯步驟機率 |
 | `v0.1.44` | 2026-02-23 | 完成 uninstall 完整性 root-fix：清理範圍收窄（不再 broad wipe 共用資料夾）、加入 Brain Docs 備份偵測/回復證據欄位、runtime regression 擴展至 33/33 | 在混合工作區下更安全，顯著降低誤刪非治理用戶檔的風險 |
 | `v0.1.43` | 2026-02-23 | `gov_audit` 升級為可執行 12 項 QC 判定並加入決定性證據檢查，runtime regression 擴展至 30/30 | 移除模板式假 PASS，audit 結論可追溯 |
-| `v0.1.41` | 2026-02-23 | 新增 deterministic `/gov_apply` runner（`tools/gov_apply_sync.mjs`）、runtime regression 擴展至 28/28，補齊 master spec/matrix/gap/handoff 工程文檔 | BOOT apply 路徑已有可重現覆蓋，並提升後續開發接手一致性 |
 
 來源：GitHub Releases（`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`）
 
@@ -39,18 +39,19 @@ ClawHub 安裝頁：
 
 你會立即得到：
 1. 固定生命週期：`PLAN -> READ -> CHANGE -> QC -> PERSIST`。
-2. 明確操作順序：`check -> install/upgrade -> migrate -> audit`。
+2. 明確操作順序：一鍵 `gov_setup quick`，或手動 `check -> install/upgrade -> migrate -> audit`。
 3. 平台控制面改動具備備份、驗證、回退證據。
 
 ## 功能成熟度（不誤導聲明）
 
 GA（正式可落地）：
-1. `/gov_setup check|install|upgrade`
-2. `/gov_migrate`
-3. `/gov_audit`
-4. `/gov_openclaw_json`
-5. `/gov_brain_audit`
-6. `/gov_uninstall`
+1. `/gov_help`（一次列全指令）
+2. `/gov_setup quick|check|install|upgrade`
+3. `/gov_migrate`
+4. `/gov_audit`
+5. `/gov_openclaw_json`
+6. `/gov_brain_audit`
+7. `/gov_uninstall quick|check|uninstall`
 
 Experimental（實驗性）：
 1. `/gov_apply <NN>` 保留 BOOT 提案受控套用模型，供受控 UAT 使用，並已納入 deterministic runtime regression baseline。
@@ -70,6 +71,16 @@ Experimental（實驗性）：
 
 <a id="install"></a>
 ## 60-Second Start
+
+### 最快入口（建議）
+在 OpenClaw TUI 直接輸入：
+```text
+/gov_help
+/gov_setup quick
+```
+`/gov_setup quick` 會自動跑：
+`check -> (install|upgrade|skip) -> migrate -> audit`
+若中途受阻，會直接回傳單一步下一步指令。
 
 ### 共用 Allowlist 快速修復
 只在出現 `Error: not in allowlist` 時使用。
@@ -94,14 +105,14 @@ openclaw gateway restart
 如果 `openclaw plugins info openclaw-workspace-governance` 顯示 `Error: not in allowlist`，請先執行上面的「共用 Allowlist 快速修復」。
 3. OpenClaw TUI 對話中執行：
 ```text
-/gov_setup check
+/gov_setup quick
 ```
 4. 若回覆顯示信任清單未就緒（例如出現 `plugins.allow is empty`，或提示要先對齊 `openclaw.json`），執行：
 ```text
 /gov_openclaw_json
-/gov_setup check
+/gov_setup quick
 ```
-5. 然後繼續：
+5. 若需要嚴格逐步（或操作者要求 step-by-step），再用：
 ```text
 /gov_setup install
 prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md
@@ -119,14 +130,14 @@ openclaw gateway restart
 2. 若 plugin 顯示 `Error: not in allowlist`，請先執行上面的「共用 Allowlist 快速修復」。
 3. OpenClaw TUI 對話中執行：
 ```text
-/gov_setup check
+/gov_setup quick
 ```
 4. 若回覆顯示信任清單未就緒，執行：
 ```text
 /gov_openclaw_json
-/gov_setup check
+/gov_setup quick
 ```
-5. 然後繼續：
+5. 若需要嚴格逐步（或操作者要求 step-by-step），再用：
 ```text
 /gov_setup upgrade
 /gov_migrate
@@ -143,14 +154,13 @@ openclaw plugins info openclaw-workspace-governance
 若顯示 `Error: not in allowlist`，先執行上面的「共用 Allowlist 快速修復」。
 2. 在 OpenClaw TUI 對話中執行：
 ```text
-/gov_uninstall check
-/gov_uninstall uninstall
+/gov_uninstall quick
+# 如需嚴格驗證可再跑：
 /gov_uninstall check
 ```
 預期結果：
-- 第一次 check：`RESIDUAL`
-- uninstall：`PASS`
-- 最後 check：`CLEAN`
+- quick：`PASS` 或 `CLEAN`
+- 如有再跑 check：應為 `CLEAN`
 
 3. 然後再移除 plugin 套件：
 ```text
@@ -171,12 +181,15 @@ openclaw gateway restart
 
 | 你的目標 | 先執行 | 再執行 | 對使用者的具體價值 |
 | --- | --- | --- | --- |
-| 在任何改動前先確認正確路徑 | `/gov_setup check` | 依回覆下一步執行 | 把不確定轉為明確行動，避免新手走錯 install/upgrade 分支 |
+| 一次列出全部治理指令 | `/gov_help` | 再選 quick 或手動流程 | 用戶無需先讀文檔或記指令 |
+| 一鍵完成治理部署/升級+稽核 | `/gov_setup quick` | 若 blocked 才跟下一步指示 | 自動串 check/install-or-upgrade/migrate/audit，減少操作負擔 |
+| 在任何改動前先確認正確路徑（手動） | `/gov_setup check` | 依回覆下一步執行 | 把不確定轉為明確行動，避免新手走錯 install/upgrade 分支 |
 | 先清除平台信任警告再進治理流程 | `/gov_openclaw_json` | `/gov_setup check` | 避免後續因信任未對齊而失敗，提供單一路徑完成信任對齊 |
 | 首次部署治理到工作區 | `/gov_setup install` | `/gov_migrate` -> `/gov_audit` | 先部署治理套件檔，再由 migration 決定性補齊缺失的 `_control` 基線檔 |
 | 升級既有治理工作區 | `/gov_setup upgrade` | `/gov_migrate` -> `/gov_audit` | 同步治理檔版本與策略，並在變更後完成驗證 |
 | 安全修改 OpenClaw 平台控制面 | `/gov_openclaw_json` | `/gov_audit` | 以備份/驗證/回退取代高風險直改，讓平台變更可恢復 |
 | 低風險優化 Brain Docs 品質 | `/gov_brain_audit` | 批准 findings -> `/gov_audit` | 檢出高風險語句、保留人設方向，僅批准後套用且可回退 |
+| 一鍵清理 workspace 治理殘留 | `/gov_uninstall quick` | 可選再跑 `/gov_uninstall check` | 以最少步驟完成安全清理，保留備份/回復證據 |
 | 套用單一 BOOT 提案項目（Experimental） | `/gov_apply <NN>` | `/gov_migrate` -> `/gov_audit` | 只執行單一人手批准項目，適用受控 UAT；不可視為無人值守 GA 自動化 |
 
 ## 核心能力：`/gov_brain_audit` 如何優化 Brain Docs 效能
@@ -224,7 +237,7 @@ openclaw gateway restart
 ```text
 請先在此工作區做 governance readiness check（只讀），然後只告訴我下一步要跑什麼。
 ```
-若需 slash 備援：`/gov_setup check`
+若需 slash 備援：`/gov_setup quick`
 
 2. 我剛跑完官方指令（例如 `openclaw onboard` / `openclaw configure`）後，governance 好像被擋，應該怎樣叫 AI？
 可直接貼：
@@ -234,7 +247,7 @@ openclaw gateway restart
 若需 slash 備援：
 ```text
 /gov_openclaw_json
-/gov_setup check
+/gov_setup quick
 ```
 
 3. Plugin 已安裝，但工作區仍未見治理檔案，我應該怎樣下指令？

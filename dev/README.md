@@ -12,6 +12,7 @@ This folder stores governance regression and release-gate validation assets.
    - Full public-user workflow regression plan.
    - Covers CLI/TUI/natural-language/lifecycle/UX + BOOT post-flow integrity scenarios as release criteria.
    - Includes first-install bootstrap routing integrity guard (prevents install->migrate misroute before bootstrap).
+   - Includes one-click operator paths (`/gov_setup quick`, `/gov_uninstall quick`) and fallback/manual-chain acceptance.
    - Includes mandatory first-install control-plane alignment branch (`/gov_setup check` -> `/gov_openclaw_json` when needed -> `/gov_setup install`).
    - Includes grounded migrate failure matrix (`MISSING_REQUIRED_FILES`, stale prompt contract, marker-missing, auto-repair pass, persistence evidence).
 

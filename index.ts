@@ -196,10 +196,10 @@ const OPENCLAW_FLAGS_WITH_VALUE = new Set([
 ]);
 
 const GOV_COMMAND_TOKEN_RE =
-  /\bgov_(setup|migrate|audit|apply|openclaw_json|brain_audit|uninstall)\b/i;
+  /\bgov_(setup|migrate|audit|apply|openclaw_json|brain_audit|uninstall|help)\b/i;
 
 const GOV_COMMAND_PAYLOAD_RE =
-  /(?:^|[\s`"'])\/?(?:skill\s+)?gov_(setup|migrate|audit|apply|openclaw_json|brain_audit|uninstall)\b/i;
+  /(?:^|[\s`"'])\/?(?:skill\s+)?gov_(setup|migrate|audit|apply|openclaw_json|brain_audit|uninstall|help)\b/i;
 
 function normalizeShellPrefixList(input: unknown): string[] {
   if (!Array.isArray(input)) return [];
@@ -282,6 +282,9 @@ function classifyGovCommandRequest(
     return mode === "check" ? "read" : "write";
   }
   if (cmd === "gov_audit") {
+    return "read";
+  }
+  if (cmd === "gov_help") {
     return "read";
   }
   if (cmd === "gov_migrate" || cmd === "gov_apply" || cmd === "gov_openclaw_json") {
@@ -796,8 +799,8 @@ function hasCliUpdateArgvIntent(): boolean {
 function postUpdateReminderText(lang: "en" | "zh"): string {
   return i18n(
     lang,
-    "Update detected. To avoid governance drift, run this now: /gov_setup check -> if allowlist not ready then /gov_openclaw_json -> /gov_setup check -> /gov_setup upgrade -> /gov_migrate -> /gov_audit. Fallback: /skill gov_setup check, /skill gov_openclaw_json, /skill gov_setup upgrade, /skill gov_migrate, /skill gov_audit.",
-    "已偵測到 update。為避免 governance 漂移，請立即執行：/gov_setup check -> 若 allowlist 未就緒先 /gov_openclaw_json -> /gov_setup check -> /gov_setup upgrade -> /gov_migrate -> /gov_audit。備援：/skill gov_setup check、/skill gov_openclaw_json、/skill gov_setup upgrade、/skill gov_migrate、/skill gov_audit。",
+    "Update detected. To avoid governance drift, run this now: /gov_setup quick -> if allowlist not ready then /gov_openclaw_json -> /gov_setup quick. Manual fallback: /gov_setup check -> /gov_setup upgrade -> /gov_migrate -> /gov_audit.",
+    "已偵測到 update。為避免 governance 漂移，請立即執行：/gov_setup quick -> 若 allowlist 未就緒先 /gov_openclaw_json -> /gov_setup quick。手動備援：/gov_setup check -> /gov_setup upgrade -> /gov_migrate -> /gov_audit。",
   );
 }
 
@@ -1062,20 +1065,271 @@ function formatCommandOutput(
   ].join("\n");
 }
 
+async function makeGovHelpCommandResponse(ctx: PluginCommandContext): Promise<string> {
+  const lang = pickCommandLanguage(ctx);
+  return formatCommandOutput(
+    "PASS",
+    [
+      i18n(
+        lang,
+        "Available governance commands: gov_help, gov_setup, gov_migrate, gov_audit, gov_uninstall, gov_apply (Experimental).",
+        "可用治理指令：gov_help、gov_setup、gov_migrate、gov_audit、gov_uninstall、gov_apply（Experimental）。",
+      ),
+      i18n(
+        lang,
+        "One-click recommended for daily onboarding/upgrade: /gov_setup quick",
+        "日常安裝/升級建議一鍵：/gov_setup quick",
+      ),
+      i18n(
+        lang,
+        "One-click recommended for workspace cleanup before package removal: /gov_uninstall quick",
+        "卸載前 workspace 清理建議一鍵：/gov_uninstall quick",
+      ),
+      i18n(
+        lang,
+        "Read-only diagnostics: /gov_setup check, /gov_uninstall check",
+        "只讀檢查：/gov_setup check、/gov_uninstall check",
+      ),
+    ],
+    i18n(lang, "Copy one command and run.", "請直接複製一條指令執行。"),
+    [
+      "/gov_setup quick",
+      "/gov_uninstall quick",
+      "/gov_setup check",
+      "/gov_uninstall check",
+      "/gov_migrate",
+      "/gov_audit",
+      "/gov_apply 01",
+    ],
+  );
+}
+
+async function makeGovSetupQuickCommandResponse(lang: "en" | "zh"): Promise<string> {
+  const checkRunner = await runInProcessRunner("tools/gov_setup_sync.mjs", "runGovSetupSync", ["check"]);
+  if (!checkRunner.ok || !checkRunner.data) {
+    return formatCommandOutput(
+      "BLOCKED",
+      [i18n(lang, `deterministic check failed: ${checkRunner.err || "unknown error"}`, `deterministic check 失敗：${checkRunner.err || "未知錯誤"}`)],
+      i18n(lang, "Check plugin install path and rerun quick flow.", "請檢查 plugin 安裝路徑後重試 quick 流程。"),
+      ["/gov_setup check", "/gov_setup quick"],
+    );
+  }
+
+  const checkData = checkRunner.data;
+  const checkStatus = String(checkData.status || "PARTIAL").toUpperCase();
+  const allowStatus = String(checkData.allow_status || "ALLOW_NOT_SET");
+  const shadowRequired = Boolean(checkData.shadow_reconcile_required);
+  const summary = checkData.file_sync_summary || {};
+  const why = [
+    "auto_chain: check -> (install|upgrade|skip) -> migrate -> audit",
+    `check_status: ${checkStatus}`,
+    `allow_status: ${allowStatus}`,
+    `shadow_reconcile_required: ${String(shadowRequired)}`,
+    `check_file_sync_summary: MISSING=${String(summary.MISSING ?? 0)} OUT_OF_SYNC=${String(summary.OUT_OF_SYNC ?? 0)} IN_SYNC=${String(summary.IN_SYNC ?? 0)}`,
+  ];
+
+  if (allowStatus !== "ALLOW_OK") {
+    return formatCommandOutput(
+      "READY_WITH_WARNING",
+      why,
+      i18n(lang, "Align allowlist first, then rerun one-click quick flow.", "先對齊 allowlist，再重跑一鍵 quick 流程。"),
+      ["/gov_openclaw_json", "/gov_setup quick"],
+    );
+  }
+
+  let setupStep: "install" | "upgrade" | "skip" = "skip";
+  if (checkStatus === "NOT_INSTALLED") setupStep = "install";
+  else if (checkStatus === "PARTIAL" || shadowRequired) setupStep = "upgrade";
+  why.push(`setup_step: ${setupStep}`);
+
+  if (setupStep !== "skip") {
+    const setupRunner = await runInProcessRunner("tools/gov_setup_sync.mjs", "runGovSetupSync", [setupStep]);
+    if (!setupRunner.ok || !setupRunner.data) {
+      return formatCommandOutput(
+        "BLOCKED",
+        [...why, `setup_stage_error: ${String(setupRunner.err || "unknown error")}`],
+        i18n(lang, "Retry quick flow after fixing setup stage.", "修復 setup 階段後重試 quick 流程。"),
+        ["/gov_setup quick", "fallback: /gov_setup upgrade"],
+      );
+    }
+    const setupData = setupRunner.data;
+    const setupStatus = String(setupData.status || "BLOCKED").toUpperCase();
+    if (setupStatus !== "PASS") {
+      return formatCommandOutput(
+        "BLOCKED",
+        [...why, `setup_stage_status: ${setupStatus}`, `setup_stage_reason: ${String(setupData.reason || "unknown")}`],
+        i18n(lang, "Fix setup blocker and rerun quick flow.", "先修復 setup 阻擋，再重跑 quick 流程。"),
+        ["/gov_setup check", "/gov_setup quick"],
+      );
+    }
+    why.push(`setup_pass_detail: ${String(setupData.pass_detail || "updated")}`);
+    if (setupData.backup_root) why.push(`setup_backup_root: ${String(setupData.backup_root)}`);
+    const setupAllowStatus = String(setupData.allow_status || "ALLOW_NOT_SET");
+    if (setupAllowStatus !== "ALLOW_OK") {
+      return formatCommandOutput(
+        "PASS_WITH_WARNING",
+        [...why, `setup_allow_status: ${setupAllowStatus}`],
+        i18n(lang, "Align allowlist first, then rerun quick flow.", "先對齊 allowlist，再重跑 quick 流程。"),
+        ["/gov_openclaw_json", "/gov_setup quick"],
+      );
+    }
+  }
+
+  const migrateRunner = await runInProcessRunner("tools/gov_migrate_sync.mjs", "runGovMigrateSync", []);
+  if (!migrateRunner.ok || !migrateRunner.data) {
+    return formatCommandOutput(
+      "BLOCKED",
+      [...why, `migrate_stage_error: ${String(migrateRunner.err || "unknown error")}`],
+      i18n(lang, "Retry quick flow after fixing migrate stage.", "修復 migrate 階段後重試 quick 流程。"),
+      ["/gov_setup quick", "/gov_migrate"],
+    );
+  }
+  const migrateData = migrateRunner.data;
+  const migrateStatus = String(migrateData.status || "BLOCKED").toUpperCase();
+  if (migrateStatus !== "PASS") {
+    return formatCommandOutput(
+      "BLOCKED",
+      [
+        ...why,
+        `migrate_stage_status: ${migrateStatus}`,
+        `migrate_stage_reason: ${String(migrateData.reason || "unknown")}`,
+        migrateData.run_report ? `migrate_run_report: ${String(migrateData.run_report)}` : "",
+      ].filter(Boolean),
+      i18n(lang, "Fix migrate blocker and rerun one-click flow.", "先修復 migrate 阻擋，再重跑一鍵流程。"),
+      ["/gov_setup upgrade", "/gov_setup quick"],
+    );
+  }
+  if (migrateData.run_report) why.push(`migrate_run_report: ${String(migrateData.run_report)}`);
+
+  const auditRunner = await runInProcessRunner("tools/gov_audit_sync.mjs", "runGovAuditSync", []);
+  if (!auditRunner.ok || !auditRunner.data) {
+    return formatCommandOutput(
+      "FAIL",
+      [...why, `audit_stage_error: ${String(auditRunner.err || "unknown error")}`],
+      i18n(lang, "Retry audit or rerun quick flow.", "請重跑 audit 或重跑 quick 流程。"),
+      ["/gov_audit", "/gov_setup quick"],
+    );
+  }
+  const auditData = auditRunner.data;
+  const auditStatus = String(auditData.status || "FAIL").toUpperCase();
+  const qcSummary = (auditData.qc_summary && typeof auditData.qc_summary === "object")
+    ? (auditData.qc_summary as Record<string, unknown>)
+    : {};
+  const qcPass = Number(qcSummary.pass ?? 0);
+  const qcFail = Number(qcSummary.fail ?? 0);
+  const qcNa = Number(qcSummary.pass_na ?? 0);
+  if (auditStatus !== "PASS") {
+    return formatCommandOutput(
+      "FAIL",
+      [
+        ...why,
+        `audit_stage_status: ${auditStatus}`,
+        `audit_qc_summary: PASS=${String(qcPass)} FAIL=${String(qcFail)} PASS_NA=${String(qcNa)}`,
+        auditData.run_report ? `audit_run_report: ${String(auditData.run_report)}` : "",
+      ].filter(Boolean),
+      i18n(lang, "One-click flow reached audit failure. Fix findings and rerun quick flow.", "一鍵流程已跑到 audit 失敗。修復 findings 後重跑 quick 流程。"),
+      ["/gov_migrate", "/gov_audit", "/gov_setup quick"],
+    );
+  }
+
+  return formatCommandOutput(
+    "PASS",
+    [
+      ...why,
+      `audit_qc_summary: PASS=${String(qcPass)} FAIL=${String(qcFail)} PASS_NA=${String(qcNa)}`,
+      auditData.run_report ? `audit_run_report: ${String(auditData.run_report)}` : "",
+    ].filter(Boolean),
+    i18n(lang, "One-click governance flow completed (install/upgrade + migrate + audit).", "一鍵治理流程完成（install/upgrade + migrate + audit）。"),
+    ["/gov_setup check"],
+  );
+}
+
+async function makeGovUninstallQuickCommandResponse(lang: "en" | "zh"): Promise<string> {
+  const checkRunner = await runInProcessRunner("tools/gov_uninstall_sync.mjs", "runGovUninstallSync", ["check"]);
+  if (!checkRunner.ok || !checkRunner.data) {
+    return formatCommandOutput(
+      "BLOCKED",
+      [i18n(lang, `deterministic check failed: ${checkRunner.err || "unknown error"}`, `deterministic check 失敗：${checkRunner.err || "未知錯誤"}`)],
+      i18n(lang, "Check plugin install path and rerun quick uninstall.", "請檢查 plugin 安裝路徑後重試 quick uninstall。"),
+      ["/gov_uninstall check", "/gov_uninstall quick"],
+    );
+  }
+
+  const checkData = checkRunner.data;
+  const checkStatus = String(checkData.status || "RESIDUAL").toUpperCase();
+  const residual = Array.isArray(checkData.governance_residual_paths)
+    ? checkData.governance_residual_paths
+    : [];
+  const why = [
+    "auto_chain: check -> uninstall",
+    `check_status: ${checkStatus}`,
+    `check_residual_count: ${String(residual.length)}`,
+  ];
+
+  if (checkStatus === "CLEAN") {
+    return formatCommandOutput(
+      "CLEAN",
+      why,
+      i18n(lang, "Workspace is already clean. No uninstall action was needed.", "workspace 已是乾淨狀態，無需執行 uninstall。"),
+      ["openclaw plugins disable openclaw-workspace-governance", "optional: openclaw plugins uninstall openclaw-workspace-governance"],
+    );
+  }
+
+  const uninstallRunner = await runInProcessRunner("tools/gov_uninstall_sync.mjs", "runGovUninstallSync", ["uninstall"]);
+  if (!uninstallRunner.ok || !uninstallRunner.data) {
+    return formatCommandOutput(
+      "BLOCKED",
+      [...why, `uninstall_stage_error: ${String(uninstallRunner.err || "unknown error")}`],
+      i18n(lang, "Fix uninstall blocker and retry quick uninstall.", "先修復 uninstall 阻擋，再重跑 quick uninstall。"),
+      ["/gov_uninstall check", "/gov_uninstall quick"],
+    );
+  }
+  const uninstallData = uninstallRunner.data;
+  const uninstallStatus = String(uninstallData.status || "BLOCKED").toUpperCase();
+  if (uninstallStatus !== "PASS") {
+    return formatCommandOutput(
+      "BLOCKED",
+      [...why, `uninstall_stage_status: ${uninstallStatus}`, `uninstall_stage_reason: ${String(uninstallData.reason || "unknown")}`],
+      i18n(lang, "Fix uninstall blocker and retry quick uninstall.", "先修復 uninstall 阻擋，再重跑 quick uninstall。"),
+      ["/gov_uninstall check", "/gov_uninstall uninstall"],
+    );
+  }
+
+  const removed = Array.isArray(uninstallData.removed_paths) ? uninstallData.removed_paths : [];
+  const restored = Array.isArray(uninstallData.restored_paths) ? uninstallData.restored_paths : [];
+  return formatCommandOutput(
+    "PASS",
+    [
+      ...why,
+      `removed_paths: ${String(removed.length)}`,
+      `restored_paths: ${String(restored.length)}`,
+      `backup_root: ${String(uninstallData.backup_root || "none")}`,
+      `brain_backup_used: ${String(uninstallData.brain_backup_used || "none")}`,
+      `brain_backup_strategy: ${String(uninstallData.brain_backup_strategy || "none")}`,
+      uninstallData.run_report ? `run_report: ${String(uninstallData.run_report)}` : "",
+    ].filter(Boolean),
+    i18n(lang, "One-click workspace uninstall completed. Then disable/uninstall plugin package if needed.", "一鍵 workspace uninstall 完成。若需要，下一步可停用/卸載 plugin 套件。"),
+    ["openclaw plugins disable openclaw-workspace-governance", "optional: openclaw plugins uninstall openclaw-workspace-governance"],
+  );
+}
+
 async function makeGovSetupCommandResponse(ctx: PluginCommandContext): Promise<string> {
   const lang = pickCommandLanguage(ctx);
   const modeArg = parseModeArg(ctx);
-  const mode = modeArg || "install";
-  const validModes = new Set(["check", "install", "upgrade"]);
+  const mode = modeArg || "quick";
+  const validModes = new Set(["check", "install", "upgrade", "quick", "auto"]);
   if (!validModes.has(mode)) {
     return formatCommandOutput(
       "BLOCKED",
       [
-        i18n(lang, `Invalid mode: ${mode}. Allowed: check/install/upgrade.`, `mode 無效：${mode}。只接受 check/install/upgrade。`),
+        i18n(lang, `Invalid mode: ${mode}. Allowed: check/install/upgrade/quick/auto.`, `mode 無效：${mode}。只接受 check/install/upgrade/quick/auto。`),
       ],
       i18n(lang, "Retry with a valid mode.", "請用有效 mode 重試。"),
-      ["/gov_setup check", "/gov_setup install", "/gov_setup upgrade"],
+      ["/gov_setup quick", "/gov_setup check", "/gov_setup install", "/gov_setup upgrade"],
     );
+  }
+  if (mode === "quick" || mode === "auto") {
+    return makeGovSetupQuickCommandResponse(lang);
   }
 
   const runner = await runInProcessRunner("tools/gov_setup_sync.mjs", "runGovSetupSync", [mode]);
@@ -1394,20 +1648,23 @@ async function makeGovUninstallCommandResponse(ctx: PluginCommandContext): Promi
   const lang = pickCommandLanguage(ctx);
   const modeArg = parseModeArg(ctx);
   const mode = modeArg || "check";
-  const validModes = new Set(["check", "uninstall"]);
+  const validModes = new Set(["check", "uninstall", "quick", "auto"]);
   if (!validModes.has(mode)) {
     return formatCommandOutput(
       "BLOCKED",
       [
         i18n(
           lang,
-          `Invalid mode: ${mode}. Allowed: check/uninstall.`,
-          `mode 無效：${mode}。只接受 check/uninstall。`,
+          `Invalid mode: ${mode}. Allowed: check/uninstall/quick/auto.`,
+          `mode 無效：${mode}。只接受 check/uninstall/quick/auto。`,
         ),
       ],
       i18n(lang, "Retry with a valid mode.", "請用有效 mode 重試。"),
-      ["/gov_uninstall check", "/gov_uninstall uninstall"],
+      ["/gov_uninstall quick", "/gov_uninstall check", "/gov_uninstall uninstall"],
     );
+  }
+  if (mode === "quick" || mode === "auto") {
+    return makeGovUninstallQuickCommandResponse(lang);
   }
 
   const runner = await runInProcessRunner("tools/gov_uninstall_sync.mjs", "runGovUninstallSync", [mode]);
@@ -1576,6 +1833,13 @@ function registerDeterministicGovCommands(api: OpenClawPluginApi): void {
     return;
   }
   api.registerCommand({
+    name: "gov_help",
+    description: "Governance command catalog and one-click entrypoints.",
+    acceptsArgs: false,
+    requireAuth: true,
+    handler: async (ctx: PluginCommandContext) => ({ text: await makeGovHelpCommandResponse(ctx) }),
+  });
+  api.registerCommand({
     name: "gov_setup",
     description: "Deterministic governance setup/check/upgrade runner.",
     acceptsArgs: true,
@@ -1610,7 +1874,7 @@ function registerDeterministicGovCommands(api: OpenClawPluginApi): void {
     requireAuth: true,
     handler: async (ctx: PluginCommandContext) => ({ text: await makeGovAuditCommandResponse(ctx) }),
   });
-  api.logger.info("[governance-command] registered deterministic commands: gov_setup, gov_migrate, gov_apply, gov_uninstall, gov_audit");
+  api.logger.info("[governance-command] registered deterministic commands: gov_help, gov_setup, gov_migrate, gov_apply, gov_uninstall, gov_audit");
 }
 
 function maybePruneExpiredStates(): void {
@@ -1643,8 +1907,8 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
     api.logger.warn(
       i18n(
         lang,
-        "[governance-gate] Update detected. Next step: /gov_setup check -> (if allowlist not ready) /gov_openclaw_json -> /gov_setup check -> /gov_setup upgrade -> /gov_migrate -> /gov_audit",
-        "[governance-gate] 偵測到 update。下一步：/gov_setup check ->（若 allowlist 未就緒）/gov_openclaw_json -> /gov_setup check -> /gov_setup upgrade -> /gov_migrate -> /gov_audit",
+        "[governance-gate] Update detected. Next step: /gov_setup quick -> (if allowlist not ready) /gov_openclaw_json -> /gov_setup quick. Manual fallback: /gov_setup check -> /gov_setup upgrade -> /gov_migrate -> /gov_audit",
+        "[governance-gate] 偵測到 update。下一步：/gov_setup quick ->（若 allowlist 未就緒）/gov_openclaw_json -> /gov_setup quick。手動備援：/gov_setup check -> /gov_setup upgrade -> /gov_migrate -> /gov_audit",
       ),
     );
   }

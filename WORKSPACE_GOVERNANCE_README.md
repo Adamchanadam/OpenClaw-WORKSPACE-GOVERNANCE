@@ -26,7 +26,9 @@
 2. 必備 skills：
    - GA：`gov_setup`、`gov_migrate`、`gov_audit`、`gov_openclaw_json`、`gov_brain_audit`、`gov_uninstall`
    - Experimental：`gov_apply`
-3. 如 slash 路由不穩，改用 `/skill ...`。
+3. 內建指令清單入口：
+   - `gov_help`（一次列出指令 + 一鍵入口建議）
+4. 如 slash 路由不穩，改用 `/skill ...`。
 
 主機端檢查：
 
@@ -102,6 +104,8 @@ Fail-Closed 原則：
 
 | 指令 | 何時使用 | 立即價值 |
 | --- | --- | --- |
+| `gov_help` | 需要即場查看全部治理指令 | 用戶無需背指令，直接選擇一鍵或手動流程 |
+| `gov_setup quick` | 日常 install/upgrade 的預設入口 | 一鍵自動串：check -> install/upgrade/skip -> migrate -> audit |
 | `gov_setup check` | 任何 install/upgrade 前 | 直接給出狀態、信任清單就緒度與下一步，避免憑感覺操作 |
 | `gov_setup install` | 此工作區首次部署治理 | 一次建立治理基線檔案，避免手動遺漏 |
 | `gov_setup upgrade` | 已有治理檔案但需升到最新 | 更新治理包內容，同時保留前置檢查與安全邏輯 |
@@ -110,6 +114,7 @@ Fail-Closed 原則：
 | `gov_openclaw_json` | 需改平台控制面（`openclaw.json`/extensions） | 以備份/驗證/回退路徑進行最小改動 |
 | `gov_apply <NN>`（Experimental） | BOOT 已產生編號提案且人類已批准（受控 UAT） | 保留人工批准的單項套用路徑；不可當作無人值守 GA 自動化 |
 | `gov_brain_audit` | 需審核或修補 Brain Docs 風險語句 | 語義優先預覽、批准後才套用、可回退 |
+| `gov_uninstall quick` | 卸載前需安全清理 workspace 治理內容 | 一鍵自動串：check -> uninstall（含備份/回復證據） |
 
 ### 共用信任對齊分支（當 `gov_setup check` 回覆 allowlist/trust 未就緒時使用）
 
@@ -121,20 +126,18 @@ Fail-Closed 原則：
 ### A) 全新 OpenClaw / 全新工作區
 
 1. 安裝 plugin
-2. `gov_setup check`（同時檢查檔案狀態與信任清單是否就緒）
+2. `gov_setup quick`（預設一鍵路徑）
 3. 若回覆顯示 allowlist 未就緒：先跑上面的共用信任對齊分支。
-4. `gov_setup install`
-5. `gov_migrate`（會自動補齊缺失的 `_control` 基線檔）
-6. `gov_audit`
+4. 若操作者要求逐步，改用手動鏈：
+   - `gov_setup check` -> `gov_setup install` -> `gov_migrate` -> `gov_audit`
 
 ### B) 已運作工作區，首次導入治理
 
 1. 安裝並啟用 plugin
-2. `gov_setup check`（同時檢查檔案狀態與信任清單是否就緒）
+2. `gov_setup quick`（預設一鍵路徑）
 3. 若回覆顯示 allowlist 未就緒：先跑上面的共用信任對齊分支。
-4. `gov_setup install`
-5. `gov_migrate`（會自動補齊缺失的 `_control` 基線檔）
-6. `gov_audit`
+4. 若操作者要求逐步，改用手動鏈：
+   - `gov_setup check` -> `gov_setup install` -> `gov_migrate` -> `gov_audit`
 
 ### C) 已安裝治理（日常維護）
 
@@ -148,10 +151,10 @@ openclaw gateway restart
 2. OpenClaw 對話中：
 
 ```text
-/gov_setup check
+/gov_setup quick
 # 若 check 回覆顯示 allowlist 未就緒（例如提示 plugins.allow 需對齊）：
 /gov_openclaw_json
-/gov_setup check
+/gov_setup quick
 /gov_setup upgrade
 /gov_migrate
 /gov_audit
@@ -273,8 +276,9 @@ Fallback：
 10. Optional Experimental UAT：
    - 若 BOOT 產生且已批准 menu item，可驗證 `/gov_apply <NN>`，完成後必跑 `/gov_migrate` + `/gov_audit`
 11. 卸載流程驗收（必做）：
-   - 先 `/gov_uninstall check` -> `/gov_uninstall uninstall` -> `/gov_uninstall check`
-   - 預期：`RESIDUAL` -> `PASS` -> `CLEAN`
+   - 先跑 `/gov_uninstall quick`
+   - 可選嚴格驗證：再跑 `/gov_uninstall check`
+   - 預期：quick 回覆 `PASS`/`CLEAN`，驗證 check 應為 `CLEAN`
    - 確認 `_runs/gov_uninstall_<ts>.md` 與 `archive/_gov_uninstall_backup_<ts>/...` 已生成
 
 ---
@@ -286,9 +290,9 @@ Fallback：
 2. slash 指令無反應：
    - 改用 `/skill ...` 或自然語言要求調用 skill
 3. `gov_setup check` 顯示 `NOT_INSTALLED`：
-   - 執行 `gov_setup install`
+   - 執行 `gov_setup quick`（或手動 `gov_setup install`）
 4. `gov_setup check` 顯示 `PARTIAL`：
-   - 執行 `gov_setup upgrade`
+   - 執行 `gov_setup quick`（或手動 `gov_setup upgrade`）
 5. `openclaw plugins list` 顯示 `plugins.allow is empty`：
    - 這是信任 allowlist 警告，不是 governance 崩潰
    - 先跑 `gov_setup check`，若 `allow_status!=ALLOW_OK`，先跑 `/gov_openclaw_json`，再重跑 `gov_setup check`
@@ -323,7 +327,7 @@ Fallback：
    - 若未有較新 PASS，先跑 `/gov_migrate`，再跑 `/gov_audit`
 14. 已先做 `openclaw plugins uninstall` 才發現 workspace 殘留：
    - 先重新安裝 plugin（讓 `/gov_uninstall` 可執行）
-   - 跑 `/gov_uninstall check` -> `/gov_uninstall uninstall` -> `/gov_uninstall check`
+   - 跑 `/gov_uninstall quick`（可選嚴格驗證：`/gov_uninstall check`）
    - Brain Docs 若有 `archive/_brain_docs_autofix_<ts>/...` 備份，`/gov_uninstall` 會輸出回復策略與證據欄位
 
 ---

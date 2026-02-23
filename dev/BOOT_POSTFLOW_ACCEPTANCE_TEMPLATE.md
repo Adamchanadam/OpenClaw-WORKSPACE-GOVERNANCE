@@ -21,7 +21,7 @@ Fill once per release:
 Use this trigger pattern for both G1 and G2:
 1. Restart gateway.
 2. Open a fresh TUI session.
-3. Run one governance entry command to force BOOT report (recommended: `/gov_setup check`).
+3. Run one governance entry command to force BOOT report (for this template use read-only trigger: `/gov_setup check`; daily operator default remains `/gov_setup quick`).
 4. Capture the BOOT output snippet.
 
 ## 2) G1 Record - Resolved History Must Not Stay Active

@@ -189,7 +189,7 @@ HARD ORDER (NO SKIP)
      - If this run makes latest/version-sensitive OpenClaw claims, run report must include source URLs from `https://github.com/openclaw/openclaw/releases`.
      - If this run makes date/time claims, run report must include runtime-verified absolute date/time evidence (from session status).
    - Official-flow compatibility self-check (Fail-Closed):
-     - If this run touches OpenClaw system operation flow (`openclaw ...`, including plugin-added/future commands) or governance lifecycle (`gov_setup check/install/upgrade`, `gov_migrate`, `gov_audit`, `gov_openclaw_json`, `gov_brain_audit`):
+     - If this run touches OpenClaw system operation flow (`openclaw ...`, including plugin-added/future commands) or governance lifecycle (`gov_help`, `gov_setup quick/check/install/upgrade`, `gov_migrate`, `gov_audit`, `gov_openclaw_json`, `gov_brain_audit`, `gov_uninstall quick/check/uninstall`):
        - run report must include compatibility verdict (`ALLOW` / `ROUTE` / `BLOCKED` with reason),
        - any block must be labeled as governance policy gate (not system error),
        - run report must include copy-paste unblock commands.

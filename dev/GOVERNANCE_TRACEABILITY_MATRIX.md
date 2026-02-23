@@ -12,9 +12,12 @@ Status legend:
 | ID | Capability | Status | Primary Code | Validation | Primary Docs | Gap / Notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | CAP-001 | Deterministic `gov_setup` command | GA | `index.ts`, `tools/gov_setup_sync.mjs` | `dev/run_runtime_regression.mjs` (`setup-*` cases) | `skills/gov_setup/SKILL.md`, `README.md` | Stable baseline |
+| CAP-001A | One-click `gov_setup quick|auto` orchestration | GA | `index.ts` (`makeGovSetupQuickCommandResponse`) + setup/migrate/audit runners | runtime `setup-install` quick-flow case | README + handbooks | One command runs full lifecycle chain with deterministic stage results |
 | CAP-002 | Deterministic `gov_migrate` command | GA | `index.ts`, `tools/gov_migrate_sync.mjs` | runtime cases `migrate-*`; public flow B4 | `skills/gov_migrate/SKILL.md`, handbook docs | Stable baseline |
 | CAP-003 | Deterministic `gov_audit` command | GA | `index.ts`, `tools/gov_audit_sync.mjs` | runtime + consistency checks | `skills/gov_audit/SKILL.md` | Stable baseline |
 | CAP-004 | Deterministic `gov_uninstall` command | GA | `index.ts`, `tools/gov_uninstall_sync.mjs` | runtime cases `uninstall-*` + public flow B2 | `skills/gov_uninstall/SKILL.md` | Scope-limited cleanup, brain-backup evidence, non-governance file preservation covered |
+| CAP-004A | One-click `gov_uninstall quick|auto` orchestration | GA | `index.ts` (`makeGovUninstallQuickCommandResponse`) + uninstall runner | runtime `uninstall-quick-*` cases + B2 | README + handbooks | One command performs safe check->uninstall chain with backup evidence |
+| CAP-004B | Deterministic `gov_help` command catalog | GA | `index.ts` (`makeGovHelpCommandResponse`) | runtime command registration case | README + handbooks | Improves UX discoverability; lowers operator memory burden |
 | CAP-005 | Deterministic `gov_apply` command | EXP | `index.ts`, `tools/gov_apply_sync.mjs` | runtime cases `apply-*`; public flow B5 plan | `skills/gov_apply/SKILL.md`, README/handbook | Controlled-UAT only; not unattended GA |
 | CAP-006 | Runtime Mode C write gate | GA | `index.ts` hook `before_tool_call` | runtime gate cases | handbook + baseline docs | Stable baseline |
 | CAP-007 | Tool exposure guard (explicit `/gov_*` root-fix) | GA | `index.ts` `toolExposureGuard` flow | runtime cases `s12/s12b/s13/s14/s15` | README + handbook | Stable baseline |
