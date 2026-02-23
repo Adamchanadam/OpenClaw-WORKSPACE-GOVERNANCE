@@ -1172,20 +1172,16 @@ async function makeGovSetupCommandResponse(ctx: PluginCommandContext): Promise<s
       ["/gov_openclaw_json", "/gov_setup check"],
     );
   }
-  if (mode === "install" || nextAction === "BOOTSTRAP_THEN_MIGRATE_AUDIT") {
+  if (mode === "install") {
     return formatCommandOutput(
       "PASS",
       why,
       i18n(
         lang,
-        "Run bootstrap first. Then use migrate+audit for running workspaces, or audit for brand-new workspaces.",
-        "先跑 bootstrap。已有運作中的 workspace 再跑 migrate+audit；全新 workspace 直接跑 audit。",
+        "Run migration, then audit. Missing governance control files will be reconciled during migration.",
+        "先跑 migration，再跑 audit。若缺少 governance 控制檔，migration 會自動補齊。",
       ),
-      [
-        "prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md",
-        "/gov_migrate",
-        "/gov_audit",
-      ],
+      ["/gov_migrate", "/gov_audit"],
     );
   }
   return formatCommandOutput(
@@ -1253,10 +1249,10 @@ async function makeGovMigrateCommandResponse(ctx: PluginCommandContext): Promise
         why,
         i18n(
           lang,
-          "Bootstrap files are missing. Run bootstrap document first, then retry migration.",
-          "缺少 bootstrap 產生的 _control 檔。先跑 bootstrap 文件，再重試 migration。",
+          "Governance control files are missing. Run setup upgrade, then retry migration.",
+          "缺少 governance _control 檔。先跑 setup upgrade，再重試 migration。",
         ),
-        ["prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md", "/gov_migrate"],
+        ["/gov_setup upgrade", "/gov_migrate"],
       );
     }
     return formatCommandOutput(
@@ -1270,6 +1266,22 @@ async function makeGovMigrateCommandResponse(ctx: PluginCommandContext): Promise
     "PASS",
     [
       "deterministic migration completed",
+      Array.isArray((data as { seeded_missing_files?: unknown[] }).seeded_missing_files) &&
+      (data as { seeded_missing_files?: unknown[] }).seeded_missing_files!.length > 0
+        ? `seeded_missing_files:\n${toTextList(
+            ((data as { seeded_missing_files?: unknown[] }).seeded_missing_files || [])
+              .map((x) => String(x))
+              .filter((x) => x.trim().length > 0),
+          )}`
+        : "",
+      Array.isArray((data as { repaired_missing_marker_files?: unknown[] }).repaired_missing_marker_files) &&
+      (data as { repaired_missing_marker_files?: unknown[] }).repaired_missing_marker_files!.length > 0
+        ? `repaired_missing_marker_files:\n${toTextList(
+            ((data as { repaired_missing_marker_files?: unknown[] }).repaired_missing_marker_files || [])
+              .map((x) => String(x))
+              .filter((x) => x.trim().length > 0),
+          )}`
+        : "",
       data.run_report ? `run_report: ${String(data.run_report)}` : "",
     ].filter(Boolean),
     i18n(lang, "Run audit now.", "請立即執行 audit。"),

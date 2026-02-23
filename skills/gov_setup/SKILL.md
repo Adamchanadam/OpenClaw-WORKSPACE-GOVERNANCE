@@ -83,8 +83,7 @@ When the request touches Brain Docs (`USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL
      treat status as upgrade-required (`PARTIAL`) and instruct operator to run explicit `/gov_setup upgrade`.
 9. After install or upgrade:
    - Print next steps:
-     - First adoption: run `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`
-     - Existing workspace: run `/gov_migrate`, then `/gov_audit`
+     - Run `/gov_migrate`, then `/gov_audit` (migration will reconcile missing governance `_control` baseline files deterministically)
    - Explicit `upgrade` must still run even if `check` previously returned `READY`.
    - Idempotent upgrade is valid; report `PASS (already up-to-date)` from runner output.
 10. If operator asks OpenClaw system questions (commands/config/paths) during setup:

@@ -124,7 +124,7 @@ Tool exposure root-fix (security default):
 2. `gov_setup check` (verify file status + trust readiness)
 3. If check output says allowlist is not ready: run the shared trust-alignment branch above.
 4. `gov_setup install`
-5. Run bootstrap prompt (`OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`)
+5. `gov_migrate` (auto-reconciles missing baseline `_control` files)
 6. `gov_audit`
 
 ### B) Running workspace, first governance adoption
@@ -133,9 +133,8 @@ Tool exposure root-fix (security default):
 2. `gov_setup check` (verify file status + trust readiness)
 3. If check output says allowlist is not ready: run the shared trust-alignment branch above.
 4. `gov_setup install`
-5. Run bootstrap prompt
-6. If workspace is already active: `gov_migrate`
-7. `gov_audit`
+5. `gov_migrate` (auto-reconciles missing baseline `_control` files)
+6. `gov_audit`
 
 ### C) Governance already installed (daily maintenance)
 

@@ -386,11 +386,9 @@ cases.push(async () => {
     const out = await setup.handler({ args: "install" });
     const text = String(out?.text || "");
     assert.match(text, /STATUS\s*\nPASS/i);
-    assert.ok(text.includes("Run bootstrap first.") || text.includes("先跑 bootstrap"));
-    assert.ok(
-      text.includes("prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md"),
-      "expected bootstrap doc guidance after install",
-    );
+    assert.ok(text.includes("Run migration, then audit.") || text.includes("先跑 migration，再跑 audit。"));
+    assert.ok(text.includes("/gov_migrate"));
+    assert.ok(text.includes("/gov_audit"));
   } finally {
     fixture.restore();
   }
@@ -415,14 +413,12 @@ cases.push(async () => {
     const migrate = commands.get("gov_migrate");
     const out = await migrate.handler({});
     const text = String(out?.text || "");
-    assert.match(text, /STATUS\s*\nBLOCKED/i);
-    assert.ok(text.includes("MISSING_REQUIRED_FILES"));
-    assert.ok(text.includes("missing_required"));
-    assert.ok(text.includes("Bootstrap files are missing.") || text.includes("缺少 bootstrap"));
-    assert.ok(
-      text.includes("prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md"),
-      "expected bootstrap-first remediation when _control files are missing",
-    );
+    assert.match(text, /STATUS\s*\nPASS/i);
+    assert.ok(text.includes("seeded_missing_files"));
+    const gov = fs.readFileSync(path.join(fixture.root, "_control/GOVERNANCE_BOOTSTRAP.md"), "utf8");
+    const reg = fs.readFileSync(path.join(fixture.root, "_control/REGRESSION_CHECK.md"), "utf8");
+    assert.ok(gov.includes("AUTOGEN:BEGIN GOV_CORE_v1"));
+    assert.ok(reg.includes("AUTOGEN:BEGIN REGRESSION_12_v1"));
   } finally {
     fixture.restore();
   }

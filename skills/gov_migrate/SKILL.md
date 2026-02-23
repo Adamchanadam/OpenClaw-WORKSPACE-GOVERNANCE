@@ -11,7 +11,7 @@ Execute the migration workflow defined by:
 - `prompts/governance/WORKSPACE_GOVERNANCE_MIGRATION.md`
 
 ## Hard contract
-1. If `_control/GOVERNANCE_BOOTSTRAP.md` is missing, stop and instruct the operator to run bootstrap first.
+1. If `_control/GOVERNANCE_BOOTSTRAP.md` / `_control/REGRESSION_CHECK.md` is missing, seed them from canonical payload in `prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`, then continue migration (do not bounce operator back to manual bootstrap path).
 2. Follow the migration prompt exactly (no skipped gates).
 2.1 Before execution, validate migration prompt contract at `prompts/governance/WORKSPACE_GOVERNANCE_MIGRATION.md`:
    - Must include anti-precheck clause equivalent to `Do NOT run canonical equality as a pre-change blocker`.

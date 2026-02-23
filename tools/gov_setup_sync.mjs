@@ -340,9 +340,7 @@ function executeGovSetupSync(modeInput) {
   const nextAction =
     allow.allow_status !== "ALLOW_OK"
       ? "ALIGN_ALLOWLIST_THEN_CHECK"
-      : mode === "install"
-        ? "BOOTSTRAP_THEN_MIGRATE_AUDIT"
-        : "MIGRATE_AUDIT";
+      : "MIGRATE_AUDIT";
 
   return {
     exitCode: 0,

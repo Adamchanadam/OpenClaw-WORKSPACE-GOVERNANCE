@@ -131,17 +131,17 @@ if (!process.exitCode) {
     },
     {
       ok:
-        /First adoption:\s*run `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE\.md`/i.test(govSetupSkill) &&
-        /Existing workspace:\s*run `\/gov_migrate`, then `\/gov_audit`/i.test(govSetupSkill),
-      msg: "gov_setup skill missing bootstrap-first/then-migrate-audit split contract",
+        /Run `\/gov_migrate`, then `\/gov_audit`/i.test(govSetupSkill) &&
+        /reconcile missing governance `_control` baseline files/i.test(govSetupSkill),
+      msg: "gov_setup skill missing migrate+audit deterministic next-step contract",
     },
     {
       ok: /Do not run old pre-change canonical precheck flow/i.test(govMigrateSkill),
       msg: "gov_migrate skill missing stale precheck flow rejection rule",
     },
     {
-      ok: /If `_control\/GOVERNANCE_BOOTSTRAP\.md` is missing, stop and instruct the operator to run bootstrap first\./i.test(govMigrateSkill),
-      msg: "gov_migrate skill missing missing-bootstrap fail-closed contract",
+      ok: /If `_control\/GOVERNANCE_BOOTSTRAP\.md` \/ `_control\/REGRESSION_CHECK\.md` is missing, seed them from canonical payload/i.test(govMigrateSkill),
+      msg: "gov_migrate skill missing missing-control auto-seed contract",
     },
     {
       ok:
@@ -201,31 +201,33 @@ if (!process.exitCode) {
     },
     {
       ok:
-        /BOOTSTRAP_THEN_MIGRATE_AUDIT/i.test(govSetupRunner) &&
-        /mode === "install"/i.test(govSetupRunner),
-      msg: "gov_setup runner missing install->bootstrap-first next_action contract",
+        /ALIGN_ALLOWLIST_THEN_CHECK/i.test(govSetupRunner) &&
+        /MIGRATE_AUDIT/i.test(govSetupRunner),
+      msg: "gov_setup runner missing deterministic install/upgrade -> migrate+audit next_action contract",
     },
     {
       ok:
-        /BOOTSTRAP_THEN_MIGRATE_AUDIT/i.test(indexTs) &&
-        /Run bootstrap first\./i.test(indexTs) &&
-        /prompts\/governance\/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE\.md/i.test(indexTs),
-      msg: "index.ts missing install success bootstrap-first guidance contract",
+        /Run migration, then audit\./i.test(indexTs) &&
+        /Missing governance control files will be reconciled during migration\./i.test(indexTs) &&
+        /\/gov_migrate/i.test(indexTs) &&
+        /\/gov_audit/i.test(indexTs),
+      msg: "index.ts missing install success migrate+audit guidance contract",
     },
     {
       ok:
         /missing_required:/i.test(indexTs) &&
-        /Bootstrap files are missing\./i.test(indexTs) &&
+        /Governance control files are missing\./i.test(indexTs) &&
         /MISSING_REQUIRED_FILES/i.test(indexTs) &&
-        /prompts\/governance\/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE\.md/i.test(indexTs),
-      msg: "index.ts missing migrate missing-required bootstrap remediation contract",
+        /\/gov_setup upgrade/i.test(indexTs),
+      msg: "index.ts missing migrate missing-required setup-upgrade remediation contract",
     },
     {
       ok:
-        /Phase B3: First-Install Bootstrap Routing Integrity/i.test(publicFlowRegression) &&
-        /MISSING_REQUIRED_FILES/i.test(publicFlowRegression) &&
-        /OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE\.md/i.test(publicFlowRegression),
-      msg: "public-flow regression plan missing first-install bootstrap routing guard case",
+        /Phase B3: First-Install Missing-Control Auto-Reconcile/i.test(publicFlowRegression) &&
+        /seeded_missing_files/i.test(publicFlowRegression) &&
+        /\/gov_migrate/i.test(publicFlowRegression) &&
+        /\/gov_audit/i.test(publicFlowRegression),
+      msg: "public-flow regression plan missing first-install missing-control auto-reconcile acceptance case",
     },
     {
       ok:

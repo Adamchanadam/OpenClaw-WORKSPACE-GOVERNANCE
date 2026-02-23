@@ -184,6 +184,7 @@ function writeRunReport(params) {
     backupRoot,
     filesRead,
     targets,
+    seededFiles,
     equality,
     status,
     reason,
@@ -203,6 +204,11 @@ function writeRunReport(params) {
   lines.push("## TARGET_FILES_TO_CHANGE");
   for (const p of targets) lines.push(`- ${p}`);
   lines.push("");
+  if (Array.isArray(seededFiles) && seededFiles.length > 0) {
+    lines.push("## SEEDED_MISSING_FILES");
+    for (const p of seededFiles) lines.push(`- ${p}`);
+    lines.push("");
+  }
   lines.push("## CANONICAL_EQUALITY");
   for (const row of equality) {
     lines.push(
@@ -236,6 +242,7 @@ function executeGovMigrateSync() {
       backupRoot: "",
       filesRead,
       targets: targetPaths,
+      seededFiles: [],
       equality: [],
       status: "BLOCKED",
       reason: reasonCode,
@@ -256,7 +263,6 @@ function executeGovMigrateSync() {
   const missing = [];
   if (!exists(canonicalPath)) missing.push(canonicalPath);
   if (!exists(migrationPath)) missing.push(migrationPath);
-  for (const p of targetPaths) if (!exists(p)) missing.push(p);
   if (missing.length > 0) return blocked("MISSING_REQUIRED_FILES", { missing });
 
   const migrationText = fs.readFileSync(migrationPath, "utf8");
@@ -266,13 +272,57 @@ function executeGovMigrateSync() {
   if (clauseMissing.length > 0) return blocked("STALE_MIGRATION_PROMPT_CONTRACT", { missing_clauses: clauseMissing });
 
   const canonicalText = fs.readFileSync(canonicalPath, "utf8");
+  const canonicalPayloadById = new Map();
   const canonicalInnerById = new Map();
   for (const spec of blockSpecs) {
     const canonicalPayload = extractCanonicalFilePayload(canonicalText, spec.canonicalBlockPath);
     if (!canonicalPayload) return blocked("CANONICAL_PAYLOAD_MISSING", { canonical_block_path: spec.canonicalBlockPath });
     const inner = extractMarkerInner(canonicalPayload, spec.marker);
     if (inner == null) return blocked("CANONICAL_MARKER_MISSING", { marker: spec.marker });
+    canonicalPayloadById.set(spec.id, canonicalPayload);
     canonicalInnerById.set(spec.id, inner);
+  }
+
+  const seededMissingFiles = [];
+  const targetExistsBefore = new Map();
+  for (const spec of blockSpecs) {
+    const targetPath = path.join(workspaceRoot, spec.targetRel);
+    const existed = exists(targetPath);
+    targetExistsBefore.set(spec.id, existed);
+    if (existed) continue;
+    const canonicalPayload = canonicalPayloadById.get(spec.id);
+    if (!canonicalPayload) {
+      return blocked("CANONICAL_PAYLOAD_MISSING", { canonical_block_path: spec.canonicalBlockPath });
+    }
+    ensureDir(path.dirname(targetPath));
+    fs.writeFileSync(targetPath, normalizeText(canonicalPayload), "utf8");
+    seededMissingFiles.push(targetPath);
+  }
+
+  const existingTargetSpecs = blockSpecs.filter((spec) => Boolean(targetExistsBefore.get(spec.id)));
+  let backupRootUsed = "";
+  if (existingTargetSpecs.length > 0) {
+    ensureDir(backupRoot);
+    backupRootUsed = backupRoot;
+  }
+  for (const spec of existingTargetSpecs) {
+    const targetPath = path.join(workspaceRoot, spec.targetRel);
+    const backupPath = path.join(backupRoot, spec.targetRel);
+    ensureDir(path.dirname(backupPath));
+    fs.copyFileSync(targetPath, backupPath);
+  }
+
+  const repairedMissingMarkerFiles = [];
+  for (const spec of blockSpecs) {
+    const targetPath = path.join(workspaceRoot, spec.targetRel);
+    const targetText = fs.readFileSync(targetPath, "utf8");
+    if (extractMarkerInner(targetText, spec.marker) != null) continue;
+    const canonicalPayload = canonicalPayloadById.get(spec.id);
+    if (!canonicalPayload) {
+      return blocked("CANONICAL_PAYLOAD_MISSING", { canonical_block_path: spec.canonicalBlockPath });
+    }
+    fs.writeFileSync(targetPath, normalizeText(canonicalPayload), "utf8");
+    repairedMissingMarkerFiles.push(targetPath);
   }
 
   for (const spec of blockSpecs) {
@@ -281,14 +331,6 @@ function executeGovMigrateSync() {
     if (extractMarkerInner(targetText, spec.marker) == null) {
       return blocked("TARGET_MARKER_MISSING", { marker: spec.marker, target_path: targetPath });
     }
-  }
-
-  ensureDir(backupRoot);
-  for (const spec of blockSpecs) {
-    const targetPath = path.join(workspaceRoot, spec.targetRel);
-    const backupPath = path.join(backupRoot, spec.targetRel);
-    ensureDir(path.dirname(backupPath));
-    fs.copyFileSync(targetPath, backupPath);
   }
 
   const applyPatchPass = () => {
@@ -328,9 +370,10 @@ function executeGovMigrateSync() {
     runReportPath,
     ts,
     workspaceRoot,
-    backupRoot,
+    backupRoot: backupRootUsed,
     filesRead,
     targets: targetPaths,
+    seededFiles: seededMissingFiles,
     equality,
     status,
     reason,
@@ -345,9 +388,11 @@ function executeGovMigrateSync() {
       timestamp_utc: ts,
       workspace_root: workspaceRoot,
       platform_config_path: openclawJsonPath || null,
-      backup_root: backupRoot,
+      backup_root: backupRootUsed || null,
       run_report: runRelPath,
       workspace_index_updated: indexUpdated,
+      seeded_missing_files: seededMissingFiles.map((p) => p.replace(/\\/g, "/")),
+      repaired_missing_marker_files: repairedMissingMarkerFiles.map((p) => p.replace(/\\/g, "/")),
       equality,
     },
   };

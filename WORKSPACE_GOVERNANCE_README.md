@@ -124,7 +124,7 @@ Fail-Closed 原則：
 2. `gov_setup check`（同時檢查檔案狀態與信任清單是否就緒）
 3. 若回覆顯示 allowlist 未就緒：先跑上面的共用信任對齊分支。
 4. `gov_setup install`
-5. 執行 bootstrap prompt（`OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`）
+5. `gov_migrate`（會自動補齊缺失的 `_control` 基線檔）
 6. `gov_audit`
 
 ### B) 已運作工作區，首次導入治理
@@ -133,9 +133,8 @@ Fail-Closed 原則：
 2. `gov_setup check`（同時檢查檔案狀態與信任清單是否就緒）
 3. 若回覆顯示 allowlist 未就緒：先跑上面的共用信任對齊分支。
 4. `gov_setup install`
-5. 執行 bootstrap prompt
-6. 如工作區已在運作：`gov_migrate`
-7. `gov_audit`
+5. `gov_migrate`（會自動補齊缺失的 `_control` 基線檔）
+6. `gov_audit`
 
 ### C) 已安裝治理（日常維護）
 

@@ -167,7 +167,7 @@ openclaw gateway restart
 | --- | --- | --- | --- |
 | 在任何改動前先確認正確路徑 | `/gov_setup check` | 依回覆下一步執行 | 把不確定轉為明確行動，避免新手走錯 install/upgrade 分支 |
 | 先清除平台信任警告再進治理流程 | `/gov_openclaw_json` | `/gov_setup check` | 避免後續因信任未對齊而失敗，提供單一路徑完成信任對齊 |
-| 首次部署治理到工作區 | `/gov_setup install` | bootstrap prompt -> `/gov_audit` | 一次建立治理基線，並立即核對部署一致性 |
+| 首次部署治理到工作區 | `/gov_setup install` | `/gov_migrate` -> `/gov_audit` | 先部署治理套件檔，再由 migration 決定性補齊缺失的 `_control` 基線檔 |
 | 升級既有治理工作區 | `/gov_setup upgrade` | `/gov_migrate` -> `/gov_audit` | 同步治理檔版本與策略，並在變更後完成驗證 |
 | 安全修改 OpenClaw 平台控制面 | `/gov_openclaw_json` | `/gov_audit` | 以備份/驗證/回退取代高風險直改，讓平台變更可恢復 |
 | 低風險優化 Brain Docs 品質 | `/gov_brain_audit` | 批准 findings -> `/gov_audit` | 檢出高風險語句、保留人設方向，僅批准後套用且可回退 |
@@ -240,6 +240,7 @@ openclaw gateway restart
 ```text
 /gov_setup check
 /gov_setup install
+/gov_migrate
 /gov_audit
 ```
 

@@ -429,7 +429,7 @@ The uninstall runner creates backup at `archive/_gov_uninstall_backup_<ts>/...` 
 | --- | --- | --- | --- |
 | Avoid wrong first steps before any change | `/gov_setup check` | follow returned next action | Converts uncertainty into a concrete action path, so new users do not branch into wrong install/upgrade sequences |
 | Clear platform trust warning before governance deployment | `/gov_openclaw_json` | `/gov_setup check` | Prevents setup from failing later due to trust misalignment and gives operators one deterministic trust-fix route |
-| First governance deployment in this workspace | `/gov_setup install` | bootstrap prompt -> `/gov_audit` | Establishes baseline governance files and immediately verifies that baseline is consistent |
+| First governance deployment in this workspace | `/gov_setup install` | `/gov_migrate` -> `/gov_audit` | Installs governance package files, then deterministically reconciles missing baseline `_control` files during migration |
 | Upgrade existing governance workspace | `/gov_setup upgrade` | `/gov_migrate` -> `/gov_audit` | Updates package files, aligns workspace policy, and confirms readiness after change |
 | Safely change OpenClaw control-plane config | `/gov_openclaw_json` | `/gov_audit` | Replaces risky direct editing with backup/validate/rollback evidence for recoverable platform operations |
 | Improve Brain Docs quality with minimal risk | `/gov_brain_audit` | approve findings -> `/gov_audit` | Detects high-risk wording, preserves persona intent, and only applies approved patches with rollback support |
@@ -502,6 +502,7 @@ If slash fallback is needed:
 ```text
 /gov_setup check
 /gov_setup install
+/gov_migrate
 /gov_audit
 ```
 
@@ -1477,7 +1478,7 @@ Execute the migration workflow defined by:
 - `prompts/governance/WORKSPACE_GOVERNANCE_MIGRATION.md`
 
 ## Hard contract
-1. If `_control/GOVERNANCE_BOOTSTRAP.md` is missing, stop and instruct the operator to run bootstrap first.
+1. If `_control/GOVERNANCE_BOOTSTRAP.md` / `_control/REGRESSION_CHECK.md` is missing, seed them from canonical payload in `prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`, then continue migration (do not bounce operator back to manual bootstrap path).
 2. Follow the migration prompt exactly (no skipped gates).
 2.1 Before execution, validate migration prompt contract at `prompts/governance/WORKSPACE_GOVERNANCE_MIGRATION.md`:
    - Must include anti-precheck clause equivalent to `Do NOT run canonical equality as a pre-change blocker`.
@@ -1884,7 +1885,6 @@ If slash routing is unstable:
 <<END FILE>>
 
 END TASK
-
 
 
 

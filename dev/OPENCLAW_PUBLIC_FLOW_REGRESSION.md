@@ -117,51 +117,46 @@ Expected:
 3. Post-uninstall check returns `CLEAN` (or residual only if explicitly warned/manual by runner).
 4. Uninstall creates `archive/_gov_uninstall_backup_<ts>/...` and never performs destructive remove without backup.
 
-## 4.2) Phase B3: First-Install Bootstrap Routing Integrity (Regression-Critical)
+## 4.2) Phase B3: First-Install Missing-Control Auto-Reconcile (Regression-Critical)
 
-Goal: prevent install-flow self-lock where users are told to run migrate before bootstrap assets exist.
+Goal: prevent install-flow self-lock when `_control/*` baseline files are missing on first adoption.
 
-Precondition (new workspace case):
+Precondition (new workspace / first-adoption case):
 1. Governance prompts are deployable via `/gov_setup install`.
-2. Bootstrap-generated files are absent before bootstrap:
+2. Governance control files are absent:
    - `_control/GOVERNANCE_BOOTSTRAP.md`
    - `_control/REGRESSION_CHECK.md`
-   - `_control/WORKSPACE_INDEX.md`
 
 Run in OpenClaw TUI:
 1. `/gov_setup check` (expect `NOT_INSTALLED` on clean workspace).
 2. `/gov_setup install`.
-3. Verify install response `NEXT STEP` requires bootstrap document first:
-   - `prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`
-4. Negative-path guard test: run `/gov_migrate` before bootstrap.
-5. Verify migrate response is `BLOCKED` with:
-   - `reason: MISSING_REQUIRED_FILES`
-   - missing `_control/*` evidence in `WHY`
-   - remediation points to bootstrap document first (not only `/gov_setup upgrade`)
-6. Run bootstrap document, then `/gov_migrate`, then `/gov_audit`.
+3. Verify install response `NEXT STEP` is `/gov_migrate` -> `/gov_audit` (no manual bootstrap bounce).
+4. Run `/gov_migrate`.
+5. Verify migrate response is `PASS` and includes:
+   - seeded `_control/*` evidence (`seeded_missing_files`)
+   - deterministic run report path
+6. Run `/gov_audit`.
 
 Expected:
-1. No misleading "install -> migrate immediately" guidance on first install.
-2. Missing bootstrap prerequisites are diagnosed with explicit file evidence.
-3. Recovery route is deterministic: bootstrap first, then migrate/audit.
-4. After bootstrap, migrate/audit path should proceed normally.
+1. First-install flow does not dead-end on missing `_control/*` files.
+2. Missing control baselines are reconciled by deterministic migrate runner.
+3. Recovery route is deterministic: `/gov_setup upgrade` (if needed) -> `/gov_migrate` -> `/gov_audit`.
+4. No manual bootstrap document execution is required for first-adoption runtime remediation.
 
 ## 4.3) Phase B4: Migrate Deep-Dive (Grounded Failure Matrix)
 
 Goal: validate `/gov_migrate` behavior against real operator failure surfaces, not only happy-path.
 
-Case M1 - Missing bootstrap `_control/*`:
+Case M1 - Missing governance control `_control/*`:
 1. Preconditions:
    - `prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md` exists
    - `prompts/governance/WORKSPACE_GOVERNANCE_MIGRATION.md` exists
    - `_control/GOVERNANCE_BOOTSTRAP.md` and/or `_control/REGRESSION_CHECK.md` missing
 2. Run: `/gov_migrate`
 3. Expect:
-   - `BLOCKED`
-   - `reason: MISSING_REQUIRED_FILES`
-   - `WHY` includes missing path evidence
-   - remediation points to bootstrap doc first:
-     - `prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`
+   - `PASS`
+   - `_control/GOVERNANCE_BOOTSTRAP.md` and `_control/REGRESSION_CHECK.md` seeded from canonical payload
+   - output includes `seeded_missing_files`
 
 Case M2 - Missing governance prompts:
 1. Preconditions:
