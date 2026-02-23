@@ -72,6 +72,16 @@ function makeCanonicalSource() {
     "<!-- AUTOGEN:END REGRESSION_12_v1 -->",
     "",
   ].join("\n");
+  const workspaceIndexPayload = [
+    "# WORKSPACE_INDEX canonical",
+    "- _runs/",
+    "",
+  ].join("\n");
+  const presetsPayload = [
+    "# PRESETS canonical",
+    "- VaultPolicy: SingleVault",
+    "",
+  ].join("\n");
   return [
     "<<BEGIN FILE: AGENTS.md>>",
     agentsPayload.trimEnd(),
@@ -83,6 +93,14 @@ function makeCanonicalSource() {
     "",
     "<<BEGIN FILE: _control/REGRESSION_CHECK.md>>",
     regressionPayload.trimEnd(),
+    "<<END FILE>>",
+    "",
+    "<<BEGIN FILE: _control/WORKSPACE_INDEX.md>>",
+    workspaceIndexPayload.trimEnd(),
+    "<<END FILE>>",
+    "",
+    "<<BEGIN FILE: _control/PRESETS.md>>",
+    presetsPayload.trimEnd(),
     "<<END FILE>>",
     "",
   ].join("\n");
@@ -497,6 +515,69 @@ cases.push(async () => {
         text.includes("一鍵流程已跑到 audit 失敗"),
     );
     assert.ok(text.includes("/gov_setup quick"));
+  } finally {
+    fixture.restore();
+  }
+});
+
+cases.push(async () => {
+  const fixture = withTempWorkspace("setup-quick-heals-audit-prereq-and-marker-anomaly", (root) => {
+    writeFile(
+      root,
+      "AGENTS.md",
+      [
+        "# AGENTS target",
+        "<!-- AUTOGEN:BEGIN AGENTS_CORE_v1 -->",
+        "OLD_AGENTS",
+        "<!-- AUTOGEN:END AGENTS_CORE_v1 -->",
+        "<!-- AUTOGEN:END AGENTS_CORE_v1 -->",
+        "",
+      ].join("\n"),
+    );
+    writeFile(
+      root,
+      "_control/GOVERNANCE_BOOTSTRAP.md",
+      [
+        "# GOV target",
+        "<!-- AUTOGEN:BEGIN GOV_CORE_v1 -->",
+        "OLD_GOV",
+        "<!-- AUTOGEN:END GOV_CORE_v1 -->",
+        "",
+      ].join("\n"),
+    );
+    writeFile(
+      root,
+      "_control/REGRESSION_CHECK.md",
+      [
+        "# REG target",
+        "<!-- AUTOGEN:BEGIN REGRESSION_12_v1 -->",
+        "OLD_REG",
+        "<!-- AUTOGEN:END REGRESSION_12_v1 -->",
+        "",
+      ].join("\n"),
+    );
+    fs.mkdirSync(path.join(root, "docs"), { recursive: true });
+    fs.mkdirSync(path.join(root, "projects"), { recursive: true });
+    fs.mkdirSync(path.join(root, "archive"), { recursive: true });
+  });
+  try {
+    const { commands } = createHarness();
+    const setup = commands.get("gov_setup");
+    const out = await setup.handler({ args: "quick" });
+    const text = String(out?.text || "");
+    assert.match(text, /STATUS\s*\n(PASS|FAIL)/i);
+    assert.ok(text.includes("auto_chain: check -> (install|upgrade|skip) -> migrate -> audit"));
+    assert.equal(
+      fs.existsSync(path.join(fixture.root, "_control", "PRESETS.md")),
+      true,
+    );
+    assert.equal(
+      fs.existsSync(path.join(fixture.root, "_control", "WORKSPACE_INDEX.md")),
+      true,
+    );
+    const agents = fs.readFileSync(path.join(fixture.root, "AGENTS.md"), "utf8");
+    const endCount = (agents.match(/<!-- AUTOGEN:END AGENTS_CORE_v1 -->/g) || []).length;
+    assert.equal(endCount, 1);
   } finally {
     fixture.restore();
   }

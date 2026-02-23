@@ -12,7 +12,7 @@ Use this file as the first read in every new session.
 3. Experimental boundary:
    - `gov_apply <NN>` remains controlled-UAT scope (deterministic-covered, not unattended GA).
 4. Runtime regression denominator baseline:
-   - `SUMMARY 33/33 passed`
+   - `SUMMARY 34/34 passed`
 
 ## 2) Session Start Checklist (Mandatory)
 
@@ -54,7 +54,7 @@ npm pack --dry-run
 2. Added deterministic `/gov_apply` command wiring:
    - `index.ts`
 3. Expanded runtime regression to apply cases:
-   - baseline now `33/33`
+   - baseline now `34/34`
 4. Added B5 apply deep-dive matrix in public-flow regression plan.
 5. Added governance documentation stack:
    - master spec

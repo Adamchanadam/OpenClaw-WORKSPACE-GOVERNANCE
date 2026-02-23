@@ -31,6 +31,11 @@ const blockSpecs = [
   },
 ];
 
+const auxiliaryControlFileRels = [
+  "_control/PRESETS.md",
+  "_control/WORKSPACE_INDEX.md",
+];
+
 function nowStamp() {
   const d = new Date();
   const p = (n) => String(n).padStart(2, "0");
@@ -149,6 +154,14 @@ function replaceMarkerInner(text, marker, innerContent) {
   return text.replace(re, `$1${normalizedInner}$3`);
 }
 
+function countAutogenMarkerPairs(text, marker) {
+  const beginRe = new RegExp(`<!-- AUTOGEN:BEGIN ${escapeRegExp(marker)} -->`, "g");
+  const endRe = new RegExp(`<!-- AUTOGEN:END ${escapeRegExp(marker)} -->`, "g");
+  const begin = (String(text || "").match(beginRe) || []).length;
+  const end = (String(text || "").match(endRe) || []).length;
+  return { begin, end };
+}
+
 function computeEquality(targetText, canonicalInner, marker) {
   const targetInner = extractMarkerInner(targetText, marker);
   if (targetInner == null) {
@@ -185,6 +198,7 @@ function writeRunReport(params) {
     filesRead,
     targets,
     seededFiles,
+    repairedMarkerAnomalyFiles,
     equality,
     status,
     reason,
@@ -207,6 +221,11 @@ function writeRunReport(params) {
   if (Array.isArray(seededFiles) && seededFiles.length > 0) {
     lines.push("## SEEDED_MISSING_FILES");
     for (const p of seededFiles) lines.push(`- ${p}`);
+    lines.push("");
+  }
+  if (Array.isArray(repairedMarkerAnomalyFiles) && repairedMarkerAnomalyFiles.length > 0) {
+    lines.push("## REPAIRED_MARKER_ANOMALY_FILES");
+    for (const p of repairedMarkerAnomalyFiles) lines.push(`- ${p}`);
     lines.push("");
   }
   lines.push("## CANONICAL_EQUALITY");
@@ -232,6 +251,8 @@ function executeGovMigrateSync() {
 
   const filesRead = [canonicalPath, migrationPath];
   const targetPaths = blockSpecs.map((b) => path.join(workspaceRoot, b.targetRel));
+  const auxiliaryTargetPaths = auxiliaryControlFileRels.map((rel) => path.join(workspaceRoot, rel));
+  filesRead.push(...auxiliaryTargetPaths);
   filesRead.push(...targetPaths);
 
   const blocked = (reasonCode, extra = {}) => {
@@ -243,6 +264,7 @@ function executeGovMigrateSync() {
       filesRead,
       targets: targetPaths,
       seededFiles: [],
+      repairedMarkerAnomalyFiles: [],
       equality: [],
       status: "BLOCKED",
       reason: reasonCode,
@@ -282,8 +304,25 @@ function executeGovMigrateSync() {
     canonicalPayloadById.set(spec.id, canonicalPayload);
     canonicalInnerById.set(spec.id, inner);
   }
+  const auxiliaryPayloadByRel = new Map();
+  for (const rel of auxiliaryControlFileRels) {
+    const payload = extractCanonicalFilePayload(canonicalText, rel);
+    if (!payload) return blocked("CANONICAL_PAYLOAD_MISSING", { canonical_block_path: rel });
+    auxiliaryPayloadByRel.set(rel, payload);
+  }
 
   const seededMissingFiles = [];
+  for (const rel of auxiliaryControlFileRels) {
+    const targetPath = path.join(workspaceRoot, rel);
+    if (exists(targetPath)) continue;
+    const payload = auxiliaryPayloadByRel.get(rel);
+    if (!payload) return blocked("CANONICAL_PAYLOAD_MISSING", { canonical_block_path: rel });
+    ensureDir(path.dirname(targetPath));
+    fs.writeFileSync(targetPath, normalizeText(payload), "utf8");
+    seededMissingFiles.push(targetPath);
+    if (!targetPaths.includes(targetPath)) targetPaths.push(targetPath);
+  }
+
   const targetExistsBefore = new Map();
   for (const spec of blockSpecs) {
     const targetPath = path.join(workspaceRoot, spec.targetRel);
@@ -313,9 +352,20 @@ function executeGovMigrateSync() {
   }
 
   const repairedMissingMarkerFiles = [];
+  const repairedMarkerAnomalyFiles = [];
   for (const spec of blockSpecs) {
     const targetPath = path.join(workspaceRoot, spec.targetRel);
     const targetText = fs.readFileSync(targetPath, "utf8");
+    const markerCounts = countAutogenMarkerPairs(targetText, spec.marker);
+    if (markerCounts.begin !== 1 || markerCounts.end !== 1) {
+      const canonicalPayload = canonicalPayloadById.get(spec.id);
+      if (!canonicalPayload) {
+        return blocked("CANONICAL_PAYLOAD_MISSING", { canonical_block_path: spec.canonicalBlockPath });
+      }
+      fs.writeFileSync(targetPath, normalizeText(canonicalPayload), "utf8");
+      repairedMarkerAnomalyFiles.push(targetPath);
+      continue;
+    }
     if (extractMarkerInner(targetText, spec.marker) != null) continue;
     const canonicalPayload = canonicalPayloadById.get(spec.id);
     if (!canonicalPayload) {
@@ -374,6 +424,7 @@ function executeGovMigrateSync() {
     filesRead,
     targets: targetPaths,
     seededFiles: seededMissingFiles,
+    repairedMarkerAnomalyFiles,
     equality,
     status,
     reason,
@@ -393,6 +444,7 @@ function executeGovMigrateSync() {
       workspace_index_updated: indexUpdated,
       seeded_missing_files: seededMissingFiles.map((p) => p.replace(/\\/g, "/")),
       repaired_missing_marker_files: repairedMissingMarkerFiles.map((p) => p.replace(/\\/g, "/")),
+      repaired_marker_anomaly_files: repairedMarkerAnomalyFiles.map((p) => p.replace(/\\/g, "/")),
       equality,
     },
   };

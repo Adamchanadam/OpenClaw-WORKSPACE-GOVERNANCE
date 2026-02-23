@@ -278,9 +278,9 @@ ClawHub installer page:
 
 | Version | Published (UTC) | Key Changes | Practical Impact |
 | --- | --- | --- | --- |
+| `v0.1.46` | 2026-02-23 | Root-fixed quick-flow audit false-failure path: migrate now seeds missing `_control/PRESETS.md` + `_control/WORKSPACE_INDEX.md`, and repairs AUTOGEN marker-count anomalies (for example duplicate `AGENTS` END marker); regression expanded to 34/34 | `/gov_setup quick` is now resilient on partially-drifted workspaces and no longer loops on avoidable audit contract mismatches |
 | `v0.1.45` | 2026-02-23 | Added deterministic `gov_help` command catalog and one-click orchestration (`/gov_setup quick|auto`, `/gov_uninstall quick|auto`), then aligned all lifecycle/docs runbooks to quick-first with manual fallback | Daily UX is now one-command by default, while preserving strict/manual control and reducing operator misrouting |
 | `v0.1.44` | 2026-02-23 | Root-fixed uninstall integrity: scope-limited cleanup (no broad shared-folder wipe), Brain Docs backup detection/restore evidence fields, runtime regression expanded to 33/33 | Plugin uninstall flow is now safer for mixed workspaces and less likely to remove non-governance user files |
-| `v0.1.43` | 2026-02-23 | Reworked `gov_audit` into executable 12-item QC evaluation with deterministic evidence checks, expanded runtime regression to 30/30 | Removes template-style fake PASS and makes audit verdict traceable |
 
 Source: GitHub Releases (`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`)
 

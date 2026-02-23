@@ -137,7 +137,7 @@ Primary evidence locations:
    - `node dev/check_release_consistency.mjs`
 2. Executable runtime regression:
    - `node dev/run_runtime_regression.mjs`
-   - current denominator baseline: `33/33`
+   - current denominator baseline: `34/34`
 3. Public-flow host UAT:
    - `dev/OPENCLAW_PUBLIC_FLOW_REGRESSION.md`
    - mandatory phases include A/B/B0/B2/B3/B4/C/D/F/G
