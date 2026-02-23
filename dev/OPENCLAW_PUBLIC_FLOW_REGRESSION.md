@@ -84,6 +84,8 @@ Expected:
 6. `gov_setup` / `gov_migrate` / `gov_apply` / `gov_audit` should execute deterministic plugin command handlers first (not LLM free-form skill reasoning path).
 7. `/gov_uninstall check` must detect governance residuals after prior install/bootstrap.
 8. `/gov_uninstall uninstall` must clear governance residuals with backup + run report and restore legacy files from `archive/_bootstrap_backup_*` when present.
+9. Uninstall must not delete user non-governance files that share parent folders (for example custom files under `prompts/governance/` or `_runs/`).
+10. If Brain Docs autofix backups exist (`archive/_brain_docs_autofix_*`), uninstall check/output must expose restore candidates/strategy.
 
 ## 4.0) Phase B0: First-Install + Control-Plane Alignment (Mandatory)
 
@@ -116,6 +118,14 @@ Expected:
 2. Uninstall returns `PASS` and writes `_runs/gov_uninstall_<ts>.md`.
 3. Post-uninstall check returns `CLEAN` (or residual only if explicitly warned/manual by runner).
 4. Uninstall creates `archive/_gov_uninstall_backup_<ts>/...` and never performs destructive remove without backup.
+5. If `archive/_brain_docs_autofix_*` exists, check output includes:
+   - `brain_docs_backup_roots_found`
+   - `brain_docs_restore_candidates`
+   - `brain_docs_restore_strategy`
+6. Uninstall output includes:
+   - `brain_backup_used`
+   - `brain_backup_strategy`
+7. Custom non-governance files remain intact (no broad shared-folder wipe).
 
 ## 4.2) Phase B3: First-Install Missing-Control Auto-Reconcile (Regression-Critical)
 

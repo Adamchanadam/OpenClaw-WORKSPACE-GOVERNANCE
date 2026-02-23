@@ -218,6 +218,101 @@ cases.push(async () => {
 });
 
 cases.push(async () => {
+  const fixture = withTempWorkspace("uninstall-check-brain-backup", (root) => {
+    writeFile(root, "AGENTS.md", "# workspace agents\n");
+    writeFile(root, "USER.md", "CURRENT_USER_DOC\n");
+    writeFile(
+      root,
+      "archive/_brain_docs_autofix_20260223_010000/USER.md",
+      "ORIGINAL_USER_DOC\n",
+    );
+  });
+  try {
+    const { commands } = createHarness();
+    const uninstall = commands.get("gov_uninstall");
+    const out = await uninstall.handler({ args: "check" });
+    const text = String(out?.text || "");
+    assert.match(text, /STATUS\s*\nRESIDUAL/i);
+    assert.ok(text.includes("brain_docs_backup_roots_found"));
+    assert.ok(text.includes("brain_docs_restore_candidate_count"));
+    assert.ok(text.includes("/gov_uninstall uninstall"));
+  } finally {
+    fixture.restore();
+  }
+});
+
+cases.push(async () => {
+  const fixture = withTempWorkspace("uninstall-restore-brain-backup", (root) => {
+    writeFile(root, "AGENTS.md", "# workspace agents\n");
+    writeFile(root, "USER.md", "CURRENT_USER_DOC\n");
+    writeFile(
+      root,
+      "archive/_brain_docs_autofix_20260223_010000/USER.md",
+      "ORIGINAL_USER_DOC\n",
+    );
+    writeFile(
+      root,
+      "prompts/governance/WORKSPACE_GOVERNANCE_README.md",
+      "# gov prompt residual\n",
+    );
+  });
+  try {
+    const { commands } = createHarness();
+    const uninstall = commands.get("gov_uninstall");
+    const out = await uninstall.handler({ args: "uninstall" });
+    const text = String(out?.text || "");
+    assert.match(text, /STATUS\s*\nPASS/i);
+    assert.ok(text.includes("brain_backup_used"));
+    assert.ok(text.includes("openclaw plugins disable openclaw-workspace-governance"));
+    const userDoc = fs.readFileSync(path.join(fixture.root, "USER.md"), "utf8");
+    assert.equal(userDoc, "ORIGINAL_USER_DOC\n");
+    assert.equal(fs.existsSync(path.join(fixture.root, "prompts", "governance")), false);
+    const runEntries = fs.readdirSync(path.join(fixture.root, "_runs"), { withFileTypes: true });
+    const hasRunReport = runEntries.some(
+      (entry) => entry.isFile() && /^gov_uninstall_\d{8}_\d{6}\.md$/i.test(entry.name),
+    );
+    assert.equal(hasRunReport, true);
+  } finally {
+    fixture.restore();
+  }
+});
+
+cases.push(async () => {
+  const fixture = withTempWorkspace("uninstall-preserve-non-governance-files", (root) => {
+    writeFile(root, "AGENTS.md", "# workspace agents\n");
+    writeFile(root, "USER.md", "CURRENT_USER_DOC\n");
+    writeFile(
+      root,
+      "prompts/governance/WORKSPACE_GOVERNANCE_README.md",
+      "# gov prompt residual\n",
+    );
+    writeFile(root, "prompts/governance/CUSTOM_USER_NOTE.md", "KEEP_ME\n");
+    writeFile(root, "_runs/custom_user_report.md", "KEEP_CUSTOM_RUN\n");
+  });
+  try {
+    const { commands } = createHarness();
+    const uninstall = commands.get("gov_uninstall");
+    const out = await uninstall.handler({ args: "uninstall" });
+    const text = String(out?.text || "");
+    assert.match(text, /STATUS\s*\nPASS/i);
+    assert.equal(
+      fs.readFileSync(path.join(fixture.root, "prompts/governance/CUSTOM_USER_NOTE.md"), "utf8"),
+      "KEEP_ME\n",
+    );
+    assert.equal(
+      fs.readFileSync(path.join(fixture.root, "_runs/custom_user_report.md"), "utf8"),
+      "KEEP_CUSTOM_RUN\n",
+    );
+    assert.equal(
+      fs.existsSync(path.join(fixture.root, "prompts/governance/WORKSPACE_GOVERNANCE_README.md")),
+      false,
+    );
+  } finally {
+    fixture.restore();
+  }
+});
+
+cases.push(async () => {
   const { commands } = createHarness();
   const setup = commands.get("gov_setup");
   const out = await setup.handler({ args: "invalid-mode" });

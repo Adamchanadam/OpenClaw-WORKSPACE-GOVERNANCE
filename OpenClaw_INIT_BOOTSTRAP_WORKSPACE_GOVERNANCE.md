@@ -278,9 +278,9 @@ ClawHub installer page:
 
 | Version | Published (UTC) | Key Changes | Practical Impact |
 | --- | --- | --- | --- |
+| `v0.1.44` | 2026-02-23 | Root-fixed uninstall integrity: scope-limited cleanup (no broad shared-folder wipe), Brain Docs backup detection/restore evidence fields, runtime regression expanded to 33/33 | Plugin uninstall flow is now safer for mixed workspaces and less likely to remove non-governance user files |
+| `v0.1.43` | 2026-02-23 | Reworked `gov_audit` into executable 12-item QC evaluation with deterministic evidence checks, expanded runtime regression to 30/30 | Removes template-style fake PASS and makes audit verdict traceable |
 | `v0.1.41` | 2026-02-23 | Added deterministic `/gov_apply` command runner (`tools/gov_apply_sync.mjs`), expanded runtime regression to 28/28, added governance master spec/matrix/gap/handoff docs | BOOT apply path is now deterministic-covered with clearer engineering continuity and release gates |
-| `v0.1.40` | 2026-02-22 | Added formal uninstall lifecycle (`/gov_uninstall check|uninstall`) and deterministic uninstall runner | Governance cleanup is safer, reversible, and auditable |
-| `v0.1.25` | 2026-02-21 | Added deterministic Brain Docs scanner (`tools/brain_audit_rules.mjs`), structured findings, packaging includes `tools/**` | Brain-doc risk checks are more reproducible and install-ready out of the box |
 
 Source: GitHub Releases (`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`)
 
@@ -421,6 +421,12 @@ openclaw plugins uninstall openclaw-workspace-governance
 openclaw gateway restart
 ```
 The uninstall runner creates backup at `archive/_gov_uninstall_backup_<ts>/...` and run report `_runs/gov_uninstall_<ts>.md`.
+If Brain Docs autofix backups exist (`archive/_brain_docs_autofix_<ts>/...`), `/gov_uninstall` will report and restore them with explicit strategy evidence.
+
+If you already uninstalled plugin package first:
+1. Reinstall plugin package to re-enable `/gov_uninstall`
+2. Run `/gov_uninstall check` -> `/gov_uninstall uninstall` -> `/gov_uninstall check`
+3. Then disable/uninstall package again if needed
 
 <a id="quick-start"></a>
 ## Command Chooser

@@ -272,6 +272,10 @@ Fallback：
    - `gov_brain_audit ROLLBACK` 可回復最近備份
 10. Optional Experimental UAT：
    - 若 BOOT 產生且已批准 menu item，可驗證 `/gov_apply <NN>`，完成後必跑 `/gov_migrate` + `/gov_audit`
+11. 卸載流程驗收（必做）：
+   - 先 `/gov_uninstall check` -> `/gov_uninstall uninstall` -> `/gov_uninstall check`
+   - 預期：`RESIDUAL` -> `PASS` -> `CLEAN`
+   - 確認 `_runs/gov_uninstall_<ts>.md` 與 `archive/_gov_uninstall_backup_<ts>/...` 已生成
 
 ---
 
@@ -317,6 +321,10 @@ Fallback：
 13. `BOOT AUDIT REPORT` 顯示舊的 migration blocked 警告：
    - 若同一流程族（`migrate_governance_*`）已有較新的 PASS，應視為已解決歷史（資訊提示），不是 active blocker
    - 若未有較新 PASS，先跑 `/gov_migrate`，再跑 `/gov_audit`
+14. 已先做 `openclaw plugins uninstall` 才發現 workspace 殘留：
+   - 先重新安裝 plugin（讓 `/gov_uninstall` 可執行）
+   - 跑 `/gov_uninstall check` -> `/gov_uninstall uninstall` -> `/gov_uninstall check`
+   - Brain Docs 若有 `archive/_brain_docs_autofix_<ts>/...` 備份，`/gov_uninstall` 會輸出回復策略與證據欄位
 
 ---
 

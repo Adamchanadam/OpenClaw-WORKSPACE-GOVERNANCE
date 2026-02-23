@@ -31,9 +31,10 @@ Status legend:
 | Gap ID | Priority | Status | Resolution |
 | --- | --- | --- | --- |
 | GAP-C01 | P0 | DONE | `gov_apply` deterministic runner added and wired to command (`tools/gov_apply_sync.mjs`, `index.ts`) |
-| GAP-C02 | P0 | DONE | Runtime regression expanded to include apply command-flow cases (`28/28`) |
+| GAP-C02 | P0 | DONE | Runtime regression expanded to include apply + uninstall-integrity command-flow cases (`33/33`) |
 | GAP-C03 | P0 | DONE | Consistency gate now validates apply runner registration and B5 matrix presence |
 | GAP-C04 | P0 | DONE | Baseline/docs updated to mark `gov_apply` as Experimental but deterministic-covered |
+| GAP-C05 | P0 | DONE | `gov_uninstall` root-fix: remove broad shared-folder delete behavior; enforce explicit target cleanup + brain backup restore evidence + non-governance file preservation regression |
 
 ## Promotion Gate (for `gov_apply` EXP -> GA)
 

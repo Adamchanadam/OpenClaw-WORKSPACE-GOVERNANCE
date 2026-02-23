@@ -77,6 +77,7 @@ Source references:
 4. `skills/gov_apply/SKILL.md`
 5. `skills/gov_openclaw_json/SKILL.md`
 6. `skills/gov_brain_audit/SKILL.md`
+7. `skills/gov_uninstall/SKILL.md`
 
 `gov_setup`:
 1. Function:
@@ -154,6 +155,21 @@ Source references:
    - preview must remain read-only
    - apply/rollback requires explicit operator intent
 
+`gov_uninstall`:
+1. Function:
+   - deterministic workspace cleanup for governance artifacts before package uninstall
+   - `check` + `uninstall` dual-mode flow with run-report evidence
+2. User value:
+   - prevents residual governance files from continuing to affect runtime after package removal
+   - provides reversible cleanup with backup and restore trace
+3. Hard preserve:
+   - uninstall sequence must be explicit and operator-safe:
+     - `/gov_uninstall check` -> `/gov_uninstall uninstall` -> `/gov_uninstall check`
+   - workspace backup evidence must be created under `archive/_gov_uninstall_backup_<ts>/...`
+   - run report `_runs/gov_uninstall_<ts>.md` must always exist for uninstall execution
+   - if Brain Docs autofix backups exist, check output must disclose restore candidates/strategy
+   - uninstall command response must direct operator to package disable/uninstall only after workspace cleanup `PASS`
+
 ## 5) Anti-Self-Lock Red Lines
 
 These are release-blocking invariants:
@@ -177,6 +193,6 @@ Pass criteria:
 1. Every item in sections 1-5 is mapped to one executable test or one deterministic contract check.
 2. Refactor removes duplicated logic/text where possible, but does not weaken hard contracts.
 3. `dev/check_release_consistency.mjs` passes.
-4. `dev/run_runtime_regression.mjs` passes full summary denominator (current baseline: `28/28`).
+4. `dev/run_runtime_regression.mjs` passes full summary denominator (use script summary as release truth).
 5. Public-flow and BOOT acceptance evidence is updated for the target release.
 6. If refactor touches `gov_apply`, public-flow `Phase B5` evidence is mandatory in release signoff.

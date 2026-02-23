@@ -95,7 +95,10 @@ Out of scope:
    - fixed denominator discipline
    - folder checks + canonical equality checks
 5. `gov_uninstall`:
-   - residual detection + backup-first cleanup + optional restore from bootstrap backup.
+   - residual detection + backup-first cleanup + restore plan from bootstrap backup and brain-doc autofix backups
+   - cleanup scope is explicit-target only (no broad recursive delete of shared user folders)
+   - `check` reports brain backup roots/candidates/strategy when detected
+   - `uninstall` output includes brain backup evidence fields (`brain_backup_used`, `brain_backup_strategy`)
 
 ## 5) Runtime Guard Contracts
 
@@ -121,6 +124,7 @@ Primary evidence locations:
    - `_migration_backup_*`
    - `_apply_backup_*`
    - `_gov_uninstall_backup_*`
+   - `_brain_docs_autofix_*` (detected/restored by uninstall when present)
 
 ## 7) Validation Stack
 
@@ -128,7 +132,7 @@ Primary evidence locations:
    - `node dev/check_release_consistency.mjs`
 2. Executable runtime regression:
    - `node dev/run_runtime_regression.mjs`
-   - current denominator baseline: `28/28`
+   - current denominator baseline: `33/33`
 3. Public-flow host UAT:
    - `dev/OPENCLAW_PUBLIC_FLOW_REGRESSION.md`
    - mandatory phases include A/B/B0/B2/B3/B4/C/D/F/G

@@ -43,10 +43,22 @@ const runFileRegex = [
   /^gov_setup_upgrade_/i,
   /^migrate_governance_/i,
   /^gov_audit_/i,
+  /^gov_brain_audit_/i,
   /^boot_apply_/i,
   /^autogen_marker_fix_/i,
   /^migrate_drift_fix_/i,
   /^gov_uninstall_/i,
+];
+
+const brainDocTopLevelTargets = [
+  "AGENTS.md",
+  "SOUL.md",
+  "IDENTITY.md",
+  "USER.md",
+  "TOOLS.md",
+  "MEMORY.md",
+  "HEARTBEAT.md",
+  "BOOT.md",
 ];
 
 function nowStamp() {
@@ -239,6 +251,58 @@ function collectRestorePlan(workspaceRoot, latestBootstrapBackup) {
   return restore;
 }
 
+function findBrainDocsAutofixBackups(workspaceRoot) {
+  const archiveRoot = path.join(workspaceRoot, "archive");
+  if (!exists(archiveRoot)) return [];
+  return fs
+    .readdirSync(archiveRoot, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && /^_brain_docs_autofix_\d{8}_\d{6}$/i.test(e.name))
+    .map((e) => path.join(archiveRoot, e.name))
+    .sort();
+}
+
+function listFilesRecursive(rootDir) {
+  if (!exists(rootDir)) return [];
+  const out = [];
+  const walk = (dir) => {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(full);
+      } else if (entry.isFile()) {
+        out.push(full);
+      }
+    }
+  };
+  walk(rootDir);
+  return out;
+}
+
+function shouldRestoreBrainBackupRel(relPath) {
+  const rel = normalizeRel(relPath);
+  if (!rel || rel.startsWith("..")) return false;
+  if (brainDocTopLevelTargets.includes(rel)) return true;
+  if (rel.startsWith("_control/")) return true;
+  if (rel.startsWith("memory/")) return true;
+  return false;
+}
+
+function collectBrainRestorePlan(workspaceRoot, backupRoot) {
+  if (!backupRoot || !exists(backupRoot)) return [];
+  const files = listFilesRecursive(backupRoot);
+  const out = [];
+  for (const fromPath of files) {
+    const rel = normalizeRel(path.relative(backupRoot, fromPath));
+    if (!shouldRestoreBrainBackupRel(rel)) continue;
+    out.push({
+      from: fromPath,
+      to: toAbs(workspaceRoot, rel),
+    });
+  }
+  return out;
+}
+
 function listGovernanceRunFiles(workspaceRoot) {
   const runsRoot = path.join(workspaceRoot, "_runs");
   if (!exists(runsRoot)) return [];
@@ -250,9 +314,6 @@ function listGovernanceRunFiles(workspaceRoot) {
 
 function collectFootprint(workspaceRoot) {
   const items = [];
-
-  const promptsGovernanceDir = path.join(workspaceRoot, "prompts", "governance");
-  if (exists(promptsGovernanceDir)) items.push(promptsGovernanceDir);
 
   for (const rel of promptTargets) {
     const p = toAbs(workspaceRoot, rel);
@@ -293,6 +354,8 @@ function writeRunReport(params) {
     workspaceRoot,
     backupRoot,
     latestBootstrapBackup,
+    brainBackupUsed,
+    brainBackupStrategy,
     mode,
     filesRead,
     targetsToChange,
@@ -312,6 +375,8 @@ function writeRunReport(params) {
   lines.push(`- workspace_root: ${workspaceRoot}`);
   lines.push(`- backup_root: ${backupRoot || "none"}`);
   lines.push(`- bootstrap_backup_used: ${latestBootstrapBackup || "none"}`);
+  lines.push(`- brain_backup_used: ${brainBackupUsed || "none"}`);
+  lines.push(`- brain_backup_strategy: ${brainBackupStrategy || "none"}`);
   lines.push("");
   lines.push("## FILES_READ");
   for (const p of filesRead) lines.push(`- ${p}`);
@@ -364,6 +429,11 @@ function executeGovUninstallSync(modeInput) {
   const workspaceRoot = detectWorkspaceRoot(openclawJsonPath);
   const latestBootstrapBackup = findLatestBootstrapBackup(workspaceRoot);
   const restorePlan = collectRestorePlan(workspaceRoot, latestBootstrapBackup);
+  const brainBackupDirs = findBrainDocsAutofixBackups(workspaceRoot);
+  const oldestBrainBackup = brainBackupDirs.length > 0 ? brainBackupDirs[0] : "";
+  const latestBrainBackup = brainBackupDirs.length > 0 ? brainBackupDirs[brainBackupDirs.length - 1] : "";
+  const brainBackupStrategy = oldestBrainBackup ? "restore_oldest_brain_backup" : "none";
+  const brainRestorePlan = collectBrainRestorePlan(workspaceRoot, oldestBrainBackup);
 
   const agentsPath = toAbs(workspaceRoot, "AGENTS.md");
   const governanceAgents = isGovernanceAgentsDoc(agentsPath);
@@ -372,14 +442,20 @@ function executeGovUninstallSync(modeInput) {
     workspaceRoot,
     openclawJsonPath || "openclaw.json:not_found",
     latestBootstrapBackup || "archive/_bootstrap_backup_*:not_found",
+    oldestBrainBackup || "archive/_brain_docs_autofix_*:not_found",
   ];
   const footprintRel = footprint.map((p) => normalizeRel(path.relative(workspaceRoot, p)));
 
   if (mode === "check") {
-    const status = footprint.length === 0 ? "CLEAN" : "RESIDUAL";
+    const status = footprint.length === 0 && brainRestorePlan.length === 0 ? "CLEAN" : "RESIDUAL";
     const warnings = [];
     if (governanceAgents && restorePlan.every((x) => normalizeRel(path.relative(workspaceRoot, x.to)) !== "AGENTS.md")) {
       warnings.push("AGENTS.md appears governance-managed but no legacy AGENTS backup found.");
+    }
+    if (brainBackupDirs.length > 0) {
+      warnings.push(
+        "Brain-docs autofix backups detected. Use /gov_uninstall uninstall to restore pre-apply Brain Docs state before removing plugin package.",
+      );
     }
     return {
       exitCode: 0,
@@ -392,6 +468,14 @@ function executeGovUninstallSync(modeInput) {
         latest_bootstrap_backup: latestBootstrapBackup || null,
         governance_agents_detected: governanceAgents,
         governance_residual_paths: footprintRel,
+        brain_docs_backup_roots_found: brainBackupDirs.map((p) =>
+          normalizeRel(path.relative(workspaceRoot, p)),
+        ),
+        brain_docs_restore_strategy: brainBackupStrategy,
+        brain_docs_restore_candidates: brainRestorePlan.map((x) => ({
+          from: normalizeRel(path.relative(workspaceRoot, x.from)),
+          to: normalizeRel(path.relative(workspaceRoot, x.to)),
+        })),
         restore_candidates: restorePlan.map((x) => ({
           from: normalizeRel(path.relative(workspaceRoot, x.from)),
           to: normalizeRel(path.relative(workspaceRoot, x.to)),
@@ -409,23 +493,42 @@ function executeGovUninstallSync(modeInput) {
   const restored = [];
   const warnings = [];
   const targetsToChange = [];
+  const backedUp = new Set();
 
   for (const p of footprint) {
     if (!exists(p)) continue;
-    targetsToChange.push(normalizeRel(path.relative(workspaceRoot, p)));
+    const rel = normalizeRel(path.relative(workspaceRoot, p));
+    targetsToChange.push(rel);
     copyForBackup(p, backupRoot, workspaceRoot);
+    backedUp.add(rel);
     removePath(p);
-    removed.push(normalizeRel(path.relative(workspaceRoot, p)));
+    removed.push(rel);
   }
 
-  // Restore legacy assets if bootstrap backups are available.
+  const restoreByTo = new Map();
+  for (const row of brainRestorePlan) {
+    const toRel = normalizeRel(path.relative(workspaceRoot, row.to));
+    restoreByTo.set(toRel, row);
+  }
+  // Bootstrap backup has precedence for overlapping files (e.g., AGENTS/_control).
   for (const row of restorePlan) {
+    const toRel = normalizeRel(path.relative(workspaceRoot, row.to));
+    restoreByTo.set(toRel, row);
+  }
+
+  // Restore legacy assets and optional brain-doc backups if available.
+  for (const [toRel, row] of restoreByTo.entries()) {
     if (!exists(row.from)) continue;
     ensureDir(path.dirname(row.to));
+    if (exists(row.to) && !backedUp.has(toRel)) {
+      copyForBackup(row.to, backupRoot, workspaceRoot);
+      backedUp.add(toRel);
+    }
+    if (!targetsToChange.includes(toRel)) targetsToChange.push(toRel);
     fs.copyFileSync(row.from, row.to);
     restored.push({
       from: normalizeRel(path.relative(workspaceRoot, row.from)),
-      to: normalizeRel(path.relative(workspaceRoot, row.to)),
+      to: toRel,
     });
   }
 
@@ -454,6 +557,10 @@ function executeGovUninstallSync(modeInput) {
     latestBootstrapBackup: latestBootstrapBackup
       ? normalizeRel(path.relative(workspaceRoot, latestBootstrapBackup))
       : "",
+    brainBackupUsed: oldestBrainBackup
+      ? normalizeRel(path.relative(workspaceRoot, oldestBrainBackup))
+      : "",
+    brainBackupStrategy,
     mode,
     filesRead,
     targetsToChange,
@@ -476,6 +583,13 @@ function executeGovUninstallSync(modeInput) {
       latest_bootstrap_backup: latestBootstrapBackup
         ? normalizeRel(path.relative(workspaceRoot, latestBootstrapBackup))
         : null,
+      brain_backup_used: oldestBrainBackup
+        ? normalizeRel(path.relative(workspaceRoot, oldestBrainBackup))
+        : null,
+      latest_brain_backup_detected: latestBrainBackup
+        ? normalizeRel(path.relative(workspaceRoot, latestBrainBackup))
+        : null,
+      brain_backup_strategy: brainBackupStrategy,
       removed_paths: removed,
       restored_paths: restored,
       warnings,

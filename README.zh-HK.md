@@ -16,9 +16,9 @@ ClawHub 安裝頁：
 
 | 版本 | 發佈時間（UTC） | 關鍵變更 | 對使用者的直接影響 |
 | --- | --- | --- | --- |
+| `v0.1.44` | 2026-02-23 | 完成 uninstall 完整性 root-fix：清理範圍收窄（不再 broad wipe 共用資料夾）、加入 Brain Docs 備份偵測/回復證據欄位、runtime regression 擴展至 33/33 | 在混合工作區下更安全，顯著降低誤刪非治理用戶檔的風險 |
+| `v0.1.43` | 2026-02-23 | `gov_audit` 升級為可執行 12 項 QC 判定並加入決定性證據檢查，runtime regression 擴展至 30/30 | 移除模板式假 PASS，audit 結論可追溯 |
 | `v0.1.41` | 2026-02-23 | 新增 deterministic `/gov_apply` runner（`tools/gov_apply_sync.mjs`）、runtime regression 擴展至 28/28，補齊 master spec/matrix/gap/handoff 工程文檔 | BOOT apply 路徑已有可重現覆蓋，並提升後續開發接手一致性 |
-| `v0.1.40` | 2026-02-22 | 新增正式 uninstall 生命週期（`/gov_uninstall check|uninstall`）及 deterministic uninstall runner | 治理清理流程更安全、可回復、可稽核 |
-| `v0.1.25` | 2026-02-21 | 新增可重現 Brain Docs 掃描器（`tools/brain_audit_rules.mjs`）、結構化 findings，並把 `tools/**` 納入發佈包 | Brain Docs 風險檢查更穩定，安裝後即可直接使用 |
 
 來源：GitHub Releases（`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`）
 
@@ -159,6 +159,12 @@ openclaw plugins uninstall openclaw-workspace-governance
 openclaw gateway restart
 ```
 卸載 runner 會先備份到 `archive/_gov_uninstall_backup_<ts>/...`，並寫出 run report：`_runs/gov_uninstall_<ts>.md`。
+如存在 Brain Docs autofix 備份（`archive/_brain_docs_autofix_<ts>/...`），`/gov_uninstall` 會輸出並執行對應回復策略（含證據欄位）。
+
+若你已經先卸載 plugin 套件：
+1. 先重裝 plugin（令 `/gov_uninstall` 可用）
+2. 跑 `/gov_uninstall check` -> `/gov_uninstall uninstall` -> `/gov_uninstall check`
+3. 需要時再停用/卸載 plugin 套件
 
 <a id="quick-start"></a>
 ## Command Chooser（指令選擇器）

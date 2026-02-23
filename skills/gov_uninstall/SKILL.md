@@ -28,11 +28,13 @@ This command is for workspace cleanup + legacy restore, not plugin package remov
 1. `check` mode:
    - detect governance residuals under workspace (`prompts/governance`, `skills/gov_*`, governance `_control/*`, governance run files, governance BOOT markers)
    - report restore candidates from latest bootstrap backup
+   - detect Brain Docs autofix backup roots (`archive/_brain_docs_autofix_<ts>/`) and restore candidates
    - return `CLEAN` or `RESIDUAL`
 2. `uninstall` mode:
    - backup detected residual paths first
    - remove detected governance residual paths
    - restore legacy files from latest bootstrap backup when available
+   - restore Brain Docs from detected autofix backup plan (deterministic strategy reported in output)
    - write run report `_runs/gov_uninstall_<ts>.md`
    - return `PASS` or `BLOCKED`
 
@@ -43,5 +45,6 @@ This command is for workspace cleanup + legacy restore, not plugin package remov
 4. `COMMAND TO COPY`
 
 ## Operator notes
+- Never uninstall plugin package first. Run `/gov_uninstall check` -> `/gov_uninstall uninstall` -> `/gov_uninstall check` first.
 - After workspace uninstall `PASS`, disable or uninstall the plugin package with official OpenClaw commands.
 - If `warnings` mention missing legacy backups, recovery files are still preserved in `_gov_uninstall_backup_<ts>`.

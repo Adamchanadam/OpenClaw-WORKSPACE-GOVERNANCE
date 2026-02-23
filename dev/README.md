@@ -47,11 +47,16 @@ This folder stores governance regression and release-gate validation assets.
 
 10. `run_runtime_regression.mjs`
    - Executable runtime regression runner.
-   - Current baseline: 28 core anti-self-lock/runtime cases.
+   - Current baseline: 33 core anti-self-lock/runtime cases.
+   - Includes uninstall integrity cases:
+     - brain-backup detection in `check`
+     - brain-backup restore evidence in `uninstall`
+     - non-governance file preservation under shared folders
 
 11. `.tmp/` (ephemeral)
    - Temporary compile output for running `run_runtime_regression.mjs`.
    - Must not be treated as source artifact.
+   - On some hosts, `.tmp/` files may be ACL-locked; if auto-clean fails, remove manually before release commit.
 
 ## Standard Execution Order
 
@@ -69,7 +74,7 @@ Run from `workspace/prompts/governance`:
 A release is `BLOCKED` unless all items below pass:
 
 1. `node dev/check_release_consistency.mjs` -> `ALL_CHECKS_PASS`
-2. `node dev/run_runtime_regression.mjs` -> `SUMMARY 28/28 passed`
+2. `node dev/run_runtime_regression.mjs` -> `SUMMARY 33/33 passed`
 3. `dev/OPENCLAW_PUBLIC_FLOW_REGRESSION.md` required phases pass:
    - A, B, B0, B2, B3, B4, C, D, F, G
    - plus B5 when release touches `gov_apply` command/runner/contract

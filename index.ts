@@ -1435,10 +1435,19 @@ async function makeGovUninstallCommandResponse(ctx: PluginCommandContext): Promi
     const restore = Array.isArray(data.restore_candidates)
       ? data.restore_candidates
       : [];
+    const brainBackupRoots = Array.isArray(data.brain_docs_backup_roots_found)
+      ? data.brain_docs_backup_roots_found
+      : [];
+    const brainRestoreCandidates = Array.isArray(data.brain_docs_restore_candidates)
+      ? data.brain_docs_restore_candidates
+      : [];
     const why = [
       `status: ${status}`,
       `residual_count: ${String(residual.length)}`,
       `restore_candidate_count: ${String(restore.length)}`,
+      `brain_docs_backup_roots_found: ${String(brainBackupRoots.length)}`,
+      `brain_docs_restore_candidate_count: ${String(brainRestoreCandidates.length)}`,
+      `brain_docs_restore_strategy: ${String(data.brain_docs_restore_strategy || "none")}`,
       `latest_bootstrap_backup: ${String(data.latest_bootstrap_backup || "none")}`,
       `governance_agents_detected: ${String(Boolean(data.governance_agents_detected))}`,
     ];
@@ -1484,6 +1493,9 @@ async function makeGovUninstallCommandResponse(ctx: PluginCommandContext): Promi
     `removed_paths: ${String(removed.length)}`,
     `restored_paths: ${String(restored.length)}`,
     `backup_root: ${String(data.backup_root || "none")}`,
+    `brain_backup_used: ${String(data.brain_backup_used || "none")}`,
+    `latest_brain_backup_detected: ${String(data.latest_brain_backup_detected || "none")}`,
+    `brain_backup_strategy: ${String(data.brain_backup_strategy || "none")}`,
     `run_report: ${String(data.run_report || "none")}`,
   ];
   if (Array.isArray(data.warnings) && data.warnings.length > 0) {

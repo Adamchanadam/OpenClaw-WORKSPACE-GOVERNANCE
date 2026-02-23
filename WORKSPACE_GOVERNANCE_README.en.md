@@ -272,6 +272,10 @@ Maturity boundary:
    - `gov_brain_audit ROLLBACK` restores latest approved backup
 10. Optional Experimental UAT only:
    - if BOOT emits approved menu item, verify `/gov_apply <NN>` then close with `/gov_migrate` + `/gov_audit`
+11. Uninstall acceptance (mandatory):
+   - run `/gov_uninstall check` -> `/gov_uninstall uninstall` -> `/gov_uninstall check`
+   - expected: `RESIDUAL` -> `PASS` -> `CLEAN`
+   - confirm `_runs/gov_uninstall_<ts>.md` and `archive/_gov_uninstall_backup_<ts>/...` exist
 
 ---
 
@@ -317,6 +321,10 @@ Maturity boundary:
 13. `BOOT AUDIT REPORT` warns about an old blocked migration run:
    - if a newer PASS exists for the same flow family (`migrate_governance_*`), treat it as resolved history (informational), not an active blocker
    - if no newer PASS exists, run `/gov_migrate` then `/gov_audit`
+14. You already ran `openclaw plugins uninstall` before workspace cleanup:
+   - reinstall plugin first so `/gov_uninstall` is available
+   - run `/gov_uninstall check` -> `/gov_uninstall uninstall` -> `/gov_uninstall check`
+   - if Brain Docs autofix backups exist (`archive/_brain_docs_autofix_<ts>/...`), `/gov_uninstall` reports restore strategy and evidence fields
 
 ---
 
