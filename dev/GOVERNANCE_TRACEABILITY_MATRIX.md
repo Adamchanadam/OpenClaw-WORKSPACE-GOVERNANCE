@@ -29,6 +29,7 @@ Status legend:
 | CAP-013 | Release gate denominator baseline | GA | `dev/run_runtime_regression.mjs` | `SUMMARY 34/34 passed` | `dev/README.md`, `PUBLISHING.md` | Keep denominator updated when adding cases |
 | CAP-014 | First-install bootstrap routing integrity | GA | `index.ts` + `gov_setup`/`gov_migrate` responses | public flow B3 + runtime setup/migrate cases | public flow doc + README | Stable baseline |
 | CAP-015 | BOOT apply deep-dive matrix (A1-A5) | EXP | process/spec level (`dev/OPENCLAW_PUBLIC_FLOW_REGRESSION.md`) | host UAT B5 when apply changes | public flow doc + baseline inventory | Must be executed for apply-touching releases |
+| CAP-016 | Command UX transparency contract (`SIGNAL` + `flow_trace` + `execution_items` + `qc_12_item`) | GA | `index.ts` command output formatter + setup/migrate/audit responders | runtime cases `setup-*`, `audit-*` | README + handbooks | Ensures operators can see concrete executed steps without opening run reports first |
 
 ## Update Rule
 

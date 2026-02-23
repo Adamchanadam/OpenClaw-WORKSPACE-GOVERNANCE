@@ -1015,6 +1015,32 @@ function toTextList(items: string[]): string {
   return items.map((x) => `- ${x}`).join("\n");
 }
 
+function makeStatusSignal(status: string): string {
+  const key = String(status || "").toUpperCase();
+  if (key === "PASS" || key === "READY" || key === "CLEAN") return "SUCCESS";
+  if (key === "READY_WITH_WARNING" || key === "PASS_WITH_WARNING" || key === "PARTIAL" || key === "RESIDUAL" || key === "NOT_INSTALLED") {
+    return "ATTENTION";
+  }
+  if (key === "BLOCKED" || key === "FAIL") return "ACTION_REQUIRED";
+  return "INFO";
+}
+
+function makeQcItemSummaryLines(data: RunnerResult): string[] {
+  const rows = Array.isArray((data as { qc_items?: unknown[] }).qc_items)
+    ? ((data as { qc_items?: unknown[] }).qc_items as unknown[])
+    : [];
+  return rows
+    .map((row) => {
+      const rec = (row && typeof row === "object") ? (row as Record<string, unknown>) : {};
+      const id = String(rec.id || "").trim();
+      const title = String(rec.title || "").trim();
+      const status = String(rec.status || "").trim();
+      if (!id && !title && !status) return "";
+      return `${id}) ${title}: ${status}`;
+    })
+    .filter((x) => x.length > 0);
+}
+
 function parseModeArg(ctx: PluginCommandContext): string {
   const raw = String(ctx.args || "").trim();
   if (!raw) return "";
@@ -1050,7 +1076,11 @@ function formatCommandOutput(
   nextStep: string,
   commandLines: string[],
 ): string {
+  const signal = makeStatusSignal(status);
   return [
+    "SIGNAL",
+    signal,
+    "",
     "STATUS",
     status,
     "",
@@ -1120,6 +1150,13 @@ async function makeGovSetupQuickCommandResponse(lang: "en" | "zh"): Promise<stri
   const allowStatus = String(checkData.allow_status || "ALLOW_NOT_SET");
   const shadowRequired = Boolean(checkData.shadow_reconcile_required);
   const summary = checkData.file_sync_summary || {};
+  const flowTrace: string[] = [
+    `check: ${checkStatus} | allow=${allowStatus} | sync(M=${String(summary.MISSING ?? 0)} O=${String(summary.OUT_OF_SYNC ?? 0)} I=${String(summary.IN_SYNC ?? 0)})`,
+  ];
+  const withFlowTrace = (lines: string[]): string[] => [
+    ...lines,
+    `flow_trace:\n${toTextList(flowTrace)}`,
+  ];
   const why = [
     "auto_chain: check -> (install|upgrade|skip) -> migrate -> audit",
     `check_status: ${checkStatus}`,
@@ -1131,7 +1168,7 @@ async function makeGovSetupQuickCommandResponse(lang: "en" | "zh"): Promise<stri
   if (allowStatus !== "ALLOW_OK") {
     return formatCommandOutput(
       "READY_WITH_WARNING",
-      why,
+      withFlowTrace(why),
       i18n(lang, "Align allowlist first, then rerun one-click quick flow.", "先對齊 allowlist，再重跑一鍵 quick 流程。"),
       ["/gov_openclaw_json", "/gov_setup quick"],
     );
@@ -1141,13 +1178,14 @@ async function makeGovSetupQuickCommandResponse(lang: "en" | "zh"): Promise<stri
   if (checkStatus === "NOT_INSTALLED") setupStep = "install";
   else if (checkStatus === "PARTIAL" || shadowRequired) setupStep = "upgrade";
   why.push(`setup_step: ${setupStep}`);
+  if (setupStep === "skip") flowTrace.push("setup: skipped (already aligned)");
 
   if (setupStep !== "skip") {
     const setupRunner = await runInProcessRunner("tools/gov_setup_sync.mjs", "runGovSetupSync", [setupStep]);
     if (!setupRunner.ok || !setupRunner.data) {
       return formatCommandOutput(
         "BLOCKED",
-        [...why, `setup_stage_error: ${String(setupRunner.err || "unknown error")}`],
+        withFlowTrace([...why, `setup_stage_error: ${String(setupRunner.err || "unknown error")}`]),
         i18n(lang, "Retry quick flow after fixing setup stage.", "修復 setup 階段後重試 quick 流程。"),
         ["/gov_setup quick", "fallback: /gov_setup upgrade"],
       );
@@ -1155,20 +1193,22 @@ async function makeGovSetupQuickCommandResponse(lang: "en" | "zh"): Promise<stri
     const setupData = setupRunner.data;
     const setupStatus = String(setupData.status || "BLOCKED").toUpperCase();
     if (setupStatus !== "PASS") {
+      flowTrace.push(`setup(${setupStep}): ${setupStatus}`);
       return formatCommandOutput(
         "BLOCKED",
-        [...why, `setup_stage_status: ${setupStatus}`, `setup_stage_reason: ${String(setupData.reason || "unknown")}`],
+        withFlowTrace([...why, `setup_stage_status: ${setupStatus}`, `setup_stage_reason: ${String(setupData.reason || "unknown")}`]),
         i18n(lang, "Fix setup blocker and rerun quick flow.", "先修復 setup 阻擋，再重跑 quick 流程。"),
         ["/gov_setup check", "/gov_setup quick"],
       );
     }
+    flowTrace.push(`setup(${setupStep}): PASS | detail=${String(setupData.pass_detail || "updated")}`);
     why.push(`setup_pass_detail: ${String(setupData.pass_detail || "updated")}`);
     if (setupData.backup_root) why.push(`setup_backup_root: ${String(setupData.backup_root)}`);
     const setupAllowStatus = String(setupData.allow_status || "ALLOW_NOT_SET");
     if (setupAllowStatus !== "ALLOW_OK") {
       return formatCommandOutput(
         "PASS_WITH_WARNING",
-        [...why, `setup_allow_status: ${setupAllowStatus}`],
+        withFlowTrace([...why, `setup_allow_status: ${setupAllowStatus}`]),
         i18n(lang, "Align allowlist first, then rerun quick flow.", "先對齊 allowlist，再重跑 quick 流程。"),
         ["/gov_openclaw_json", "/gov_setup quick"],
       );
@@ -1179,7 +1219,7 @@ async function makeGovSetupQuickCommandResponse(lang: "en" | "zh"): Promise<stri
   if (!migrateRunner.ok || !migrateRunner.data) {
     return formatCommandOutput(
       "BLOCKED",
-      [...why, `migrate_stage_error: ${String(migrateRunner.err || "unknown error")}`],
+      withFlowTrace([...why, `migrate_stage_error: ${String(migrateRunner.err || "unknown error")}`]),
       i18n(lang, "Retry quick flow after fixing migrate stage.", "修復 migrate 階段後重試 quick 流程。"),
       ["/gov_setup quick", "/gov_migrate"],
     );
@@ -1187,25 +1227,27 @@ async function makeGovSetupQuickCommandResponse(lang: "en" | "zh"): Promise<stri
   const migrateData = migrateRunner.data;
   const migrateStatus = String(migrateData.status || "BLOCKED").toUpperCase();
   if (migrateStatus !== "PASS") {
+    flowTrace.push(`migrate: ${migrateStatus}`);
     return formatCommandOutput(
       "BLOCKED",
-      [
+      withFlowTrace([
         ...why,
         `migrate_stage_status: ${migrateStatus}`,
         `migrate_stage_reason: ${String(migrateData.reason || "unknown")}`,
         migrateData.run_report ? `migrate_run_report: ${String(migrateData.run_report)}` : "",
-      ].filter(Boolean),
+      ].filter(Boolean)),
       i18n(lang, "Fix migrate blocker and rerun one-click flow.", "先修復 migrate 阻擋，再重跑一鍵流程。"),
       ["/gov_setup upgrade", "/gov_setup quick"],
     );
   }
+  flowTrace.push(`migrate: PASS${migrateData.run_report ? ` | report=${String(migrateData.run_report)}` : ""}`);
   if (migrateData.run_report) why.push(`migrate_run_report: ${String(migrateData.run_report)}`);
 
   const auditRunner = await runInProcessRunner("tools/gov_audit_sync.mjs", "runGovAuditSync", []);
   if (!auditRunner.ok || !auditRunner.data) {
     return formatCommandOutput(
       "FAIL",
-      [...why, `audit_stage_error: ${String(auditRunner.err || "unknown error")}`],
+      withFlowTrace([...why, `audit_stage_error: ${String(auditRunner.err || "unknown error")}`]),
       i18n(lang, "Retry audit or rerun quick flow.", "請重跑 audit 或重跑 quick 流程。"),
       ["/gov_audit", "/gov_setup quick"],
     );
@@ -1218,27 +1260,32 @@ async function makeGovSetupQuickCommandResponse(lang: "en" | "zh"): Promise<stri
   const qcPass = Number(qcSummary.pass ?? 0);
   const qcFail = Number(qcSummary.fail ?? 0);
   const qcNa = Number(qcSummary.pass_na ?? 0);
+  const auditItems = makeQcItemSummaryLines(auditData);
   if (auditStatus !== "PASS") {
+    flowTrace.push(`audit: ${auditStatus} | PASS=${String(qcPass)} FAIL=${String(qcFail)} PASS_NA=${String(qcNa)}`);
     return formatCommandOutput(
       "FAIL",
-      [
+      withFlowTrace([
         ...why,
         `audit_stage_status: ${auditStatus}`,
         `audit_qc_summary: PASS=${String(qcPass)} FAIL=${String(qcFail)} PASS_NA=${String(qcNa)}`,
+        auditItems.length > 0 ? `audit_12_item:\n${toTextList(auditItems)}` : "",
         auditData.run_report ? `audit_run_report: ${String(auditData.run_report)}` : "",
-      ].filter(Boolean),
+      ].filter(Boolean)),
       i18n(lang, "One-click flow reached audit failure. Fix findings and rerun quick flow.", "一鍵流程已跑到 audit 失敗。修復 findings 後重跑 quick 流程。"),
       ["/gov_migrate", "/gov_audit", "/gov_setup quick"],
     );
   }
+  flowTrace.push(`audit: PASS | PASS=${String(qcPass)} FAIL=${String(qcFail)} PASS_NA=${String(qcNa)}`);
 
   return formatCommandOutput(
     "PASS",
-    [
+    withFlowTrace([
       ...why,
       `audit_qc_summary: PASS=${String(qcPass)} FAIL=${String(qcFail)} PASS_NA=${String(qcNa)}`,
+      auditItems.length > 0 ? `audit_12_item:\n${toTextList(auditItems)}` : "",
       auditData.run_report ? `audit_run_report: ${String(auditData.run_report)}` : "",
-    ].filter(Boolean),
+    ].filter(Boolean)),
     i18n(lang, "One-click governance flow completed (install/upgrade + migrate + audit).", "一鍵治理流程完成（install/upgrade + migrate + audit）。"),
     ["/gov_setup check"],
   );
@@ -1412,10 +1459,28 @@ async function makeGovSetupCommandResponse(ctx: PluginCommandContext): Promise<s
     `pass_detail: ${String(data.pass_detail || "updated")}`,
     `allow_status: ${String(data.allow_status || "ALLOW_NOT_SET")}`,
   ];
+  const setupExecutionItems: string[] = [`runner: gov_setup_sync ${mode}`];
+  const copiedFiles = Array.isArray((data as { copied_files?: unknown[] }).copied_files)
+    ? ((data as { copied_files?: unknown[] }).copied_files as unknown[])
+    : [];
+  if (copiedFiles.length > 0) {
+    const changedCount = copiedFiles
+      .filter((row) => row && typeof row === "object" && Boolean((row as Record<string, unknown>).changed))
+      .length;
+    setupExecutionItems.push(`copied_files=${String(copiedFiles.length)} changed=${String(changedCount)}`);
+  }
+  const postSummary = (data as { file_sync_summary_after?: Record<string, unknown> }).file_sync_summary_after;
+  if (postSummary && typeof postSummary === "object") {
+    setupExecutionItems.push(
+      `post_sync: MISSING=${String(postSummary.MISSING ?? 0)} OUT_OF_SYNC=${String(postSummary.OUT_OF_SYNC ?? 0)} IN_SYNC=${String(postSummary.IN_SYNC ?? 0)}`,
+    );
+  }
   if (Array.isArray(data.workspace_gov_skill_dirs_reconciled) && data.workspace_gov_skill_dirs_reconciled.length > 0) {
     why.push(`workspace_gov_skill_dirs_reconciled=${String(data.workspace_gov_skill_dirs_reconciled.length)}`);
+    setupExecutionItems.push(`shadow_skill_reconciled=${String(data.workspace_gov_skill_dirs_reconciled.length)}`);
   }
   if (data.backup_root) why.push(`backup_root: ${String(data.backup_root)}`);
+  why.push(`execution_items:\n${toTextList(setupExecutionItems)}`);
   const allowStatus = String(data.allow_status || "ALLOW_NOT_SET");
   const nextAction = String(data.next_action || "");
   if (allowStatus !== "ALLOW_OK" || nextAction === "ALIGN_ALLOWLIST_THEN_CHECK") {
@@ -1536,6 +1601,27 @@ async function makeGovMigrateCommandResponse(ctx: PluginCommandContext): Promise
               .filter((x) => x.trim().length > 0),
           )}`
         : "",
+      Array.isArray((data as { repaired_marker_anomaly_files?: unknown[] }).repaired_marker_anomaly_files) &&
+      (data as { repaired_marker_anomaly_files?: unknown[] }).repaired_marker_anomaly_files!.length > 0
+        ? `repaired_marker_anomaly_files:\n${toTextList(
+            ((data as { repaired_marker_anomaly_files?: unknown[] }).repaired_marker_anomaly_files || [])
+              .map((x) => String(x))
+              .filter((x) => x.trim().length > 0),
+          )}`
+        : "",
+      `execution_items:\n${toTextList([
+        "runner: gov_migrate_sync",
+        `canonical_equality_match=${String(equality.length - mismatch.length)}/${String(equality.length)}`,
+        Array.isArray((data as { seeded_missing_files?: unknown[] }).seeded_missing_files)
+          ? `seeded_missing_files_count=${String((data as { seeded_missing_files?: unknown[] }).seeded_missing_files!.length)}`
+          : "seeded_missing_files_count=0",
+        Array.isArray((data as { repaired_missing_marker_files?: unknown[] }).repaired_missing_marker_files)
+          ? `repaired_missing_marker_files_count=${String((data as { repaired_missing_marker_files?: unknown[] }).repaired_missing_marker_files!.length)}`
+          : "repaired_missing_marker_files_count=0",
+        Array.isArray((data as { repaired_marker_anomaly_files?: unknown[] }).repaired_marker_anomaly_files)
+          ? `repaired_marker_anomaly_files_count=${String((data as { repaired_marker_anomaly_files?: unknown[] }).repaired_marker_anomaly_files!.length)}`
+          : "repaired_marker_anomaly_files_count=0",
+      ])}`,
       data.run_report ? `run_report: ${String(data.run_report)}` : "",
     ].filter(Boolean),
     i18n(lang, "Run audit now.", "請立即執行 audit。"),
@@ -1797,12 +1883,16 @@ async function makeGovAuditCommandResponse(ctx: PluginCommandContext): Promise<s
   const qcFailedItems = Array.isArray(data.qc_failed_items)
     ? data.qc_failed_items.map((x) => String(x)).filter((x) => x.trim().length > 0)
     : [];
+  const qcItemSummaries = makeQcItemSummaryLines(data);
   if (status !== "PASS") {
     return formatCommandOutput(
       "FAIL",
       [
         `status: ${status}`,
         `qc_summary: PASS=${String(qcPass)} FAIL=${String(qcFail)} PASS_NA=${String(qcNa)}`,
+        qcItemSummaries.length > 0
+          ? `qc_12_item:\n${toTextList(qcItemSummaries)}`
+          : "",
         qcFailedItems.length > 0
           ? `qc_failed_items:\n${toTextList(qcFailedItems)}`
           : "",
@@ -1817,11 +1907,14 @@ async function makeGovAuditCommandResponse(ctx: PluginCommandContext): Promise<s
   }
   return formatCommandOutput(
     "PASS",
-    [
-      "audit passed with deterministic 12-item execution",
-      `qc_summary: PASS=${String(qcPass)} FAIL=${String(qcFail)} PASS_NA=${String(qcNa)}`,
-      data.run_report ? `run_report: ${String(data.run_report)}` : "",
-    ].filter(Boolean),
+      [
+        "audit passed with deterministic 12-item execution",
+        `qc_summary: PASS=${String(qcPass)} FAIL=${String(qcFail)} PASS_NA=${String(qcNa)}`,
+        qcItemSummaries.length > 0
+          ? `qc_12_item:\n${toTextList(qcItemSummaries)}`
+          : "",
+        data.run_report ? `run_report: ${String(data.run_report)}` : "",
+      ].filter(Boolean),
     i18n(lang, "Governance lifecycle is aligned.", "governance 流程已對齊。"),
     ["/gov_setup check"],
   );

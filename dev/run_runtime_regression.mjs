@@ -514,6 +514,7 @@ cases.push(async () => {
         text.includes("One-click flow reached audit failure") ||
         text.includes("一鍵流程已跑到 audit 失敗"),
     );
+    assert.ok(text.includes("flow_trace"));
     assert.ok(text.includes("/gov_setup quick"));
   } finally {
     fixture.restore();
@@ -567,6 +568,7 @@ cases.push(async () => {
     const text = String(out?.text || "");
     assert.match(text, /STATUS\s*\n(PASS|FAIL)/i);
     assert.ok(text.includes("auto_chain: check -> (install|upgrade|skip) -> migrate -> audit"));
+    assert.ok(text.includes("flow_trace"));
     assert.equal(
       fs.existsSync(path.join(fixture.root, "_control", "PRESETS.md")),
       true,
@@ -776,6 +778,7 @@ cases.push(async () => {
     const text = String(out?.text || "");
     assert.match(text, /STATUS\s*\nFAIL/i);
     assert.ok(text.includes("qc_failed_items"));
+    assert.ok(text.includes("qc_12_item"));
     assert.ok(text.toLowerCase().includes("read evidence"));
     assert.ok(text.includes("/gov_migrate"));
   } finally {
@@ -837,6 +840,7 @@ cases.push(async () => {
     const text = String(out?.text || "");
     assert.match(text, /STATUS\s*\nPASS/i);
     assert.ok(text.includes("qc_summary"));
+    assert.ok(text.includes("qc_12_item"));
     assert.ok(text.includes("FAIL=0"));
   } finally {
     fixture.restore();
