@@ -12,11 +12,12 @@ metadata: {"openclaw":{"emoji":"🧩"}}
 ## Purpose
 Execute:
 - `prompts/governance/APPLY_UPGRADE_FROM_BOOT.md`
+- deterministic runner: `node {plugin_root}/tools/gov_apply_sync.mjs <NN>`
 
 ## Hard contract
 1. If `<NN>` is missing or invalid, stop and request a two-digit number.
 2. If BOOT menu context is missing, stop and request the latest BOOT menu section.
-3. Apply only the approved item.
+3. Apply only the approved item with deterministic runner (`tools/gov_apply_sync.mjs`).
 4. After apply, run migration/audit flow as required by the apply runner.
 5. For OpenClaw system claims during apply, verify against local skill docs and `https://docs.openclaw.ai`.
    - For latest/version-sensitive claims, also verify official releases `https://github.com/openclaw/openclaw/releases`.

@@ -16,9 +16,9 @@ ClawHub installer page:
 
 | Version | Published (UTC) | Key Changes | Practical Impact |
 | --- | --- | --- | --- |
+| `v0.1.41` | 2026-02-23 | Added deterministic `/gov_apply` command runner (`tools/gov_apply_sync.mjs`), expanded runtime regression to 28/28, added governance master spec/matrix/gap/handoff docs | BOOT apply path is now deterministic-covered with clearer engineering continuity and release gates |
+| `v0.1.40` | 2026-02-22 | Added formal uninstall lifecycle (`/gov_uninstall check|uninstall`) and deterministic uninstall runner | Governance cleanup is safer, reversible, and auditable |
 | `v0.1.25` | 2026-02-21 | Added deterministic Brain Docs scanner (`tools/brain_audit_rules.mjs`), structured findings, packaging includes `tools/**` | Brain-doc risk checks are more reproducible and install-ready out of the box |
-| `v0.1.24` | 2026-02-20 | Removed legacy `gov_platform_change`, standardized on `gov_openclaw_json`, docs cleanup | Upgrade path is less confusing; one platform-config command is now canonical |
-| `v0.1.23` | 2026-02-20 | Added natural-language safe-routing for governance upgrade intent, clarified upgrade guidance | Fewer false blocks when users do not type slash commands exactly |
 
 Source: GitHub Releases (`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`)
 
@@ -42,6 +42,20 @@ What you get immediately:
 2. Clear operating order: `check -> install/upgrade -> migrate -> audit`.
 3. Safer control-plane updates with backup, validation, and rollback evidence.
 
+## Feature Maturity (No-Misleading Contract)
+
+GA (production default):
+1. `/gov_setup check|install|upgrade`
+2. `/gov_migrate`
+3. `/gov_audit`
+4. `/gov_openclaw_json`
+5. `/gov_brain_audit`
+6. `/gov_uninstall`
+
+Experimental:
+1. `/gov_apply <NN>` keeps the BOOT proposal-apply model available for controlled UAT, and is now covered by deterministic runtime regression baseline.
+2. Use `/gov_apply <NN>` only with explicit human approval of one BOOT proposal, then run `/gov_migrate` and `/gov_audit`.
+
 ## Visual Walkthrough (ref_doc)
 
 ![OpenClaw WORKSPACE_GOVERNANCE Infographic](./ref_doc/infograp_eng.png)
@@ -57,15 +71,9 @@ What you get immediately:
 <a id="install"></a>
 ## 60-Second Start
 
-### New Install Path (Copy-Paste)
-1. In host terminal:
-```text
-openclaw plugins install @adamchanadam/openclaw-workspace-governance@latest
-openclaw gateway restart
-```
-2. Trust model check (required):
-Some OpenClaw builds do not auto-append new plugins into `plugins.allow` during install.
-If `openclaw plugins info openclaw-workspace-governance` shows `Error: not in allowlist`, align allowlist first:
+### Shared Allowlist Quick Fix
+Use this only when a command reports `Error: not in allowlist`.
+
 ```text
 openclaw config get plugins.allow
 openclaw configure
@@ -74,6 +82,16 @@ openclaw plugins enable openclaw-workspace-governance
 openclaw gateway restart
 ```
 Keep your existing trusted IDs when editing the allowlist array.
+
+### New Install Path (Copy-Paste)
+1. In host terminal:
+```text
+openclaw plugins install @adamchanadam/openclaw-workspace-governance@latest
+openclaw gateway restart
+```
+2. Trust model check (required):
+Some OpenClaw builds do not auto-append new plugins into `plugins.allow` during install.
+If `openclaw plugins info openclaw-workspace-governance` shows `Error: not in allowlist`, run **Shared Allowlist Quick Fix** first.
 3. In OpenClaw TUI chat:
 ```text
 /gov_setup check
@@ -86,6 +104,9 @@ Keep your existing trusted IDs when editing the allowlist array.
 5. Continue:
 ```text
 /gov_setup install
+prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md
+# if this was an already-active workspace before first governance install:
+/gov_migrate
 /gov_audit
 ```
 
@@ -95,15 +116,7 @@ Keep your existing trusted IDs when editing the allowlist array.
 openclaw plugins update openclaw-workspace-governance
 openclaw gateway restart
 ```
-2. If plugin becomes disabled with `Error: not in allowlist`, align allowlist first:
-```text
-openclaw config get plugins.allow
-openclaw configure
-# In plugins.allow, append openclaw-workspace-governance and keep all existing trusted IDs.
-openclaw plugins enable openclaw-workspace-governance
-openclaw gateway restart
-```
-Keep your existing trusted IDs when editing the allowlist array.
+2. If plugin becomes disabled with `Error: not in allowlist`, run **Shared Allowlist Quick Fix** first.
 3. In OpenClaw TUI chat:
 ```text
 /gov_setup check
@@ -127,13 +140,7 @@ Do not uninstall plugin package first. Run workspace cleanup first.
 ```text
 openclaw plugins info openclaw-workspace-governance
 ```
-If it shows `Error: not in allowlist`, align allowlist first:
-```text
-openclaw configure
-# In plugins.allow, append openclaw-workspace-governance and keep all existing trusted IDs.
-openclaw plugins enable openclaw-workspace-governance
-openclaw gateway restart
-```
+If it shows `Error: not in allowlist`, run **Shared Allowlist Quick Fix** first.
 2. In OpenClaw TUI chat:
 ```text
 /gov_uninstall check
@@ -164,6 +171,7 @@ The uninstall runner creates backup at `archive/_gov_uninstall_backup_<ts>/...` 
 | Upgrade existing governance workspace | `/gov_setup upgrade` | `/gov_migrate` -> `/gov_audit` | Updates package files, aligns workspace policy, and confirms readiness after change |
 | Safely change OpenClaw control-plane config | `/gov_openclaw_json` | `/gov_audit` | Replaces risky direct editing with backup/validate/rollback evidence for recoverable platform operations |
 | Improve Brain Docs quality with minimal risk | `/gov_brain_audit` | approve findings -> `/gov_audit` | Detects high-risk wording, preserves persona intent, and only applies approved patches with rollback support |
+| Apply one BOOT proposal item (Experimental) | `/gov_apply <NN>` | `/gov_migrate` -> `/gov_audit` | Executes only one human-approved item in controlled UAT; do not treat as unattended GA automation |
 
 ## Core Capability: `/gov_brain_audit` for Brain Docs Performance
 
@@ -196,6 +204,12 @@ Use when users ask version/system/date-sensitive facts. Verify sources first, th
 
 3. Mode C: write/update/save requests (full governance flow)
 Use for coding, config edits, or document changes. Run `PLAN -> READ -> CHANGE -> QC -> PERSIST`, then close with `gov_migrate` and `gov_audit` when required.
+
+## Tool Exposure Guard (Security Default)
+
+1. Governance plugin tools are fail-closed by default: the current turn must contain explicit `/gov_*` intent (or `/skill gov_*` fallback) before governance tools run.
+2. This root-fix reduces plugin-tool trigger surface in permissive policy contexts (`default`, `agents.list.main`) when handling untrusted input.
+3. Normal OpenClaw usage is not replaced: if no explicit governance command is requested, governance plugin tools do not auto-run.
 
 ## FAQ (Decision-Oriented, New-User Focus)
 

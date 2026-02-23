@@ -49,13 +49,23 @@ OpenClaw 出廠基線主要強調：
 1. 固定執行次序：`PLAN -> READ -> CHANGE -> QC -> PERSIST`
 2. Fail-Closed：證據不足即停止
 3. Mode 分流：對話、查證、寫入任務分開處理
-4. BOOT 只讀提案 + 人工批准 + 受控套用
+4. BOOT 只讀提案 + 人工批准 + 受控套用（Experimental 成熟度）
 5. run report 證據化，支援回溯與降低重覆失誤
 6. Brain Docs 保守修補能力（`gov_brain_audit`）：先預覽、後批准套用、可回退
 
+## 5) 當前成熟度邊界
+
+目前 GA 基線：
+1. `gov_setup`、`gov_migrate`、`gov_audit`、`gov_openclaw_json`、`gov_brain_audit`、`gov_uninstall`
+2. Runtime hard-gate 與顯式治理指令意圖 guard
+
+目前 Experimental：
+1. `gov_apply <NN>`（BOOT 受控套用）
+2. 僅建議於受控 UAT 使用，需明確人工批准，並以 `/gov_migrate`、`/gov_audit` 收尾
+
 ---
 
-## 5) 對非技術用戶的實際價值
+## 6) 對非技術用戶的實際價值
 
 1. 減少可避免的系統破壞
 2. 降低錯改後的人手補救成本
@@ -64,7 +74,7 @@ OpenClaw 出廠基線主要強調：
 
 ---
 
-## 6) 邊界（避免過度承諾）
+## 7) 邊界（避免過度承諾）
 
 本方案可以降低風險，但不代表：
 1. 任何模型都會零錯誤
@@ -78,7 +88,7 @@ OpenClaw 出廠基線主要強調：
 
 ---
 
-## 7) 下一步閱讀建議
+## 8) 下一步閱讀建議
 
 1. 初次使用：先讀 [`README.zh-HK.md`](./README.zh-HK.md)
 2. 要逐步操作：讀 [`WORKSPACE_GOVERNANCE_README.md`](./WORKSPACE_GOVERNANCE_README.md)
@@ -86,7 +96,7 @@ OpenClaw 出廠基線主要強調：
 
 ---
 
-## 8) 官方參考
+## 9) 官方參考
 
 1. https://docs.openclaw.ai/concepts/context
 2. https://docs.openclaw.ai/concepts/system-prompt

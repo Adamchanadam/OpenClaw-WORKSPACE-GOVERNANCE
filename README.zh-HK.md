@@ -16,9 +16,9 @@ ClawHub 安裝頁：
 
 | 版本 | 發佈時間（UTC） | 關鍵變更 | 對使用者的直接影響 |
 | --- | --- | --- | --- |
+| `v0.1.41` | 2026-02-23 | 新增 deterministic `/gov_apply` runner（`tools/gov_apply_sync.mjs`）、runtime regression 擴展至 28/28，補齊 master spec/matrix/gap/handoff 工程文檔 | BOOT apply 路徑已有可重現覆蓋，並提升後續開發接手一致性 |
+| `v0.1.40` | 2026-02-22 | 新增正式 uninstall 生命週期（`/gov_uninstall check|uninstall`）及 deterministic uninstall runner | 治理清理流程更安全、可回復、可稽核 |
 | `v0.1.25` | 2026-02-21 | 新增可重現 Brain Docs 掃描器（`tools/brain_audit_rules.mjs`）、結構化 findings，並把 `tools/**` 納入發佈包 | Brain Docs 風險檢查更穩定，安裝後即可直接使用 |
-| `v0.1.24` | 2026-02-20 | 移除舊指令 `gov_platform_change`，統一 `gov_openclaw_json`，同步整理文檔 | 升級路徑更清晰，平台設定入口不再混亂 |
-| `v0.1.23` | 2026-02-20 | 新增自然語言治理升級意圖安全路由，優化升級指引 | 用戶即使不打精確 slash 指令，也可降低誤擋 |
 
 來源：GitHub Releases（`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`）
 
@@ -42,6 +42,20 @@ ClawHub 安裝頁：
 2. 明確操作順序：`check -> install/upgrade -> migrate -> audit`。
 3. 平台控制面改動具備備份、驗證、回退證據。
 
+## 功能成熟度（不誤導聲明）
+
+GA（正式可落地）：
+1. `/gov_setup check|install|upgrade`
+2. `/gov_migrate`
+3. `/gov_audit`
+4. `/gov_openclaw_json`
+5. `/gov_brain_audit`
+6. `/gov_uninstall`
+
+Experimental（實驗性）：
+1. `/gov_apply <NN>` 保留 BOOT 提案受控套用模型，供受控 UAT 使用，並已納入 deterministic runtime regression baseline。
+2. 只應在人類明確批准單一 BOOT 提案後使用，完成後必跑 `/gov_migrate` 與 `/gov_audit`。
+
 ## Visual Walkthrough（ref_doc）
 
 ![OpenClaw WORKSPACE_GOVERNANCE Infographic](./ref_doc/infograp_eng.png)
@@ -57,15 +71,9 @@ ClawHub 安裝頁：
 <a id="install"></a>
 ## 60-Second Start
 
-### 新裝路徑（可直接照抄）
-1. 主機終端先執行：
-```text
-openclaw plugins install @adamchanadam/openclaw-workspace-governance@latest
-openclaw gateway restart
-```
-2. 信任模型檢查（必要）：
-部分 OpenClaw 版本在 install 時，不會自動把新 plugin 加入 `plugins.allow`。
-如果 `openclaw plugins info openclaw-workspace-governance` 顯示 `Error: not in allowlist`，請先對齊 allowlist：
+### 共用 Allowlist 快速修復
+只在出現 `Error: not in allowlist` 時使用。
+
 ```text
 openclaw config get plugins.allow
 openclaw configure
@@ -74,6 +82,16 @@ openclaw plugins enable openclaw-workspace-governance
 openclaw gateway restart
 ```
 編輯 allowlist 陣列時，請保留你原有的 trusted IDs。
+
+### 新裝路徑（可直接照抄）
+1. 主機終端先執行：
+```text
+openclaw plugins install @adamchanadam/openclaw-workspace-governance@latest
+openclaw gateway restart
+```
+2. 信任模型檢查（必要）：
+部分 OpenClaw 版本在 install 時，不會自動把新 plugin 加入 `plugins.allow`。
+如果 `openclaw plugins info openclaw-workspace-governance` 顯示 `Error: not in allowlist`，請先執行上面的「共用 Allowlist 快速修復」。
 3. OpenClaw TUI 對話中執行：
 ```text
 /gov_setup check
@@ -86,6 +104,9 @@ openclaw gateway restart
 5. 然後繼續：
 ```text
 /gov_setup install
+prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md
+# 若是已在運作中的既有 workspace 才需要：
+/gov_migrate
 /gov_audit
 ```
 
@@ -95,15 +116,7 @@ openclaw gateway restart
 openclaw plugins update openclaw-workspace-governance
 openclaw gateway restart
 ```
-2. 若 plugin 顯示 `Error: not in allowlist`，請先對齊 allowlist：
-```text
-openclaw config get plugins.allow
-openclaw configure
-# 在 plugins.allow 追加 openclaw-workspace-governance，並保留所有原有 trusted IDs。
-openclaw plugins enable openclaw-workspace-governance
-openclaw gateway restart
-```
-編輯 allowlist 陣列時，請保留你原有的 trusted IDs。
+2. 若 plugin 顯示 `Error: not in allowlist`，請先執行上面的「共用 Allowlist 快速修復」。
 3. OpenClaw TUI 對話中執行：
 ```text
 /gov_setup check
@@ -127,13 +140,7 @@ openclaw gateway restart
 ```text
 openclaw plugins info openclaw-workspace-governance
 ```
-若顯示 `Error: not in allowlist`，先對齊 allowlist：
-```text
-openclaw configure
-# 在 plugins.allow 追加 openclaw-workspace-governance，並保留所有原有 trusted IDs。
-openclaw plugins enable openclaw-workspace-governance
-openclaw gateway restart
-```
+若顯示 `Error: not in allowlist`，先執行上面的「共用 Allowlist 快速修復」。
 2. 在 OpenClaw TUI 對話中執行：
 ```text
 /gov_uninstall check
@@ -164,6 +171,7 @@ openclaw gateway restart
 | 升級既有治理工作區 | `/gov_setup upgrade` | `/gov_migrate` -> `/gov_audit` | 同步治理檔版本與策略，並在變更後完成驗證 |
 | 安全修改 OpenClaw 平台控制面 | `/gov_openclaw_json` | `/gov_audit` | 以備份/驗證/回退取代高風險直改，讓平台變更可恢復 |
 | 低風險優化 Brain Docs 品質 | `/gov_brain_audit` | 批准 findings -> `/gov_audit` | 檢出高風險語句、保留人設方向，僅批准後套用且可回退 |
+| 套用單一 BOOT 提案項目（Experimental） | `/gov_apply <NN>` | `/gov_migrate` -> `/gov_audit` | 只執行單一人手批准項目，適用受控 UAT；不可視為無人值守 GA 自動化 |
 
 ## 核心能力：`/gov_brain_audit` 如何優化 Brain Docs 效能
 
@@ -196,6 +204,12 @@ openclaw gateway restart
 
 3. Mode C：寫入/更新/保存任務（完整治理流程）
 適用於程式改動、設定修改、文檔更新。必走 `PLAN -> READ -> CHANGE -> QC -> PERSIST`，並在需要時以 `gov_migrate`、`gov_audit` 收尾。
+
+## Tool Exposure Guard（安全預設）
+
+1. 治理 plugin tools 預設 fail-closed：當前回合必須有明確 `/gov_*`（或 `/skill gov_*`）意圖，才會執行治理工具。
+2. 這個 root-fix 可在 permissive policy contexts（`default`、`agents.list.main`）下縮小工具觸發面，降低 untrusted input 風險。
+3. 這不會取代一般 OpenClaw 使用：若無明確治理指令，治理 plugin tools 不會自動執行。
 
 ## FAQ（新手決策導向，10 題）
 

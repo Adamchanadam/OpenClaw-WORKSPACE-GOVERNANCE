@@ -14,7 +14,7 @@ It covers:
 1. Install and upgrade paths
 2. Daily governance operations
 3. Platform-safe config changes
-4. BOOT controlled apply
+4. BOOT controlled apply (Experimental)
 5. UAT and troubleshooting
 
 ---
@@ -24,7 +24,8 @@ It covers:
 1. Plugin package:
    - `@adamchanadam/openclaw-workspace-governance`
 2. Required skills:
-   - `gov_setup`, `gov_migrate`, `gov_audit`, `gov_apply`, `gov_openclaw_json`, `gov_brain_audit`
+   - GA: `gov_setup`, `gov_migrate`, `gov_audit`, `gov_openclaw_json`, `gov_brain_audit`, `gov_uninstall`
+   - Experimental: `gov_apply`
 3. If slash routing is unstable, use `/skill ...` fallback.
 
 Host-side checks:
@@ -72,6 +73,11 @@ Special rules:
 4. Brain Docs read-only asks: read exact target files first
 5. Brain Docs writes: Mode C + run report fields `FILES_READ` + `TARGET_FILES_TO_CHANGE`
 
+Tool exposure root-fix (security default):
+1. Governance plugin tools require explicit `/gov_*` intent in the current turn (or `/skill gov_*` fallback) before tool execution.
+2. This fail-closed behavior reduces untrusted-input trigger risk under permissive tool-policy contexts.
+3. It does not replace normal OpenClaw usage; without explicit governance command intent, governance tools do not auto-run.
+
 ---
 
 ## 5) File-Scope Map (Important)
@@ -102,14 +108,21 @@ Special rules:
 | `gov_migrate` | After install/upgrade when policy alignment is required | Brings active workspace behavior in line with current governance rules |
 | `gov_audit` | After changes and before declaring completion | Verifies fixed checklist/evidence and catches drift early |
 | `gov_openclaw_json` | Need control-plane edits (`openclaw.json`/extensions) | Applies minimal change with backup/validate/rollback path |
-| `gov_apply <NN>` | BOOT emitted numbered proposal and human approved | Prevents ad-hoc apply; only approved item is executed |
+| `gov_apply <NN>` (Experimental) | BOOT emitted numbered proposal and human approved in controlled UAT | Preserves human-approved single-item apply path; do not treat as unattended GA automation |
 | `gov_brain_audit` | Need Brain Docs risk review/hardening | Semantic-first preview, approval-based apply, and rollback support |
+
+### Shared Trust-Alignment Branch (Use when `gov_setup check` says allowlist/trust is not ready)
+
+```text
+/gov_openclaw_json
+/gov_setup check
+```
 
 ### A) Brand-new OpenClaw / brand-new workspace
 
 1. Install plugin
 2. `gov_setup check` (verify file status + trust readiness)
-3. If check output says allowlist is not ready (for example asks to align `plugins.allow`): run `gov_openclaw_json`, then `gov_setup check` again
+3. If check output says allowlist is not ready: run the shared trust-alignment branch above.
 4. `gov_setup install`
 5. Run bootstrap prompt (`OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`)
 6. `gov_audit`
@@ -118,7 +131,7 @@ Special rules:
 
 1. Install/enable plugin
 2. `gov_setup check` (verify file status + trust readiness)
-3. If check output says allowlist is not ready (for example asks to align `plugins.allow`): run `gov_openclaw_json`, then `gov_setup check` again
+3. If check output says allowlist is not ready: run the shared trust-alignment branch above.
 4. `gov_setup install`
 5. Run bootstrap prompt
 6. If workspace is already active: `gov_migrate`
@@ -214,7 +227,12 @@ Fallback:
 
 ---
 
-## 8) BOOT Controlled Apply Runbook
+## 8) BOOT Controlled Apply Runbook (Experimental)
+
+Maturity boundary:
+1. Keep this runbook for controlled UAT and operator-reviewed adoption only.
+2. `gov_apply` is covered by deterministic runtime regression baseline.
+3. GA rollout should not depend on unattended `gov_apply` execution.
 
 1. BOOT runs read-only checks and outputs numbered proposals
 2. Human approves one proposal number
@@ -253,6 +271,8 @@ Fallback:
    - `gov_brain_audit` returns findings and approval checklist
    - `gov_brain_audit APPROVE: ...` creates backup and run report
    - `gov_brain_audit ROLLBACK` restores latest approved backup
+10. Optional Experimental UAT only:
+   - if BOOT emits approved menu item, verify `/gov_apply <NN>` then close with `/gov_migrate` + `/gov_audit`
 
 ---
 

@@ -36,6 +36,9 @@ In OpenClaw chat:
 /gov_openclaw_json
 /gov_setup check
 /gov_setup install
+prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md
+# if this workspace was already active before first governance adoption:
+/gov_migrate
 /gov_audit
 ```
 
@@ -61,7 +64,7 @@ Then in OpenClaw chat:
 1. `gov_setup` with `install | upgrade | check`.
 2. `gov_migrate` for governance upgrades.
 3. `gov_audit` for 12/12 consistency checks.
-4. `gov_apply <NN>` for controlled BOOT proposal apply.
+4. `gov_apply <NN>` for controlled BOOT proposal apply (**Experimental**, controlled UAT only).
 5. `gov_openclaw_json` for controlled platform control-plane updates:
    - in scope: `~/.openclaw/openclaw.json`
    - in scope when explicitly needed: `~/.openclaw/extensions/`
@@ -71,13 +74,18 @@ Then in OpenClaw chat:
    - approval-based minimal diff + backup
    - rollback only when an approved backup exists
 
+## Feature maturity (important)
+1. GA flow for production rollout: `gov_setup -> gov_migrate -> gov_audit`, plus `gov_openclaw_json`, `gov_brain_audit`, `gov_uninstall`.
+2. Experimental flow: `gov_apply <NN>` (BOOT controlled apply) is included in deterministic runtime regression baseline, but remains controlled-UAT scope.
+3. If you use `gov_apply <NN>`, keep it in controlled UAT and always close with `/gov_migrate` then `/gov_audit`.
+
 ## When to use which command (quick map)
 1. Readiness decision first: `gov_setup check` (returns workspace status, trust readiness, and next action)
 2. First deployment path: `gov_setup install` (only after `check` says install path)
 3. Existing deployment update: `gov_setup upgrade` (only after `check` says upgrade path)
 4. Policy alignment after deploy/update: `gov_migrate`
 5. Final verification before claiming done: `gov_audit`
-6. Apply approved BOOT menu item only: `gov_apply <NN>`
+6. Apply approved BOOT menu item only (Experimental): `gov_apply <NN>`
 7. Edit OpenClaw platform config safely: `gov_openclaw_json`
 8. Review/harden Brain Docs safely: `gov_brain_audit -> gov_brain_audit APPROVE: ... -> gov_brain_audit ROLLBACK (if needed)`
 
@@ -107,6 +115,7 @@ Version check (operator-side):
 4. Include `WG_PLAN_GATE_OK` + `WG_READ_GATE_OK` in governance output, then retry.
 5. Prefer final response shape from `gov_*`: `STATUS` -> `WHY` -> `NEXT STEP (Operator)` -> `COMMAND TO COPY`.
 6. If `gov_setup upgrade` still reports gate deadlock, update plugin to latest + restart gateway, then rerun `gov_setup check` and `gov_setup upgrade`.
+7. Tool-exposure root-fix is enabled by default: governance plugin tools require explicit `/gov_*` intent (or `/skill gov_*`) in the current turn window.
 
 ## If slash routing is unstable
 Use fallback commands:
@@ -116,6 +125,7 @@ Use fallback commands:
 /skill gov_setup upgrade
 /skill gov_migrate
 /skill gov_audit
+# Experimental only:
 /skill gov_apply 01
 /skill gov_openclaw_json
 /skill gov_brain_audit

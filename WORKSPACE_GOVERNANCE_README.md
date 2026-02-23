@@ -14,7 +14,7 @@
 1. 安裝與升級路徑
 2. 日常治理流程
 3. 平台設定安全修改
-4. BOOT 受控套用
+4. BOOT 受控套用（Experimental）
 5. UAT 與故障排查
 
 ---
@@ -24,7 +24,8 @@
 1. Plugin 套件：
    - `@adamchanadam/openclaw-workspace-governance`
 2. 必備 skills：
-   - `gov_setup`、`gov_migrate`、`gov_audit`、`gov_apply`、`gov_openclaw_json`、`gov_brain_audit`
+   - GA：`gov_setup`、`gov_migrate`、`gov_audit`、`gov_openclaw_json`、`gov_brain_audit`、`gov_uninstall`
+   - Experimental：`gov_apply`
 3. 如 slash 路由不穩，改用 `/skill ...`。
 
 主機端檢查：
@@ -72,6 +73,11 @@ Fail-Closed 原則：
 4. Brain Docs 只讀題：先讀精確目標檔案
 5. Brain Docs 寫入題：Mode C + run report 必須有 `FILES_READ` + `TARGET_FILES_TO_CHANGE`
 
+工具暴露 root-fix（安全預設）：
+1. 治理 plugin tools 只會在當前回合出現明確 `/gov_*`（或 `/skill gov_*`）意圖時執行。
+2. 這個 fail-closed 行為可在 permissive tool-policy contexts 下縮小 untrusted-input 觸發面。
+3. 這不會取代一般 OpenClaw 使用；沒有明確治理意圖時，治理工具不會自動執行。
+
 ---
 
 ## 5) 檔案範圍地圖（重要）
@@ -102,14 +108,21 @@ Fail-Closed 原則：
 | `gov_migrate` | install/upgrade 後需做策略對齊 | 讓既有工作區行為對齊新治理規則 |
 | `gov_audit` | 變更後、宣稱完成前 | 以固定清單驗證證據，及早發現漂移 |
 | `gov_openclaw_json` | 需改平台控制面（`openclaw.json`/extensions） | 以備份/驗證/回退路徑進行最小改動 |
-| `gov_apply <NN>` | BOOT 已產生編號提案且人類已批准 | 僅執行已批准項目，避免臨時拼接變更 |
+| `gov_apply <NN>`（Experimental） | BOOT 已產生編號提案且人類已批准（受控 UAT） | 保留人工批准的單項套用路徑；不可當作無人值守 GA 自動化 |
 | `gov_brain_audit` | 需審核或修補 Brain Docs 風險語句 | 語義優先預覽、批准後才套用、可回退 |
+
+### 共用信任對齊分支（當 `gov_setup check` 回覆 allowlist/trust 未就緒時使用）
+
+```text
+/gov_openclaw_json
+/gov_setup check
+```
 
 ### A) 全新 OpenClaw / 全新工作區
 
 1. 安裝 plugin
 2. `gov_setup check`（同時檢查檔案狀態與信任清單是否就緒）
-3. 若回覆顯示 allowlist 未就緒（例如提示 `plugins.allow` 需要對齊）：先跑 `gov_openclaw_json`，再重跑 `gov_setup check`
+3. 若回覆顯示 allowlist 未就緒：先跑上面的共用信任對齊分支。
 4. `gov_setup install`
 5. 執行 bootstrap prompt（`OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`）
 6. `gov_audit`
@@ -118,7 +131,7 @@ Fail-Closed 原則：
 
 1. 安裝並啟用 plugin
 2. `gov_setup check`（同時檢查檔案狀態與信任清單是否就緒）
-3. 若回覆顯示 allowlist 未就緒（例如提示 `plugins.allow` 需要對齊）：先跑 `gov_openclaw_json`，再重跑 `gov_setup check`
+3. 若回覆顯示 allowlist 未就緒：先跑上面的共用信任對齊分支。
 4. `gov_setup install`
 5. 執行 bootstrap prompt
 6. 如工作區已在運作：`gov_migrate`
@@ -214,7 +227,12 @@ Fallback：
 
 ---
 
-## 8) BOOT 受控套用流程
+## 8) BOOT 受控套用流程（Experimental）
+
+成熟度邊界：
+1. 此流程僅建議用於受控 UAT 或人工覆核場景。
+2. `gov_apply` 已納入 deterministic runtime regression baseline。
+3. 正式 GA 落地不應依賴無人值守 `gov_apply` 自動執行。
 
 1. BOOT 先做只讀檢查，輸出編號提案
 2. 使用者批准指定編號
@@ -253,6 +271,8 @@ Fallback：
    - `gov_brain_audit` 會產生 findings + approval checklist
    - `gov_brain_audit APPROVE: ...` 會產生備份與 run report
    - `gov_brain_audit ROLLBACK` 可回復最近備份
+10. Optional Experimental UAT：
+   - 若 BOOT 產生且已批准 menu item，可驗證 `/gov_apply <NN>`，完成後必跑 `/gov_migrate` + `/gov_audit`
 
 ---
 

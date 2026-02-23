@@ -10,6 +10,10 @@ Source references:
 2. `VALUE_POSITIONING_AND_FACTORY_GAP.en.md`
 3. `README.md`
 4. `README.zh-HK.md`
+5. `dev/GOVERNANCE_MASTER_SPEC.md`
+6. `dev/GOVERNANCE_TRACEABILITY_MATRIX.md`
+7. `dev/GOVERNANCE_GAP_REGISTER.md`
+8. `dev/SESSION_HANDOFF.md`
 
 Must-preserve positioning:
 1. This project is an operational governance layer on top of OpenClaw, not a replacement for OpenClaw runtime.
@@ -23,17 +27,16 @@ Must-preserve functional pillars:
 1. Fixed lifecycle for write-capable work: `PLAN -> READ -> CHANGE -> QC -> PERSIST`.
 2. Compatibility SOP: governance must not falsely block official OpenClaw daily flows.
 3. Governance lifecycle chain must stay executable:
-   - `/gov_setup check/install/upgrade`
-   - `/gov_migrate`
-   - `/gov_audit`
-   - `/gov_openclaw_json`
-   - `/gov_apply <NN>`
-   - `/gov_brain_audit`
-4. BOOT model remains read-only proposal first, human approval second, controlled apply third.
+   - GA: `/gov_setup check/install/upgrade`, `/gov_migrate`, `/gov_audit`, `/gov_openclaw_json`, `/gov_brain_audit`, `/gov_uninstall`
+   - Experimental: `/gov_apply <NN>` (BOOT controlled apply; deterministic runner coverage exists, but rollout remains controlled-UAT).
+4. BOOT model remains read-only proposal first, human approval second, controlled apply third (`/gov_apply <NN>` only for approved item).
 5. Every block must be presented as governance policy gate (not system crash) with copy-paste remediation.
 6. Natural-language-first usage must remain first-class:
    - slash commands are recommended shortcuts, not the only usable interface.
-7. Cross-platform path compatibility must remain explicit:
+7. Tool-exposure root-fix must remain enabled by default:
+   - governance plugin tools require explicit `/gov_*` (or `/skill gov_*`) intent in current turn.
+   - no implicit auto-invocation from permissive tool policy contexts.
+8. Cross-platform path compatibility must remain explicit:
    - runtime-resolved workspace root
    - no Linux-only hardcoded assumptions
    - Windows/PowerShell path and quoting scenarios must stay supported.
@@ -110,12 +113,24 @@ Source references:
 
 `gov_apply <NN>`:
 1. Function:
-   - execute only approved BOOT menu item
+   - execute only approved BOOT menu item with deterministic runner (`tools/gov_apply_sync.mjs`)
 2. User value:
    - prevents ad-hoc unapproved patching
 3. Hard preserve:
    - strict item-id input contract
+   - requires BOOT menu context and selected item match
    - only approved item scope may be changed
+   - deterministic supported item families:
+     - `Elevate QC#<n> (...)`
+     - `Elevate Guard#<id> (...)`
+   - deterministic write scope:
+     - `_control/ACTIVE_GUARDS.md` append-only
+     - `_control/LESSONS.md` append-only
+     - `_control/WORKSPACE_INDEX.md` run-link append
+     - `_runs/<ts>_apply_upgrade_from_boot_v1.md`
+     - `archive/_apply_backup_<ts>/...`
+   - must end with migration/audit follow-up (`/gov_migrate`, `/gov_audit`)
+   - maturity boundary: keep Experimental until host UAT evidence is stable across releases
 
 `gov_openclaw_json`:
 1. Function:
@@ -152,6 +167,9 @@ These are release-blocking invariants:
    - `plugins update`/`gateway restart` should lead users to `check -> (if needed openclaw_json) -> upgrade -> migrate -> audit`.
 7. Unknown/new command evolution must remain operable via self-serve policy controls:
    - users can adjust runtime allow/deny policy safely through `gov_openclaw_json`.
+8. Explicit-invocation guard must not block explicit governance commands:
+   - explicit `/gov_*` remains allowed in permissive contexts
+   - implicit governance-tool invocation remains fail-closed by default.
 
 ## 6) Refactor Preservation Checklist (Use Before Merge)
 
@@ -159,5 +177,6 @@ Pass criteria:
 1. Every item in sections 1-5 is mapped to one executable test or one deterministic contract check.
 2. Refactor removes duplicated logic/text where possible, but does not weaken hard contracts.
 3. `dev/check_release_consistency.mjs` passes.
-4. `dev/run_runtime_regression.mjs` passes full summary denominator.
+4. `dev/run_runtime_regression.mjs` passes full summary denominator (current baseline: `28/28`).
 5. Public-flow and BOOT acceptance evidence is updated for the target release.
+6. If refactor touches `gov_apply`, public-flow `Phase B5` evidence is mandatory in release signoff.

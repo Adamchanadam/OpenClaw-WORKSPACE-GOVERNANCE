@@ -26,6 +26,8 @@ type GateState = {
   brainAuditRequiredReason?: string;
   brainAuditPreviewSeenAt: number;
   brainAuditNudgedAt: number;
+  govCommandIntentUntil: number;
+  toolExposureWarnedAt: number;
   writeSeen: boolean;
   blockedWrites: number;
   lastWriteTool?: string;
@@ -46,17 +48,38 @@ type RuntimeGatePolicyCompiled = {
   denyShellRegex: RegExp[];
 };
 
+type ToolExposureGuardMode = "enforce" | "advisory";
+
+type ToolExposureGuardConfig = {
+  enabled?: boolean;
+  mode?: ToolExposureGuardMode;
+  permissiveContexts?: string[];
+  allowExplicitGovCommands?: boolean;
+  requireExplicitGovCommandIntent?: boolean;
+};
+
+type ToolExposureGuardCompiled = {
+  enabled: boolean;
+  mode: ToolExposureGuardMode;
+  permissiveContexts: string[];
+  allowExplicitGovCommands: boolean;
+  requireExplicitGovCommandIntent: boolean;
+};
+
 const states = new Map<string, GateState>();
 const DEFAULT_SESSION = "__default__";
 const STATE_TTL_MS = 45 * 60 * 1000;
 const GOV_BYPASS_WINDOW_MS = 8 * 60 * 1000;
 const GOV_BYPASS_MAX_WRITES = 64;
 const GOV_SETUP_FLOW_WINDOW_MS = 12 * 60 * 1000;
+const GOV_COMMAND_INTENT_WINDOW_MS = 15 * 60 * 1000;
 const BRAIN_AUDIT_REQUIRE_WINDOW_MS = 30 * 60 * 1000;
 const BRAIN_AUDIT_NUDGE_COOLDOWN_MS = 5 * 60 * 1000;
 const BRAIN_AUDIT_BLOCK_THRESHOLD = 3;
+const TOOL_EXPOSURE_ADVISORY_COOLDOWN_MS = 3 * 60 * 1000;
 const POST_UPDATE_REMINDER_WINDOW_MS = 45 * 60 * 1000;
 const PRUNE_INTERVAL_MS = 60 * 1000;
+const DEFAULT_PERMISSIVE_TOOL_POLICY_CONTEXTS = ["default", "agents.list.main"];
 let lastPruneAt = 0;
 let globalGovBypassUntil = 0;
 let globalGovBypassWritesLeft = 0;
@@ -172,6 +195,12 @@ const OPENCLAW_FLAGS_WITH_VALUE = new Set([
   "-p",
 ]);
 
+const GOV_COMMAND_TOKEN_RE =
+  /\bgov_(setup|migrate|audit|apply|openclaw_json|brain_audit|uninstall)\b/i;
+
+const GOV_COMMAND_PAYLOAD_RE =
+  /(?:^|[\s`"'])\/?(?:skill\s+)?gov_(setup|migrate|audit|apply|openclaw_json|brain_audit|uninstall)\b/i;
+
 function normalizeShellPrefixList(input: unknown): string[] {
   if (!Array.isArray(input)) return [];
   const out: string[] = [];
@@ -208,6 +237,34 @@ function buildRuntimeGatePolicy(
     allowShellRegex: compileRegexList(cfg.allowShellRegex, logger, "allowShellRegex"),
     denyShellPrefixes: normalizeShellPrefixList(cfg.denyShellPrefixes),
     denyShellRegex: compileRegexList(cfg.denyShellRegex, logger, "denyShellRegex"),
+  };
+}
+
+function buildToolExposureGuard(
+  raw: unknown,
+  logger: { warn: (msg: string) => void },
+): ToolExposureGuardCompiled {
+  const cfg = (raw || {}) as ToolExposureGuardConfig;
+  const modeRaw = String(cfg.mode ?? "enforce").trim().toLowerCase();
+  let mode: ToolExposureGuardMode = "enforce";
+  if (modeRaw === "advisory") {
+    mode = "advisory";
+  } else if (modeRaw !== "enforce" && modeRaw) {
+    logger.warn(
+      `[governance-gate] invalid toolExposureGuard.mode ignored: ${String(cfg.mode)} (use enforce|advisory)`,
+    );
+  }
+
+  const permissiveContexts = normalizeShellPrefixList(cfg.permissiveContexts);
+  const normalizedContexts =
+    permissiveContexts.length > 0 ? permissiveContexts : DEFAULT_PERMISSIVE_TOOL_POLICY_CONTEXTS;
+
+  return {
+    enabled: cfg.enabled !== false,
+    mode,
+    permissiveContexts: normalizedContexts,
+    allowExplicitGovCommands: cfg.allowExplicitGovCommands !== false,
+    requireExplicitGovCommandIntent: cfg.requireExplicitGovCommandIntent !== false,
   };
 }
 
@@ -270,6 +327,8 @@ function ensureState(sessionKey: string): GateState {
     brainAuditRequiredReason: undefined,
     brainAuditPreviewSeenAt: 0,
     brainAuditNudgedAt: 0,
+    govCommandIntentUntil: 0,
+    toolExposureWarnedAt: 0,
     writeSeen: false,
     blockedWrites: 0,
     updatedAt: now,
@@ -417,6 +476,125 @@ function detectGovCommandMode(text: string, command: string): string {
     latest = String(m[3] || "").toLowerCase();
   }
   return latest;
+}
+
+function extractContextFingerprint(ctx: unknown): string {
+  if (!ctx || typeof ctx !== "object") return "";
+  const c = ctx as Record<string, unknown>;
+  const keyFields = [
+    c.channel,
+    c.profile,
+    c.profileName,
+    c.agent,
+    c.agentName,
+    c.agentId,
+    c.context,
+    c.contextName,
+    c.route,
+    c.path,
+    c.namespace,
+  ];
+  return `${flattenText(keyFields)} ${flattenText(c)}`.toLowerCase();
+}
+
+function matchedPermissivePolicyContexts(
+  ctx: unknown,
+  textHint: string,
+  guard: ToolExposureGuardCompiled,
+): string[] {
+  if (!guard.enabled || guard.permissiveContexts.length === 0) return [];
+  const haystack = `${extractContextFingerprint(ctx)} ${textHint}`.toLowerCase();
+  if (!haystack.trim()) return [];
+  const matches = guard.permissiveContexts.filter((token) => haystack.includes(token));
+  return Array.from(new Set(matches));
+}
+
+function hasExplicitGovCommandPayload(event: PluginHookBeforeToolCallEvent): boolean {
+  const payload = flattenText(event.params || "");
+  if (!payload.trim()) return false;
+  return GOV_COMMAND_PAYLOAD_RE.test(payload);
+}
+
+function isGovernancePluginToolCall(event: PluginHookBeforeToolCallEvent): boolean {
+  const tool = String(event.toolName || "").toLowerCase();
+  const payload = flattenText(event.params || "").toLowerCase();
+  if (!tool && !payload) return false;
+  if (tool.includes("openclaw-workspace-governance")) return true;
+  if (GOV_COMMAND_TOKEN_RE.test(tool)) return true;
+  if (GOV_COMMAND_PAYLOAD_RE.test(payload)) return true;
+  return false;
+}
+
+function toolExposureAdvisoryText(
+  lang: "en" | "zh",
+  contexts: string[],
+  explicitGate: boolean,
+): string {
+  const hasContext = contexts.length > 0;
+  const contextText = hasContext ? contexts.join(", ") : "unknown";
+  if (lang === "zh") {
+    const contextLine = hasContext
+      ? `偵測到 permissive tool policy context: ${contextText}。`
+      : "未收到可用的 policy context metadata，仍採 fail-closed。";
+    return [
+      "Governance 提示：已啟用安全入口閘。",
+      contextLine,
+      explicitGate
+        ? "為降低 untrusted input 觸發 plugin 能力的風險，governance 只接受顯式 `/gov_*` 指令入口。"
+        : "目前使用 permissive-context 策略，請在顯式 `/gov_*` 指令下執行 governance。",
+      "一般對話 agent 建議使用 restrictive profile（minimal/coding）或工具 allowlist 排除 governance plugin。",
+    ].join(" ");
+  }
+  const contextLine = hasContext
+    ? `Detected permissive tool policy context: ${contextText}.`
+    : "No policy-context metadata was provided; fail-closed is still active.";
+  return [
+    "Governance advisory: secure invocation gate is active.",
+    contextLine,
+    explicitGate
+      ? "To reduce untrusted-input tool exposure, governance accepts explicit `/gov_*` command entry only."
+      : "Permissive-context policy is active; run governance through explicit `/gov_*` commands.",
+    "Use restrictive profiles (`minimal`/`coding`) or explicit tool allowlists excluding governance plugin tools for general chat agents.",
+  ].join(" ");
+}
+
+function toolExposureBlockReason(
+  lang: "en" | "zh",
+  contexts: string[],
+  explicitGate: boolean,
+): string {
+  const hasContext = contexts.length > 0;
+  const contextText = hasContext ? contexts.join(", ") : "unknown";
+  if (lang === "zh") {
+    const causeLine = explicitGate
+      ? "已拒絕隱式 governance plugin 工具呼叫；只接受顯式 `/gov_*` 指令入口。"
+      : "已拒絕在 permissive context 下的隱式 governance plugin 工具呼叫。";
+    return [
+      "WORKSPACE_GOVERNANCE tool-exposure guard 已阻擋（這是治理策略閘，不是 OpenClaw 系統錯誤）。",
+      hasContext
+        ? `偵測到 permissive tool policy context: ${contextText}。`
+        : "未收到可用的 policy context metadata，採用 fail-closed。",
+      causeLine,
+      "可直接貼上下一步：",
+      "1) 由受信任操作者顯式輸入 `/gov_*` 指令（例如 `/gov_setup check`）。",
+      "2) 將一般對話 agent 改為 restrictive profile（`minimal`/`coding`）或工具 allowlist 排除 governance plugin。",
+      "3) 需要調整平台設定時，先用 `/gov_openclaw_json` 更新後重啟 gateway。",
+    ].join(" ");
+  }
+  const causeLine = explicitGate
+    ? "Implicit governance-plugin tool invocation is denied; only explicit `/gov_*` command entry is accepted."
+    : "Implicit governance-plugin tool invocation is denied in permissive contexts.";
+  return [
+    "WORKSPACE_GOVERNANCE tool-exposure guard blocked this action (governance policy gate, not an OpenClaw system error).",
+    hasContext
+      ? `Detected permissive tool policy context: ${contextText}.`
+      : "No policy-context metadata was provided; fail-closed policy is active.",
+    causeLine,
+    "Copy-paste next steps:",
+    "1) Have a trusted operator issue an explicit `/gov_*` command (for example `/gov_setup check`).",
+    "2) Move general chat agents to restrictive profiles (`minimal`/`coding`) or explicit tool allowlists excluding governance plugin tools.",
+    "3) If platform config changes are needed, run `/gov_openclaw_json`, then restart gateway.",
+  ].join(" ");
 }
 
 function isBrainAuditRequirementActive(state: GateState, now: number): boolean {
@@ -816,6 +994,11 @@ type RunnerResult = {
   missing_files?: string[];
   missing_sources?: string[];
   equality?: Array<{ id?: string; status?: string }>;
+  item_id?: string;
+  item_title?: string;
+  apply_type?: string;
+  menu_source?: string;
+  followup?: string[];
   [key: string]: unknown;
 };
 
@@ -979,6 +1162,32 @@ async function makeGovSetupCommandResponse(ctx: PluginCommandContext): Promise<s
     why.push(`workspace_gov_skill_dirs_reconciled=${String(data.workspace_gov_skill_dirs_reconciled.length)}`);
   }
   if (data.backup_root) why.push(`backup_root: ${String(data.backup_root)}`);
+  const allowStatus = String(data.allow_status || "ALLOW_NOT_SET");
+  const nextAction = String(data.next_action || "");
+  if (allowStatus !== "ALLOW_OK" || nextAction === "ALIGN_ALLOWLIST_THEN_CHECK") {
+    return formatCommandOutput(
+      "PASS_WITH_WARNING",
+      why,
+      i18n(lang, "Align allowlist first, then rerun check.", "先對齊 allowlist，再重跑 check。"),
+      ["/gov_openclaw_json", "/gov_setup check"],
+    );
+  }
+  if (mode === "install" || nextAction === "BOOTSTRAP_THEN_MIGRATE_AUDIT") {
+    return formatCommandOutput(
+      "PASS",
+      why,
+      i18n(
+        lang,
+        "Run bootstrap first. Then use migrate+audit for running workspaces, or audit for brand-new workspaces.",
+        "先跑 bootstrap。已有運作中的 workspace 再跑 migrate+audit；全新 workspace 直接跑 audit。",
+      ),
+      [
+        "prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md",
+        "/gov_migrate",
+        "/gov_audit",
+      ],
+    );
+  }
   return formatCommandOutput(
     "PASS",
     why,
@@ -1003,14 +1212,53 @@ async function makeGovMigrateCommandResponse(ctx: PluginCommandContext): Promise
   const equality = Array.isArray(data.equality) ? data.equality : [];
   const mismatch = equality.filter((x) => String(x.status || "") !== "MATCH");
   if (status !== "PASS") {
+    const reason = String(data.reason || "MIGRATION_BLOCKED");
+    const missing = Array.isArray((data as { missing?: unknown[] }).missing)
+      ? ((data as { missing?: unknown[] }).missing as unknown[])
+          .map((x) => String(x || ""))
+          .filter((x) => x.trim().length > 0)
+      : [];
+    const missingText = missing.map((p) => p.replace(/\\/g, "/"));
+    const hasMissingPrompts =
+      missingText.some((p) => p.endsWith("/prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md")) ||
+      missingText.some((p) => p.endsWith("/prompts/governance/WORKSPACE_GOVERNANCE_MIGRATION.md"));
+    const hasMissingControl =
+      missingText.some((p) => p.endsWith("/_control/GOVERNANCE_BOOTSTRAP.md")) ||
+      missingText.some((p) => p.endsWith("/_control/REGRESSION_CHECK.md")) ||
+      missingText.some((p) => p.endsWith("/_control/WORKSPACE_INDEX.md"));
     const why = [
       `status: ${status}`,
-      `reason: ${String(data.reason || "MIGRATION_BLOCKED")}`,
+      `reason: ${reason}`,
       mismatch.length > 0
         ? `canonical_mismatch: ${mismatch.map((x) => String(x.id || "unknown")).join(", ")}`
         : "canonical_mismatch: none",
+      missingText.length > 0 ? `missing_required:\n${toTextList(missingText)}` : "",
       data.run_report ? `run_report: ${String(data.run_report)}` : "",
     ].filter(Boolean);
+    if (reason === "MISSING_REQUIRED_FILES" && hasMissingPrompts) {
+      return formatCommandOutput(
+        "BLOCKED",
+        why,
+        i18n(
+          lang,
+          "Governance prompts are missing. Run setup upgrade first, then retry migration.",
+          "缺少 governance prompts。先跑 setup upgrade，再重試 migration。",
+        ),
+        ["/gov_setup upgrade", "/gov_migrate"],
+      );
+    }
+    if (reason === "MISSING_REQUIRED_FILES" && hasMissingControl) {
+      return formatCommandOutput(
+        "BLOCKED",
+        why,
+        i18n(
+          lang,
+          "Bootstrap files are missing. Run bootstrap document first, then retry migration.",
+          "缺少 bootstrap 產生的 _control 檔。先跑 bootstrap 文件，再重試 migration。",
+        ),
+        ["prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md", "/gov_migrate"],
+      );
+    }
     return formatCommandOutput(
       "BLOCKED",
       why,
@@ -1026,6 +1274,107 @@ async function makeGovMigrateCommandResponse(ctx: PluginCommandContext): Promise
     ].filter(Boolean),
     i18n(lang, "Run audit now.", "請立即執行 audit。"),
     ["/gov_audit"],
+  );
+}
+
+async function makeGovApplyCommandResponse(ctx: PluginCommandContext): Promise<string> {
+  const lang = pickCommandLanguage(ctx);
+  const itemId = parseModeArg(ctx);
+  if (!/^\d{2}$/.test(itemId)) {
+    return formatCommandOutput(
+      "BLOCKED",
+      [
+        i18n(
+          lang,
+          `Invalid item id: ${itemId || "(empty)"}. Use two digits like 01.`,
+          `item id 無效：${itemId || "（空白）"}。請使用兩位數，例如 01。`,
+        ),
+      ],
+      i18n(lang, "Retry with one approved BOOT item number.", "請用已批准的 BOOT 兩位數編號重試。"),
+      ["/gov_apply 01", "fallback: /skill gov_apply 01"],
+    );
+  }
+
+  const runner = await runInProcessRunner("tools/gov_apply_sync.mjs", "runGovApplySync", [itemId]);
+  if (!runner.ok || !runner.data) {
+    return formatCommandOutput(
+      "BLOCKED",
+      [i18n(lang, `deterministic runner failed: ${runner.err || "unknown error"}`, `deterministic runner 失敗：${runner.err || "未知錯誤"}`)],
+      i18n(lang, "Check plugin install path and retry apply.", "請檢查 plugin 安裝路徑後重試 apply。"),
+      ["/gov_setup check", "/gov_apply 01"],
+    );
+  }
+
+  const data = runner.data;
+  const status = String(data.status || "BLOCKED").toUpperCase();
+  if (status !== "PASS") {
+    const reason = String(data.reason || "APPLY_BLOCKED");
+    const missing = Array.isArray(data.missing_files)
+      ? data.missing_files.map((x) => String(x)).filter((x) => x.trim().length > 0)
+      : [];
+    const availableItems = Array.isArray(data.available_items)
+      ? data.available_items.map((x) => String(x)).filter((x) => x.trim().length > 0)
+      : [];
+    const why = [
+      `status: ${status}`,
+      `reason: ${reason}`,
+      `item_id: ${itemId}`,
+      missing.length > 0 ? `missing_files:\n${toTextList(missing)}` : "",
+      availableItems.length > 0 ? `available_items: ${availableItems.join(", ")}` : "",
+      data.run_report ? `run_report: ${String(data.run_report)}` : "",
+    ].filter(Boolean);
+
+    if (reason === "BOOT_MENU_MISSING" || reason === "MENU_ITEM_NOT_FOUND") {
+      return formatCommandOutput(
+        "BLOCKED",
+        why,
+        i18n(
+          lang,
+          "Refresh BOOT menu context first, then retry one approved item.",
+          "先刷新 BOOT menu 上下文，再重試已批准項目。",
+        ),
+        [
+          "prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md",
+          `/gov_apply ${itemId}`,
+        ],
+      );
+    }
+    if (reason === "MISSING_REQUIRED_FILES") {
+      return formatCommandOutput(
+        "BLOCKED",
+        why,
+        i18n(
+          lang,
+          "Required governance files are missing. Run setup upgrade, then rerun apply.",
+          "缺少必要 governance 檔案。先跑 setup upgrade，再重試 apply。",
+        ),
+        ["/gov_setup upgrade", `/gov_apply ${itemId}`],
+      );
+    }
+    return formatCommandOutput(
+      "BLOCKED",
+      why,
+      i18n(
+        lang,
+        "Fix blocker, then rerun one approved BOOT item.",
+        "先修復阻擋，再重試已批准 BOOT 項目。",
+      ),
+      [`/gov_apply ${itemId}`, "/gov_migrate", "/gov_audit"],
+    );
+  }
+
+  return formatCommandOutput(
+    "PASS",
+    [
+      `item_id: ${String(data.item_id || itemId)}`,
+      `item_title: ${String(data.item_title || "n/a")}`,
+      `apply_type: ${String(data.apply_type || "n/a")}`,
+      `menu_source: ${String(data.menu_source || "n/a")}`,
+      `backup_root: ${String(data.backup_root || "n/a")}`,
+      data.run_report ? `run_report: ${String(data.run_report)}` : "",
+    ].filter(Boolean),
+    i18n(lang, "Run migration, then audit.", "先跑 migration，再跑 audit。"),
+    ["/gov_migrate", "/gov_audit"],
   );
 }
 
@@ -1203,6 +1552,13 @@ function registerDeterministicGovCommands(api: OpenClawPluginApi): void {
     handler: async (ctx: PluginCommandContext) => ({ text: await makeGovMigrateCommandResponse(ctx) }),
   });
   api.registerCommand({
+    name: "gov_apply",
+    description: "Deterministic BOOT-approved governance apply runner.",
+    acceptsArgs: true,
+    requireAuth: true,
+    handler: async (ctx: PluginCommandContext) => ({ text: await makeGovApplyCommandResponse(ctx) }),
+  });
+  api.registerCommand({
     name: "gov_uninstall",
     description: "Deterministic governance uninstall/check runner.",
     acceptsArgs: true,
@@ -1216,7 +1572,7 @@ function registerDeterministicGovCommands(api: OpenClawPluginApi): void {
     requireAuth: true,
     handler: async (ctx: PluginCommandContext) => ({ text: await makeGovAuditCommandResponse(ctx) }),
   });
-  api.logger.info("[governance-command] registered deterministic commands: gov_setup, gov_migrate, gov_uninstall, gov_audit");
+  api.logger.info("[governance-command] registered deterministic commands: gov_setup, gov_migrate, gov_apply, gov_uninstall, gov_audit");
 }
 
 function maybePruneExpiredStates(): void {
@@ -1232,10 +1588,12 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
   const cfg = (api.pluginConfig || {}) as {
     runtimeGateEnabled?: boolean;
     runtimeGatePolicy?: RuntimeGatePolicyConfig;
+    toolExposureGuard?: ToolExposureGuardConfig;
   };
   registerDeterministicGovCommands(api);
   const runtimeGateEnabled = cfg.runtimeGateEnabled !== false;
   const runtimeGatePolicy = buildRuntimeGatePolicy(cfg.runtimeGatePolicy, api.logger);
+  const toolExposureGuard = buildToolExposureGuard(cfg.toolExposureGuard, api.logger);
   if (!runtimeGateEnabled) {
     api.logger.warn("[governance-gate] runtime hard gate is disabled by plugin config.");
     return;
@@ -1290,8 +1648,15 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
         !hostMaintenanceIntentUser &&
         !runtimePolicyAllowIntentUser &&
         (inferWriteIntent(userText) || govRequestKindTail === "write");
+      const explicitGovCommandRequested =
+        govRequestKindUser !== "none" || govRequestKindTail !== "none";
       const explicitGovEntrypoint = govRequestKind === "write" || govRequestKindTail === "write";
       const now = Date.now();
+      const permissiveContextMatches = matchedPermissivePolicyContexts(
+        ctx,
+        `${latestUserTurn}\n${tailText}`,
+        toolExposureGuard,
+      );
 
       state.planSeen = state.planSeen || hasPlanEvidence(tailText);
       state.readSeen = state.readSeen || hasReadEvidence(tailText);
@@ -1319,6 +1684,9 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
           state.brainAuditRequiredReason = undefined;
           state.blockedWrites = 0;
         }
+      }
+      if (explicitGovCommandRequested) {
+        state.govCommandIntentUntil = now + GOV_COMMAND_INTENT_WINDOW_MS;
       }
       if (explicitGovEntrypoint) {
         // gov_* entrypoints are dedicated governance workflows; allow them to execute
@@ -1446,6 +1814,23 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
             routeHintText,
         };
       }
+      if (
+        toolExposureGuard.enabled &&
+        permissiveContextMatches.length > 0 &&
+        !explicitGovCommandRequested &&
+        now - state.toolExposureWarnedAt > TOOL_EXPOSURE_ADVISORY_COOLDOWN_MS
+      ) {
+        state.toolExposureWarnedAt = now;
+        state.updatedAt = now;
+        states.set(sessionKey, state);
+        return {
+          prependContext: toolExposureAdvisoryText(
+            state.uxLang,
+            permissiveContextMatches,
+            toolExposureGuard.requireExplicitGovCommandIntent,
+          ),
+        };
+      }
       return;
     },
     { priority: 200 },
@@ -1460,6 +1845,7 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
       maybePruneExpiredStates();
       const sessionKey = toSessionKey(ctx);
       const state = ensureState(sessionKey);
+      const now = Date.now();
       const toolName = (event.toolName || "").toLowerCase();
       const shellLike = isShellLikeTool(toolName);
       const shellCommand = shellLike
@@ -1467,22 +1853,65 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
         : "";
 
       if (shellLike && isUpdateCommandNeedingGovReminder(shellCommand)) {
-        const ts = Date.now();
         state.postUpdateReminderPending = true;
-        state.postUpdateReminderAt = ts;
-        state.updatedAt = ts;
+        state.postUpdateReminderAt = now;
+        state.updatedAt = now;
         states.set(sessionKey, state);
       }
 
       if (isReadToolCall(event)) {
         state.readSeen = true;
-        state.updatedAt = Date.now();
+        state.updatedAt = now;
         states.set(sessionKey, state);
+      }
+
+      const permissiveContextMatches = matchedPermissivePolicyContexts(
+        ctx,
+        "",
+        toolExposureGuard,
+      );
+      const isImplicitGovernanceToolCall =
+        isGovernancePluginToolCall(event) &&
+        !(
+          toolExposureGuard.allowExplicitGovCommands &&
+          (now <= state.govCommandIntentUntil || hasExplicitGovCommandPayload(event))
+        );
+      const shouldBlockImplicitGovernanceToolCall =
+        isImplicitGovernanceToolCall &&
+        (
+          toolExposureGuard.requireExplicitGovCommandIntent ||
+          permissiveContextMatches.length > 0
+        );
+      if (
+        toolExposureGuard.enabled &&
+        shouldBlockImplicitGovernanceToolCall
+      ) {
+        if (toolExposureGuard.mode === "advisory") {
+          api.logger.warn(
+            `[governance-gate] tool-exposure advisory only: ${toolExposureAdvisoryText(
+              state.uxLang,
+              permissiveContextMatches,
+              toolExposureGuard.requireExplicitGovCommandIntent,
+            )}`,
+          );
+        } else {
+          state.blockedWrites += 1;
+          state.lastWriteTool = event.toolName;
+          state.updatedAt = now;
+          states.set(sessionKey, state);
+          return {
+            block: true,
+            blockReason: toolExposureBlockReason(
+              state.uxLang,
+              permissiveContextMatches,
+              toolExposureGuard.requireExplicitGovCommandIntent,
+            ),
+          };
+        }
       }
 
       if (!isWriteToolCall(event)) return;
 
-      const now = Date.now();
       const isOpenClawSystemChannel =
         shellLike && isOpenClawHostMaintenanceCommand(shellCommand);
       const runtimePolicyDenied =
@@ -1627,6 +2056,7 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
       state.govEntrypointSeen = false;
       state.govBypassUntil = 0;
       state.govBypassWritesLeft = 0;
+      state.govCommandIntentUntil = 0;
       if (Date.now() > globalGovBypassUntil) {
         globalGovBypassWritesLeft = 0;
       }

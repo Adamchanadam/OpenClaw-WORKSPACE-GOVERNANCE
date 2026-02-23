@@ -12,9 +12,11 @@ Important:
 
 Release is blocked if any of these fail:
 1. Official `openclaw ...` system-channel flows are falsely blocked by governance.
-2. Governance lifecycle (`gov_setup`, `gov_migrate`, `gov_audit`, `gov_openclaw_json`, `gov_brain_audit`, `gov_uninstall`) dead-locks itself.
+2. Governance lifecycle (`gov_setup`, `gov_migrate`, `gov_apply`, `gov_audit`, `gov_openclaw_json`, `gov_brain_audit`, `gov_uninstall`) dead-locks itself.
 3. BLOCK messages do not clearly say this is governance safety gate (not OpenClaw system error) and do not provide copy-paste unblock steps.
 4. Upgrade path (`plugins update` -> `gov_setup upgrade` -> `gov_migrate` -> `gov_audit`) cannot complete on existing workspace.
+5. First-install path misroutes users from `/gov_setup install` directly into `/gov_migrate` before bootstrap.
+6. When `/gov_migrate` is blocked by missing bootstrap `_control/*` files, remediation does not explicitly route to bootstrap document first.
 
 ## 1) Test Environment Matrix
 
@@ -71,6 +73,7 @@ Run in OpenClaw TUI:
 4. `/gov_setup upgrade`
 5. `/gov_migrate`
 6. `/gov_audit`
+7. `/gov_apply <NN>` (only when an approved BOOT menu item exists)
 
 Expected:
 1. No dead-lock where governance blocks governance lifecycle itself.
@@ -78,9 +81,28 @@ Expected:
 3. Migration canonical checks run after change path (no pre-change historical mismatch hard-stop).
 4. Explicit `/gov_setup upgrade` must execute upgrade workflow (or `PASS: already up-to-date`), never `SKIPPED (No-op upgrade)`.
 5. After upgrade, legacy `<workspace>/skills/gov_*` shadow copies (if any) are reconciled into `archive/_gov_setup_shadow_backup_<ts>/...`.
-6. `gov_setup` / `gov_migrate` / `gov_audit` should execute deterministic plugin command handlers first (not LLM free-form skill reasoning path).
+6. `gov_setup` / `gov_migrate` / `gov_apply` / `gov_audit` should execute deterministic plugin command handlers first (not LLM free-form skill reasoning path).
 7. `/gov_uninstall check` must detect governance residuals after prior install/bootstrap.
 8. `/gov_uninstall uninstall` must clear governance residuals with backup + run report and restore legacy files from `archive/_bootstrap_backup_*` when present.
+
+## 4.0) Phase B0: First-Install + Control-Plane Alignment (Mandatory)
+
+Goal: make first adoption deterministic, including trust/allowlist remediation path.
+
+Run in OpenClaw TUI:
+1. `/gov_setup check`
+2. If check says allowlist/trust not ready, run `/gov_openclaw_json`
+3. `/gov_setup check` (confirm allowlist/trust aligned)
+4. `/gov_setup install`
+5. Run bootstrap document:
+   - `prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`
+6. `/gov_audit`
+
+Expected:
+1. `/gov_setup check` must provide deterministic next action for both trust-ready and trust-not-ready branches.
+2. Trust-not-ready branch must explicitly route to `/gov_openclaw_json` first.
+3. `/gov_setup install` must complete without misleading direct-migrate instruction before bootstrap.
+4. Bootstrap + audit path must complete on first-install workspace.
 
 ## 4.1) Phase B2: Uninstall Cleanup Integrity (Must not leave governance residue)
 
@@ -94,6 +116,151 @@ Expected:
 2. Uninstall returns `PASS` and writes `_runs/gov_uninstall_<ts>.md`.
 3. Post-uninstall check returns `CLEAN` (or residual only if explicitly warned/manual by runner).
 4. Uninstall creates `archive/_gov_uninstall_backup_<ts>/...` and never performs destructive remove without backup.
+
+## 4.2) Phase B3: First-Install Bootstrap Routing Integrity (Regression-Critical)
+
+Goal: prevent install-flow self-lock where users are told to run migrate before bootstrap assets exist.
+
+Precondition (new workspace case):
+1. Governance prompts are deployable via `/gov_setup install`.
+2. Bootstrap-generated files are absent before bootstrap:
+   - `_control/GOVERNANCE_BOOTSTRAP.md`
+   - `_control/REGRESSION_CHECK.md`
+   - `_control/WORKSPACE_INDEX.md`
+
+Run in OpenClaw TUI:
+1. `/gov_setup check` (expect `NOT_INSTALLED` on clean workspace).
+2. `/gov_setup install`.
+3. Verify install response `NEXT STEP` requires bootstrap document first:
+   - `prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`
+4. Negative-path guard test: run `/gov_migrate` before bootstrap.
+5. Verify migrate response is `BLOCKED` with:
+   - `reason: MISSING_REQUIRED_FILES`
+   - missing `_control/*` evidence in `WHY`
+   - remediation points to bootstrap document first (not only `/gov_setup upgrade`)
+6. Run bootstrap document, then `/gov_migrate`, then `/gov_audit`.
+
+Expected:
+1. No misleading "install -> migrate immediately" guidance on first install.
+2. Missing bootstrap prerequisites are diagnosed with explicit file evidence.
+3. Recovery route is deterministic: bootstrap first, then migrate/audit.
+4. After bootstrap, migrate/audit path should proceed normally.
+
+## 4.3) Phase B4: Migrate Deep-Dive (Grounded Failure Matrix)
+
+Goal: validate `/gov_migrate` behavior against real operator failure surfaces, not only happy-path.
+
+Case M1 - Missing bootstrap `_control/*`:
+1. Preconditions:
+   - `prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md` exists
+   - `prompts/governance/WORKSPACE_GOVERNANCE_MIGRATION.md` exists
+   - `_control/GOVERNANCE_BOOTSTRAP.md` and/or `_control/REGRESSION_CHECK.md` missing
+2. Run: `/gov_migrate`
+3. Expect:
+   - `BLOCKED`
+   - `reason: MISSING_REQUIRED_FILES`
+   - `WHY` includes missing path evidence
+   - remediation points to bootstrap doc first:
+     - `prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md`
+
+Case M2 - Missing governance prompts:
+1. Preconditions:
+   - target files (`AGENTS.md`, `_control/GOVERNANCE_BOOTSTRAP.md`, `_control/REGRESSION_CHECK.md`) exist
+   - canonical or migration prompt missing under `prompts/governance/`
+2. Run: `/gov_migrate`
+3. Expect:
+   - `BLOCKED`
+   - `reason: MISSING_REQUIRED_FILES`
+   - remediation points to `/gov_setup upgrade` first (not bootstrap-only wording)
+
+Case M3 - Stale migration contract text:
+1. Preconditions:
+   - `WORKSPACE_GOVERNANCE_MIGRATION.md` missing either required clause:
+     - `Do NOT run canonical equality as a pre-change blocker`
+     - `CHANGE first, then canonical equality at QC`
+2. Run: `/gov_migrate`
+3. Expect:
+   - `BLOCKED`
+   - `reason: STALE_MIGRATION_PROMPT_CONTRACT`
+   - deterministic recovery: `/gov_setup upgrade` then rerun migrate
+
+Case M4 - Target marker missing:
+1. Preconditions:
+   - one target file exists but missing corresponding AUTOGEN marker pair
+2. Run: `/gov_migrate`
+3. Expect:
+   - `BLOCKED`
+   - `reason: TARGET_MARKER_MISSING`
+   - output identifies marker + target path
+
+Case M5 - Drift auto-repair pass:
+1. Preconditions:
+   - marker exists in all target files
+   - marker inner content intentionally drifted from canonical
+2. Run: `/gov_migrate`
+3. Expect:
+   - auto-repair pass applied
+   - final status `PASS`
+   - `equality` shows 3/3 `MATCH` in run report
+
+Case M6 - Persistence evidence integrity:
+1. For every M1-M5 run, verify `_runs/migrate_governance_rev6_<ts>.md` is created.
+2. Verify run report includes:
+   - `FILES_READ`
+   - `TARGET_FILES_TO_CHANGE`
+   - status/reason fields
+3. If `_control/WORKSPACE_INDEX.md` exists, verify run link is appended or already present.
+
+## 4.4) Phase B5: BOOT Apply Deep-Dive (Experimental, Deterministic)
+
+Goal: validate deterministic `/gov_apply <NN>` behavior on real operator paths.
+
+Case A1 - Invalid input contract:
+1. Run: `/gov_apply abc`
+2. Expect:
+   - `BLOCKED`
+   - reason indicates invalid item id
+   - remediation includes `/gov_apply 01`
+
+Case A2 - Missing BOOT menu context:
+1. Preconditions:
+   - governance core files exist
+   - `_runs/` has no report containing `BOOT UPGRADE MENU (BOOT+APPLY v1)`
+2. Run: `/gov_apply 01`
+3. Expect:
+   - `BLOCKED`
+   - `reason: BOOT_MENU_MISSING`
+   - remediation routes to bootstrap/BOOT menu refresh first
+
+Case A3 - QC recurrence apply path:
+1. Preconditions:
+   - latest BOOT menu report includes: `01) Elevate QC#<n> (...)`
+2. Run: `/gov_apply 01`
+3. Expect:
+   - `PASS`
+   - `_control/ACTIVE_GUARDS.md` gets one appended recurrence guard
+   - `_control/LESSONS.md` gets one appended lesson entry
+   - run report created: `_runs/<ts>_apply_upgrade_from_boot_v1.md`
+   - next-step chain: `/gov_migrate` then `/gov_audit`
+
+Case A4 - Guard escalation apply path:
+1. Preconditions:
+   - latest BOOT menu report includes: `01) Elevate Guard#<id> (...)`
+   - corresponding guard exists in `_control/ACTIVE_GUARDS.md`
+2. Run: `/gov_apply 01`
+3. Expect:
+   - `PASS`
+   - `_control/LESSONS.md` gets escalation lesson entry
+   - run report created with selected item + apply_type evidence
+
+Case A5 - Missing required files:
+1. Preconditions:
+   - one required apply file missing (for example `_control/ACTIVE_GUARDS.md`)
+2. Run: `/gov_apply 01`
+3. Expect:
+   - `BLOCKED`
+   - `reason: MISSING_REQUIRED_FILES`
+   - remediation routes to `/gov_setup upgrade` then retry
 
 ## 5) Phase C: Natural-Language User Flows (Public behavior)
 
@@ -122,6 +289,17 @@ Then verify recovery:
 
 Mixed-command guard:
 1. Command pattern mixing system + non-system write (for example `openclaw ... && Copy-Item ...`) must not be auto-allowed by system-channel bypass.
+
+Permissive-context governance tool exposure guard:
+1. In a known permissive context (for example `default` or `agents.list.main`), attempt an implicit governance plugin tool invocation without explicit `/gov_*` user command.
+2. Confirm result is `BLOCKED` with wording that this is governance tool-exposure policy gate (not OpenClaw system crash).
+3. Confirm remediation says to use restrictive profile/tool allowlist for general chat agents.
+4. In the same permissive context, run explicit `/gov_setup check` (or another explicit `/gov_*`) and confirm governance command path is allowed.
+
+Root-fix explicit-invocation guard (installation default):
+1. In any context (including when policy-context metadata is missing), attempt implicit governance plugin tool invocation without explicit `/gov_*` intent.
+2. Confirm result is `BLOCKED` (fail-closed) and remediation asks for explicit `/gov_*`.
+3. Run explicit `/gov_setup check`, then confirm governance command path is allowed.
 
 ## 7) Phase E: Post-Update Guidance UX
 
@@ -180,10 +358,15 @@ Execution template:
 All required phases must pass:
 1. Phase A
 2. Phase B
-3. Phase C
-4. Phase D
-5. Phase F
-6. Phase G
+3. Phase B0
+4. Phase B2
+5. Phase B3
+6. Phase B4
+7. Phase B5 (when release touches `gov_apply` command/runner/contract)
+8. Phase C
+9. Phase D
+10. Phase F
+11. Phase G
 
 Phase E is best-effort for host/runtime hint channel, but manual upgrade chain must pass.
 

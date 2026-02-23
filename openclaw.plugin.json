@@ -2,7 +2,7 @@
   "id": "openclaw-workspace-governance",
   "name": "OpenClaw Workspace Governance",
   "description": "Workspace governance lifecycle for OpenClaw: bootstrap, migrate, audit, and controlled BOOT apply.",
-  "version": "0.1.40",
+  "version": "0.1.41",
   "skills": [
     "./skills"
   ],
@@ -47,6 +47,44 @@
               "type": "string"
             },
             "description": "Case-insensitive regex rules that are always blocked by governance runtime policy."
+          }
+        }
+      },
+      "toolExposureGuard": {
+        "type": "object",
+        "description": "Guard governance plugin entrypoints in permissive tool-policy contexts. Designed to reduce untrusted-input trigger risk while still allowing explicit `/gov_*` operator commands.",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "default": true,
+            "description": "Enable permissive-context governance tool exposure guard."
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "enforce",
+              "advisory"
+            ],
+            "default": "enforce",
+            "description": "`enforce` blocks implicit governance tool calls in permissive contexts; `advisory` only logs/warns."
+          },
+          "permissiveContexts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Context/profile identifiers treated as permissive. Defaults to [`default`, `agents.list.main`]."
+          },
+          "allowExplicitGovCommands": {
+            "type": "boolean",
+            "default": true,
+            "description": "Allow explicit `/gov_*` operator commands even in permissive contexts."
+          },
+          "requireExplicitGovCommandIntent": {
+            "type": "boolean",
+            "default": true,
+            "description": "Fail-closed root-fix: governance plugin tools only run when there is explicit `/gov_*` intent in the current turn window. This works even when policy-context metadata is unavailable."
           }
         }
       }

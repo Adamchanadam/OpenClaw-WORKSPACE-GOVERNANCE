@@ -337,6 +337,12 @@ function executeGovSetupSync(modeInput) {
   const postStates = collectFileStates(workspaceRoot);
   const postSummary = summarizeStates(postStates.states);
   const passDetail = changedCount === 0 ? "already up-to-date (upgrade executed with verification)" : "updated";
+  const nextAction =
+    allow.allow_status !== "ALLOW_OK"
+      ? "ALIGN_ALLOWLIST_THEN_CHECK"
+      : mode === "install"
+        ? "BOOTSTRAP_THEN_MIGRATE_AUDIT"
+        : "MIGRATE_AUDIT";
 
   return {
     exitCode: 0,
@@ -353,7 +359,7 @@ function executeGovSetupSync(modeInput) {
       copied_files: copied,
       file_sync_summary_after: postSummary,
       workspace_gov_skill_dirs_reconciled: shadowMoves,
-      next_action: allow.allow_status === "ALLOW_OK" ? "MIGRATE_AUDIT" : "ALIGN_ALLOWLIST_THEN_CHECK",
+      next_action: nextAction,
     },
   };
 }

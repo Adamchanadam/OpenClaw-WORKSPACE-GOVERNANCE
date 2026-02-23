@@ -49,13 +49,23 @@ These are workflow-gate problems, not only model-quality problems.
 1. Fixed execution order: `PLAN -> READ -> CHANGE -> QC -> PERSIST`
 2. Fail-Closed default when evidence is missing
 3. Mode routing for conversation vs verified-answer vs write tasks
-4. BOOT read-only proposals with human-approved controlled apply
+4. BOOT read-only proposals with human-approved controlled apply (Experimental maturity)
 5. Run-report traceability for review and recurrence reduction
 6. Conservative Brain Docs hardening (`gov_brain_audit`) with preview-first approval and rollback
 
+## 5) Maturity Boundary (Current)
+
+GA baseline today:
+1. `gov_setup`, `gov_migrate`, `gov_audit`, `gov_openclaw_json`, `gov_brain_audit`, `gov_uninstall`
+2. Runtime hard-gate and explicit governance-command intent guard
+
+Experimental today:
+1. `gov_apply <NN>` (BOOT controlled apply)
+2. Keep it in controlled UAT with explicit human approval and closeout (`/gov_migrate`, `/gov_audit`)
+
 ---
 
-## 5) User Value (Non-Technical)
+## 6) User Value (Non-Technical)
 
 1. Fewer avoidable breakages
 2. Less manual cleanup after wrong edits
@@ -64,7 +74,7 @@ These are workflow-gate problems, not only model-quality problems.
 
 ---
 
-## 6) Boundaries (No Over-Selling)
+## 7) Boundaries (No Over-Selling)
 
 This project helps reduce risk, but it does not:
 1. Make any model error-free
@@ -78,7 +88,7 @@ Expected outcome:
 
 ---
 
-## 7) Where to Go Next
+## 8) Where to Go Next
 
 1. If you are new: start at [`README.md`](./README.md)
 2. If you need exact steps: use [`WORKSPACE_GOVERNANCE_README.en.md`](./WORKSPACE_GOVERNANCE_README.en.md)
@@ -86,7 +96,7 @@ Expected outcome:
 
 ---
 
-## 8) Official References
+## 9) Official References
 
 1. https://docs.openclaw.ai/concepts/context
 2. https://docs.openclaw.ai/concepts/system-prompt

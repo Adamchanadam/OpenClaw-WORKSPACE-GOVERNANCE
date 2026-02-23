@@ -40,9 +40,10 @@ Use a dual-channel release model:
 Do not publish if any gate below fails:
 
 1. `node dev/check_release_consistency.mjs` must return `ALL_CHECKS_PASS`.
-2. `node dev/run_runtime_regression.mjs` must return `SUMMARY 11/11 passed`.
-3. Public-flow regression required phases must pass (`A/B/C/D/F/G`) per:
+2. `node dev/run_runtime_regression.mjs` must return full-pass summary (current baseline: `SUMMARY 28/28 passed`).
+3. Public-flow regression required phases must pass (`A/B/B0/B2/B3/B4/C/D/F/G`) per:
    - `dev/OPENCLAW_PUBLIC_FLOW_REGRESSION.md`
+   - plus `B5` when release touches `gov_apply` command/runner/contract.
 4. BOOT post-flow acceptance must be recorded and pass:
    - `dev/BOOT_POSTFLOW_ACCEPTANCE_TEMPLATE.md` with `G1=PASS` and `G2=PASS`.
 5. If any gate fails, mark release as `BLOCKED`, fix issue, rerun full gate set; partial reruns are not valid signoff.
@@ -115,9 +116,10 @@ npx clawhub inspect openclaw-workspace-governance-installer --versions --json
    - `openclaw plugins update openclaw-workspace-governance` + `openclaw gateway restart` for existing installed users
    - `OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md` (new workspace case)
    - `/gov_migrate` and `/gov_audit` (running workspace case)
-4. Confirm BOOT flow:
+4. Optional Experimental BOOT flow UAT:
    - `boot-md` enabled
-   - `/gov_apply <NN>` works after BOOT menu approval.
+   - `/gov_apply <NN>` verified only in controlled test workspace after BOOT menu approval
+   - if this fails, keep `gov_apply` tagged Experimental and track issue; do not market it as GA
 5. Confirm Brain Docs auditor flow:
    - `/gov_brain_audit`
    - `/gov_brain_audit APPROVE: APPLY_ALL_SAFE`

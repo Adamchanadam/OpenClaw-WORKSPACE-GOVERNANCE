@@ -11,6 +11,9 @@ This folder stores governance regression and release-gate validation assets.
 2. `OPENCLAW_PUBLIC_FLOW_REGRESSION.md`
    - Full public-user workflow regression plan.
    - Covers CLI/TUI/natural-language/lifecycle/UX + BOOT post-flow integrity scenarios as release criteria.
+   - Includes first-install bootstrap routing integrity guard (prevents install->migrate misroute before bootstrap).
+   - Includes mandatory first-install control-plane alignment branch (`/gov_setup check` -> `/gov_openclaw_json` when needed -> `/gov_setup install`).
+   - Includes grounded migrate failure matrix (`MISSING_REQUIRED_FILES`, stale prompt contract, marker-missing, auto-repair pass, persistence evidence).
 
 3. `BOOT_POSTFLOW_ACCEPTANCE_TEMPLATE.md`
    - Fixed acceptance template for Phase G (BOOT post-flow integrity).
@@ -20,17 +23,33 @@ This folder stores governance regression and release-gate validation assets.
    - Pre-refactor must-preserve baseline for positioning, functional goals, Mode A/B/C, and each `gov_*` command value.
    - Any refactor must map behavior changes against this baseline before merge.
 
-5. `check_release_consistency.mjs`
+5. `GOVERNANCE_MASTER_SPEC.md`
+   - Full technical/flow/feature SSOT for engineering continuity.
+   - Separates implemented baseline from pending target-state gaps.
+
+6. `GOVERNANCE_TRACEABILITY_MATRIX.md`
+   - Capability-to-code/test/doc mapping table.
+   - Prevents implementation/claim drift.
+
+7. `GOVERNANCE_GAP_REGISTER.md`
+   - Prioritized engineering gap backlog with acceptance criteria.
+   - Includes promotion gate conditions for Experimental features.
+
+8. `SESSION_HANDOFF.md`
+   - First-read file for each new session.
+   - Contains current baseline snapshot and mandatory start checklist.
+
+9. `check_release_consistency.mjs`
    - Machine check for release consistency.
    - Verifies:
      - `package.json` version == `openclaw.plugin.json` version
      - plugin-local embedded canonical payload blocks are aligned.
 
-6. `run_runtime_regression.mjs`
+10. `run_runtime_regression.mjs`
    - Executable runtime regression runner.
-   - Current baseline: 11 core anti-self-lock/runtime cases.
+   - Current baseline: 28 core anti-self-lock/runtime cases.
 
-7. `.tmp/` (ephemeral)
+11. `.tmp/` (ephemeral)
    - Temporary compile output for running `run_runtime_regression.mjs`.
    - Must not be treated as source artifact.
 
@@ -50,9 +69,10 @@ Run from `workspace/prompts/governance`:
 A release is `BLOCKED` unless all items below pass:
 
 1. `node dev/check_release_consistency.mjs` -> `ALL_CHECKS_PASS`
-2. `node dev/run_runtime_regression.mjs` -> `SUMMARY 11/11 passed`
+2. `node dev/run_runtime_regression.mjs` -> `SUMMARY 28/28 passed`
 3. `dev/OPENCLAW_PUBLIC_FLOW_REGRESSION.md` required phases pass:
-   - A, B, C, D, F, G
+   - A, B, B0, B2, B3, B4, C, D, F, G
+   - plus B5 when release touches `gov_apply` command/runner/contract
 4. BOOT evidence is recorded in:
    - `dev/BOOT_POSTFLOW_ACCEPTANCE_TEMPLATE.md` (`G1=PASS`, `G2=PASS`)
 5. Any failed item must be fixed, then full suite rerun (no partial-signoff release).
