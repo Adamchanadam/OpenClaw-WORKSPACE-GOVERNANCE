@@ -534,6 +534,126 @@ cases.push(async () => {
   }
 });
 
+cases.push(async () => {
+  const fixture = withTempWorkspace("audit-fail-missing-presets", (root) => {
+    writeFile(
+      root,
+      "prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md",
+      makeCanonicalSource(),
+    );
+    writeFile(root, "_control/WORKSPACE_INDEX.md", "# index\n");
+    writeFile(
+      root,
+      "AGENTS.md",
+      [
+        "# AGENTS target",
+        "<!-- AUTOGEN:BEGIN AGENTS_CORE_v1 -->",
+        "CANONICAL_AGENTS",
+        "<!-- AUTOGEN:END AGENTS_CORE_v1 -->",
+        "",
+      ].join("\n"),
+    );
+    writeFile(
+      root,
+      "_control/GOVERNANCE_BOOTSTRAP.md",
+      [
+        "# GOV target",
+        "<!-- AUTOGEN:BEGIN GOV_CORE_v1 -->",
+        "CANONICAL_GOV",
+        "<!-- AUTOGEN:END GOV_CORE_v1 -->",
+        "",
+      ].join("\n"),
+    );
+    writeFile(
+      root,
+      "_control/REGRESSION_CHECK.md",
+      [
+        "# REG target",
+        "<!-- AUTOGEN:BEGIN REGRESSION_12_v1 -->",
+        "CANONICAL_REGRESSION",
+        "<!-- AUTOGEN:END REGRESSION_12_v1 -->",
+        "",
+      ].join("\n"),
+    );
+    fs.mkdirSync(path.join(root, "_runs"), { recursive: true });
+    fs.mkdirSync(path.join(root, "docs"), { recursive: true });
+    fs.mkdirSync(path.join(root, "projects"), { recursive: true });
+    fs.mkdirSync(path.join(root, "archive"), { recursive: true });
+  });
+  try {
+    const { commands } = createHarness();
+    const audit = commands.get("gov_audit");
+    const out = await audit.handler({});
+    const text = String(out?.text || "");
+    assert.match(text, /STATUS\s*\nFAIL/i);
+    assert.ok(text.includes("qc_failed_items"));
+    assert.ok(text.toLowerCase().includes("read evidence"));
+    assert.ok(text.includes("/gov_migrate"));
+  } finally {
+    fixture.restore();
+  }
+});
+
+cases.push(async () => {
+  const fixture = withTempWorkspace("audit-pass-12-items", (root) => {
+    writeFile(
+      root,
+      "prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md",
+      makeCanonicalSource(),
+    );
+    writeFile(root, "_control/PRESETS.md", "# PRESETS\n");
+    writeFile(root, "_control/WORKSPACE_INDEX.md", "# index\n");
+    writeFile(
+      root,
+      "AGENTS.md",
+      [
+        "# AGENTS target",
+        "<!-- AUTOGEN:BEGIN AGENTS_CORE_v1 -->",
+        "CANONICAL_AGENTS",
+        "<!-- AUTOGEN:END AGENTS_CORE_v1 -->",
+        "",
+      ].join("\n"),
+    );
+    writeFile(
+      root,
+      "_control/GOVERNANCE_BOOTSTRAP.md",
+      [
+        "# GOV target",
+        "<!-- AUTOGEN:BEGIN GOV_CORE_v1 -->",
+        "CANONICAL_GOV",
+        "<!-- AUTOGEN:END GOV_CORE_v1 -->",
+        "",
+      ].join("\n"),
+    );
+    writeFile(
+      root,
+      "_control/REGRESSION_CHECK.md",
+      [
+        "# REG target",
+        "<!-- AUTOGEN:BEGIN REGRESSION_12_v1 -->",
+        "CANONICAL_REGRESSION",
+        "<!-- AUTOGEN:END REGRESSION_12_v1 -->",
+        "",
+      ].join("\n"),
+    );
+    fs.mkdirSync(path.join(root, "_runs"), { recursive: true });
+    fs.mkdirSync(path.join(root, "docs"), { recursive: true });
+    fs.mkdirSync(path.join(root, "projects"), { recursive: true });
+    fs.mkdirSync(path.join(root, "archive"), { recursive: true });
+  });
+  try {
+    const { commands } = createHarness();
+    const audit = commands.get("gov_audit");
+    const out = await audit.handler({});
+    const text = String(out?.text || "");
+    assert.match(text, /STATUS\s*\nPASS/i);
+    assert.ok(text.includes("qc_summary"));
+    assert.ok(text.includes("FAIL=0"));
+  } finally {
+    fixture.restore();
+  }
+});
+
 cases.push(() => {
   const { handlers, logs } = createHarness({
     runtimeGatePolicy: { denyShellPrefixes: ["openclaw"] },

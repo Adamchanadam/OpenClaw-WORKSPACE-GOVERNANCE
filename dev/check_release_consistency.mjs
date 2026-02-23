@@ -111,6 +111,7 @@ if (!process.exitCode) {
   const migrationPrompt = fs.readFileSync(migrationPromptPath, "utf8");
   const publicFlowRegression = fs.readFileSync(publicFlowRegressionPath, "utf8");
   const govSetupRunner = fs.readFileSync(govSetupRunnerPath, "utf8");
+  const govAuditRunner = fs.readFileSync(govAuditRunnerPath, "utf8");
   const runtimeRegression = fs.readFileSync(runtimeRegressionPath, "utf8");
   const indexTs = fs.readFileSync(indexPath, "utf8");
 
@@ -201,6 +202,13 @@ if (!process.exitCode) {
     },
     {
       ok:
+        /qc_items/i.test(govAuditRunner) &&
+        /QC_ITEMS/i.test(govAuditRunner) &&
+        /fixed_denominator:\s*12\/12/i.test(govAuditRunner),
+      msg: "gov_audit runner missing executable 12-item QC evidence contract",
+    },
+    {
+      ok:
         /ALIGN_ALLOWLIST_THEN_CHECK/i.test(govSetupRunner) &&
         /MIGRATE_AUDIT/i.test(govSetupRunner),
       msg: "gov_setup runner missing deterministic install/upgrade -> migrate+audit next_action contract",
@@ -272,11 +280,13 @@ if (!process.exitCode) {
         /migrate-missing-control/i.test(runtimeRegression) &&
         /migrate-missing-prompts/i.test(runtimeRegression) &&
         /migrate-pass/i.test(runtimeRegression) &&
+        /audit-fail-missing-presets/i.test(runtimeRegression) &&
+        /audit-pass-12-items/i.test(runtimeRegression) &&
         /apply-invalid-item/i.test(runtimeRegression) &&
         /apply-missing-menu/i.test(runtimeRegression) &&
         /apply-pass-qc/i.test(runtimeRegression) &&
         /apply-pass-guard/i.test(runtimeRegression),
-      msg: "runtime regression runner missing grounded setup/migrate/apply command-flow cases",
+      msg: "runtime regression runner missing grounded setup/migrate/audit/apply command-flow cases",
     },
     {
       ok:

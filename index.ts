@@ -1519,11 +1519,24 @@ async function makeGovAuditCommandResponse(ctx: PluginCommandContext): Promise<s
   const status = String(data.status || "FAIL").toUpperCase();
   const equality = Array.isArray(data.equality) ? data.equality : [];
   const mismatch = equality.filter((x) => String(x.status || "") !== "MATCH");
+  const qcSummary = (data.qc_summary && typeof data.qc_summary === "object")
+    ? (data.qc_summary as Record<string, unknown>)
+    : {};
+  const qcPass = Number(qcSummary.pass ?? 0);
+  const qcFail = Number(qcSummary.fail ?? 0);
+  const qcNa = Number(qcSummary.pass_na ?? 0);
+  const qcFailedItems = Array.isArray(data.qc_failed_items)
+    ? data.qc_failed_items.map((x) => String(x)).filter((x) => x.trim().length > 0)
+    : [];
   if (status !== "PASS") {
     return formatCommandOutput(
       "FAIL",
       [
         `status: ${status}`,
+        `qc_summary: PASS=${String(qcPass)} FAIL=${String(qcFail)} PASS_NA=${String(qcNa)}`,
+        qcFailedItems.length > 0
+          ? `qc_failed_items:\n${toTextList(qcFailedItems)}`
+          : "",
         mismatch.length > 0
           ? `canonical_mismatch: ${mismatch.map((x) => String(x.id || "unknown")).join(", ")}`
           : "canonical_mismatch: none",
@@ -1536,7 +1549,8 @@ async function makeGovAuditCommandResponse(ctx: PluginCommandContext): Promise<s
   return formatCommandOutput(
     "PASS",
     [
-      "audit passed with deterministic checks",
+      "audit passed with deterministic 12-item execution",
+      `qc_summary: PASS=${String(qcPass)} FAIL=${String(qcFail)} PASS_NA=${String(qcNa)}`,
       data.run_report ? `run_report: ${String(data.run_report)}` : "",
     ].filter(Boolean),
     i18n(lang, "Governance lifecycle is aligned.", "governance 流程已對齊。"),
