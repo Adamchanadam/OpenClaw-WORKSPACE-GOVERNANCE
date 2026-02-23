@@ -39,13 +39,17 @@ This folder stores governance regression and release-gate validation assets.
    - First-read file for each new session.
    - Contains current baseline snapshot and mandatory start checklist.
 
-9. `check_release_consistency.mjs`
+9. `LOCAL_PUBLISH_RUNBOOK_WINDOWS.md`
+   - Machine-proven publish flow for this Windows host.
+   - Includes npm offline-mode workaround, GitHub release command pattern, ClawHub publish path, and cleanup rules.
+
+10. `check_release_consistency.mjs`
    - Machine check for release consistency.
    - Verifies:
      - `package.json` version == `openclaw.plugin.json` version
      - plugin-local embedded canonical payload blocks are aligned.
 
-10. `run_runtime_regression.mjs`
+11. `run_runtime_regression.mjs`
    - Executable runtime regression runner.
    - Current baseline: 33 core anti-self-lock/runtime cases.
    - Includes uninstall integrity cases:
@@ -53,7 +57,7 @@ This folder stores governance regression and release-gate validation assets.
      - brain-backup restore evidence in `uninstall`
      - non-governance file preservation under shared folders
 
-11. `.tmp/` (ephemeral)
+12. `.tmp/` (ephemeral)
    - Temporary compile output for running `run_runtime_regression.mjs`.
    - Must not be treated as source artifact.
    - On some hosts, `.tmp/` files may be ACL-locked; if auto-clean fails, remove manually before release commit.
@@ -68,6 +72,7 @@ Run from `workspace/prompts/governance`:
 4. `npm pack --dry-run` (use writable cache if host cache is locked)
 5. In real OpenClaw host, execute BOOT post-flow checks from `OPENCLAW_PUBLIC_FLOW_REGRESSION.md` Phase G and record in `BOOT_POSTFLOW_ACCEPTANCE_TEMPLATE.md`.
 6. Before any structural refactor, review and preserve `GOVERNANCE_BASELINE_INVENTORY.md`.
+7. For publishing from this machine, follow `dev/LOCAL_PUBLISH_RUNBOOK_WINDOWS.md` directly.
 
 ## Release Blocking Standard (Mandatory)
 

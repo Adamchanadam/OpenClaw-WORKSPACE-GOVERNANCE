@@ -20,6 +20,7 @@ Use this file as the first read in every new session.
    - `dev/GOVERNANCE_TRACEABILITY_MATRIX.md`
    - `dev/GOVERNANCE_GAP_REGISTER.md`
    - `dev/GOVERNANCE_BASELINE_INVENTORY.md`
+   - `dev/LOCAL_PUBLISH_RUNBOOK_WINDOWS.md` (when session includes release/publish work)
 2. Confirm no stale drift:
    - `node dev/check_release_consistency.mjs`
 3. Run executable regression:
@@ -71,3 +72,4 @@ At end of each substantial session:
 1. Update section 1 snapshot if baseline changed.
 2. Update section 4 priorities if gap status changed.
 3. Append or revise section 5 with concise change bullets.
+4. If publish flow behavior changed on this machine, update `dev/LOCAL_PUBLISH_RUNBOOK_WINDOWS.md` in the same session.

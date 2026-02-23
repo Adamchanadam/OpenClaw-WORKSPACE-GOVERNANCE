@@ -2,6 +2,7 @@
 
 This document is for maintainers of `OpenClaw-WORKSPACE-GOVERNANCE`.
 Validation asset index: `dev/README.md`
+Machine-proven Windows publish path: `dev/LOCAL_PUBLISH_RUNBOOK_WINDOWS.md`
 
 ## 1. Release Strategy
 
