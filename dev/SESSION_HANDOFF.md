@@ -52,11 +52,12 @@ npm pack --dry-run
 
 ## 4) Open Priorities
 
-1. Mode B deterministic hard-enforcement design and regression.
-2. Deterministic command parity evaluation for:
-   - `gov_openclaw_json`
-   - `gov_brain_audit`
-3. Host-side B5 evidence accumulation for `gov_apply` promotion decision.
+1. **Phase 1 (P1)**: `gov_openclaw_json` deterministic CHECK runner (`tools/gov_openclaw_json_sync.mjs`) — Platform Health Score (0-10), hybrid: check=deterministic, apply/custom=SKILL. [GAP-002]
+2. **Phase 2 (P1)**: `gov_brain_audit` deterministic PREVIEW runner (`tools/gov_brain_audit_sync.mjs`) — Brain Docs Health Score (0-100) via `brain_audit_rules.mjs`, hybrid: preview=deterministic, APPROVE/ROLLBACK=SKILL. [GAP-003]
+3. **Phase 3 (P2)**: BOOT audit deterministic runner (`tools/gov_boot_audit_sync.mjs`) — structured recurrence detection + UPGRADE MENU via `formatCommandOutput`. [GAP-007]
+4. **Phase 4 (P2)**: `gov_apply` maturity delta — add `governance_maturity: guards=N→N+1, lessons=N→N+1` to apply PASS output.
+5. Mode B deterministic hard-enforcement design and regression. [GAP-001]
+6. Host-side B5 evidence accumulation for `gov_apply` promotion decision. [GAP-004]
 
 ## 5) Known Risks / Blockers
 

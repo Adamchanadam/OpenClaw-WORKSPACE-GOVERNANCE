@@ -20,11 +20,12 @@ Status legend:
 | Gap ID | Priority | Status | Gap Statement | Current Impact | Acceptance Criteria |
 | --- | --- | --- | --- | --- | --- |
 | GAP-001 | P1 | OPEN | Mode B verification remains mostly contract-level, not hard deterministic runtime enforcement | Evidence-answer tasks can still rely on soft discipline | Add deterministic verification hook/policy for system/version/time-sensitive answer flows, with regression coverage |
-| GAP-002 | P1 | OPEN | `gov_openclaw_json` is skill-driven, not deterministic command parity in `index.ts` | Operational behavior depends more on free-form skill routing | Add deterministic command + runner contract (or explicit rationale why skill-only remains), with runtime regression cases |
-| GAP-003 | P1 | OPEN | `gov_brain_audit` is skill-driven, not deterministic command parity in `index.ts` | Critical safety path lacks same command-level determinism as core lifecycle commands | Add deterministic command handler path and regression coverage for preview/approve/rollback routing |
+| GAP-002 | P1 | OPEN | `gov_openclaw_json` is skill-driven, not deterministic command parity in `index.ts` | Operational behavior depends more on free-form skill routing | Phase 1: add `tools/gov_openclaw_json_sync.mjs` deterministic CHECK runner with Platform Health Score (0-10); `registerCommand` wiring + `formatCommandOutput`; hybrid: check=deterministic, apply/custom=SKILL; ~4 regression cases |
+| GAP-003 | P1 | OPEN | `gov_brain_audit` is skill-driven, not deterministic command parity in `index.ts` | Critical safety path lacks same command-level determinism as core lifecycle commands | Phase 2: add `tools/gov_brain_audit_sync.mjs` deterministic PREVIEW runner with Brain Docs Health Score (0-100) via `brain_audit_rules.mjs`; hybrid: preview=deterministic, APPROVE/ROLLBACK=SKILL; ~5 regression cases |
 | GAP-004 | P1 | OPEN | `gov_apply` is deterministic locally but still Experimental by policy | Cannot claim unattended GA apply automation | Complete repeated host UAT evidence (Phase B5) across releases; define GA promotion threshold and pass gate |
 | GAP-005 | P2 | OPEN | Cross-doc repetition still exists between README and handbook sections | Higher maintenance cost, drift risk | Normalize repetitive sections into one canonical pattern and keep cross-links concise |
 | GAP-006 | P2 | OPEN | Regression denominator may drift without explicit update protocol | False confidence or stale release criteria | Enforce denominator-change checklist in dev docs and release notes template |
+| GAP-007 | P2 | OPEN | BOOT audit output is LLM-generated (prompt template only, not deterministic runner) | Cannot regression-test BOOT output format or recurrence detection logic | Phase 3: add `tools/gov_boot_audit_sync.mjs` deterministic scanner for `_runs/` + `_control/ACTIVE_GUARDS.md`; produce structured BOOT AUDIT REPORT + MENU through `formatCommandOutput`; ~3 regression cases |
 
 ## Completed / Recently Closed
 

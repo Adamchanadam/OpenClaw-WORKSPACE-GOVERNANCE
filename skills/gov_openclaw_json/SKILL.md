@@ -77,11 +77,13 @@ Always report:
    - if PASS and change touched `runtimeGatePolicy`: `openclaw gateway restart`, then retry original command
    - if PASS and no allowlist change: `/gov_audit` (fallback: `/skill gov_audit`)
    - if FAIL/BLOCKED: one unblock action + retry command
-10. Use this output order for UX consistency:
-   - `STATUS`
-   - `WHY`
-   - `NEXT STEP (Operator)`
-   - `COMMAND TO COPY`
+10. Use branded output format (match `formatCommandOutput` style):
+   - First line: `🐾 OpenClaw Governance · /gov_openclaw_json`
+   - `─────────────────────────────────` dividers between sections
+   - Status line: `✅  STATUS` / `⚠️  STATUS` / `❌  STATUS` (emoji prefix, then status value on next line)
+   - Bullet items: `  •` prefix (not `- `)
+   - Next step: `👉` prefix on action text
+   - Commands: indented with 2 spaces (no `COMMAND TO COPY` label)
 
 ## Fallback
 - If slash command is unavailable or name-collided, use:

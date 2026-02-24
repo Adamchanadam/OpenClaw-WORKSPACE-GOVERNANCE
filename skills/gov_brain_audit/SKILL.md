@@ -120,11 +120,36 @@ Important:
 3. Never use keyword-only pass/fail as the final decision for high-risk classes.
 
 ## Output requirements (UX)
-Use this order:
-1. `STATUS`
-2. `WHY`
-3. `NEXT STEP (Operator)`
-4. `COMMAND TO COPY`
+Use branded output format (match `formatCommandOutput` style):
+1. First line: `🐾 OpenClaw Governance · /gov_brain_audit`
+2. `─────────────────────────────────` dividers between sections
+3. Status line: emoji prefix + `  STATUS` on first line, status value on next line
+   - ✅ PASS/READY, ⚠️ WARN/PARTIAL, ❌ BLOCKED/FAIL, ℹ️ INFO
+4. Bullet items: `  •` prefix (not `- `)
+5. Next step: `👉` prefix on action text
+6. Commands: indented with 2 spaces (no `COMMAND TO COPY` label)
+
+Example (preview mode):
+```
+🐾 OpenClaw Governance · /gov_brain_audit
+─────────────────────────────────
+
+⚠️  STATUS
+FINDINGS_DETECTED
+
+  • files_scanned: 14
+  • findings: 2 HIGH, 1 MEDIUM, 0 LOW
+  • top_risk: action-before-verification in HEARTBEAT.md:12
+
+─────────────────────────────────
+[Findings table + Patch Preview here]
+
+─────────────────────────────────
+👉 Review findings above, then approve selected items.
+
+  /gov_brain_audit APPROVE: F001,F002
+  fallback: /skill gov_brain_audit APPROVE: F001,F002
+```
 
 Always provide one primary next command and one `/skill ...` fallback.
 If a backup does not exist yet, do not suggest rollback in next-step options.

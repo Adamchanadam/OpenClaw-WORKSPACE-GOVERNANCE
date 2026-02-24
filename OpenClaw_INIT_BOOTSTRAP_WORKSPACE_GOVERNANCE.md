@@ -648,22 +648,69 @@ Official references:
 
 ## Output format
 - Provide plain text only. If you send a message, use the message tool and then reply with NO_REPLY.
-- Keep the combined output under 30 lines by enforcing:
+- Keep the combined output under 40 lines by enforcing:
   - Max 3 upgrade items
   - Each upgrade item max 4 lines
-- `BOOT AUDIT REPORT` must include:
-  - Status: OK / WARN / FAIL
-  - Active drift/blockers (if any)
-  - Resolved history (optional, informational only)
-  - Recommended action (must target active blocker only; if none, continue normal flow)
-- If any upgrade item exists, append:
-  - Title line: `BOOT UPGRADE MENU (BOOT+APPLY v1)`
-  - Instruction line: `To apply: reply with 01/02/03 in this chat. This authorizes running prompts/governance/APPLY_UPGRADE_FROM_BOOT.md (guided; will run the Migration kit).`
-  - Item lines (numbered, decision-grade):
-    - `01) Elevate QC#<n> (<short name>)` OR `01) Elevate Guard#<id> (<short name>)`
-      - `Trigger: <counts + window>`
-      - `Action: <Add Guard+Lesson OR Run migration alignment>`
-      - `Apply: prompts/governance/APPLY_UPGRADE_FROM_BOOT.md`
+- Use the branded output template below (match `formatCommandOutput` style exactly):
+
+### Template (no upgrade menu):
+```
+🐾 OpenClaw Governance · BOOT AUDIT
+─────────────────────────────────
+
+✅  STATUS
+OK
+
+  • No active drift or blockers detected.
+  • Resolved history: <count> past run(s) inspected, all resolved.
+
+─────────────────────────────────
+👉 Continue normal workflow.
+
+  /gov_setup check
+```
+
+### Template (with upgrade menu):
+```
+🐾 OpenClaw Governance · BOOT AUDIT
+─────────────────────────────────
+
+⚠️  STATUS
+WARN
+
+  • Active: QC#3 FAIL recurrence (3× in last 5 runs)
+  • Resolved: migration blocker cleared at 2026-02-24
+
+─────────────────────────────────
+BOOT UPGRADE MENU (BOOT+APPLY v1)
+To apply: reply with 01/02/03 or run /gov_apply <NN>.
+
+  01) Elevate QC#3 (INDEX UPDATED)
+      Trigger: 3× FAIL in last 5 runs
+      Action: Add Guard + Lesson
+
+  02) Elevate Guard#007 (Rule Clarity)
+      Trigger: 3× in last 10 guard entries
+      Action: Escalation + migration review
+
+─────────────────────────────────
+👉 Reply with item number to approve, or continue normal workflow.
+
+  /gov_apply 01
+```
+
+### Status prefix rules:
+- ✅ OK: no active blocker, no recurrence trigger
+- ⚠️ WARN: active blocker exists OR recurrence trigger exists
+- ❌ FAIL: required folders/anchors missing
+
+### Hard format rules:
+- Branded header line: `🐾 OpenClaw Governance · BOOT AUDIT` (always first line)
+- `─────────────────────────────────` dividers between sections
+- `  •` bullet prefix for status items (not `- `)
+- `👉` prefix on recommended next action
+- Indented commands with 2 spaces (no `COMMAND TO COPY` label)
+- Upgrade menu items indented with 2 spaces, sub-fields indented with 6 spaces
 <<END FILE>>
 
 
