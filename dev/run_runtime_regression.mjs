@@ -847,6 +847,81 @@ cases.push(async () => {
   }
 });
 
+cases.push(async () => {
+  const fixture = withTempWorkspace("audit-ignores-non-deterministic-run-reports", (root) => {
+    writeFile(
+      root,
+      "prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md",
+      makeCanonicalSource(),
+    );
+    writeFile(root, "_control/PRESETS.md", "# PRESETS\n");
+    writeFile(root, "_control/WORKSPACE_INDEX.md", "# index\n");
+    writeFile(
+      root,
+      "AGENTS.md",
+      [
+        "# AGENTS target",
+        "<!-- AUTOGEN:BEGIN AGENTS_CORE_v1 -->",
+        "CANONICAL_AGENTS",
+        "<!-- AUTOGEN:END AGENTS_CORE_v1 -->",
+        "",
+      ].join("\n"),
+    );
+    writeFile(
+      root,
+      "_control/GOVERNANCE_BOOTSTRAP.md",
+      [
+        "# GOV target",
+        "<!-- AUTOGEN:BEGIN GOV_CORE_v1 -->",
+        "CANONICAL_GOV",
+        "<!-- AUTOGEN:END GOV_CORE_v1 -->",
+        "",
+      ].join("\n"),
+    );
+    writeFile(
+      root,
+      "_control/REGRESSION_CHECK.md",
+      [
+        "# REG target",
+        "<!-- AUTOGEN:BEGIN REGRESSION_12_v1 -->",
+        "CANONICAL_REGRESSION",
+        "<!-- AUTOGEN:END REGRESSION_12_v1 -->",
+        "",
+      ].join("\n"),
+    );
+    fs.mkdirSync(path.join(root, "_runs"), { recursive: true });
+    fs.mkdirSync(path.join(root, "docs"), { recursive: true });
+    fs.mkdirSync(path.join(root, "projects"), { recursive: true });
+    fs.mkdirSync(path.join(root, "archive"), { recursive: true });
+    // Place a fake brain audit run report with non-standard format
+    writeFile(
+      root,
+      "_runs/gov_brain_audit_apply_F001_F002_20260224_093000.md",
+      [
+        "# gov_brain_audit apply F001,F002",
+        "",
+        "- status: PASS",
+        "- applied: F001, F002",
+        "",
+        "## CHANGES",
+        "- Updated HEARTBEAT.md",
+        "- Updated IDENTITY.md",
+        "",
+      ].join("\n"),
+    );
+  });
+  try {
+    const { commands } = createHarness();
+    const audit = commands.get("gov_audit");
+    const out = await audit.handler({});
+    const text = String(out?.text || "");
+    assert.match(text, /STATUS\s*\nPASS/i);
+    assert.ok(text.includes("FAIL=0"));
+  } finally {
+    fixture.restore();
+  }
+});
+
 cases.push(() => {
   const { handlers, logs } = createHarness({
     runtimeGatePolicy: { denyShellPrefixes: ["openclaw"] },

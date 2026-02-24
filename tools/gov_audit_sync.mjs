@@ -223,23 +223,18 @@ function findLatestWriteRunReport(workspaceRoot, currentRunRelPath) {
   const currentName = path.basename(currentRunRelPath || "");
   const entries = fs
     .readdirSync(runsRoot, { withFileTypes: true })
-    .filter((e) => e.isFile() && /\.md$/i.test(e.name) && e.name !== currentName && !/^gov_audit_/i.test(e.name))
+    .filter((e) => e.isFile() && WRITE_RUN_REPORT_NAME_RE.test(e.name) && e.name !== currentName)
     .map((e) => {
       const absPath = path.join(runsRoot, e.name);
       const stat = fs.statSync(absPath);
-      const writeScore = WRITE_RUN_REPORT_NAME_RE.test(e.name) ? 2 : 1;
       return {
         name: e.name,
         absPath,
         relPath: path.join("_runs", e.name).replace(/\\/g, "/"),
         mtimeMs: stat.mtimeMs,
-        writeScore,
       };
     })
-    .sort((a, b) => {
-      if (b.writeScore !== a.writeScore) return b.writeScore - a.writeScore;
-      return b.mtimeMs - a.mtimeMs;
-    });
+    .sort((a, b) => b.mtimeMs - a.mtimeMs);
   if (entries.length === 0) return null;
   const chosen = entries[0];
   return {

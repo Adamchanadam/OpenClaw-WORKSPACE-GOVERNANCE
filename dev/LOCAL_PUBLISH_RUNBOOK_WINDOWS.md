@@ -24,7 +24,7 @@ node dev/run_runtime_regression.mjs
 
 2. Expected:
    - `ALL_CHECKS_PASS`
-   - runtime summary full pass (current baseline: `34/34`)
+   - runtime summary full pass (current baseline: `35/35`)
 
 3. Version alignment before release:
    - `package.json` version == `openclaw.plugin.json` version

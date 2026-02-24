@@ -52,7 +52,11 @@ This folder stores governance regression and release-gate validation assets.
 
 11. `run_runtime_regression.mjs`
    - Executable runtime regression runner.
-   - Current baseline: 33 core anti-self-lock/runtime cases.
+   - Current baseline: 34 core anti-self-lock/runtime cases.
+   - Includes UX transparency contract checks:
+     - `SIGNAL` header presence
+     - `flow_trace` visibility for one-click setup flow
+     - `qc_12_item` visibility for audit output
    - Includes uninstall integrity cases:
      - brain-backup detection in `check`
      - brain-backup restore evidence in `uninstall`
@@ -62,6 +66,10 @@ This folder stores governance regression and release-gate validation assets.
    - Temporary compile output for running `run_runtime_regression.mjs`.
    - Must not be treated as source artifact.
    - On some hosts, `.tmp/` files may be ACL-locked; if auto-clean fails, remove manually before release commit.
+
+13. `SESSION_LOG.md`
+   - Append-only session ledger.
+   - Records date, OpenClaw runtime session id, completed work, and next-session priorities.
 
 ## Standard Execution Order
 

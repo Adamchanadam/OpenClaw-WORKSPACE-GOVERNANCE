@@ -5,14 +5,23 @@ Use this file as the first read in every new session.
 ## 1) Current Baseline Snapshot
 
 1. Version baseline in repo:
-   - `package.json` and `openclaw.plugin.json` currently aligned.
+   - `package.json` and `openclaw.plugin.json` currently aligned at `0.1.48`.
 2. Deterministic command set:
    - `gov_help`, `gov_setup`, `gov_migrate`, `gov_apply`, `gov_audit`, `gov_uninstall`
    - one-click operator paths: `gov_setup quick`, `gov_uninstall quick`
-3. Experimental boundary:
+3. UX transparency contract:
+   - command output includes `SIGNAL` status class
+   - `/gov_setup quick|auto` includes `flow_trace`
+   - `gov_setup`/`gov_migrate` include `execution_items`
+   - `gov_audit` includes `qc_12_item`
+4. Experimental boundary:
    - `gov_apply <NN>` remains controlled-UAT scope (deterministic-covered, not unattended GA).
-4. Runtime regression denominator baseline:
-   - `SUMMARY 34/34 passed`
+5. Runtime regression denominator baseline:
+   - `SUMMARY 35/35 passed`
+6. Latest public release channels:
+   - npm: `@adamchanadam/openclaw-workspace-governance@0.1.48`
+   - GitHub release: `v0.1.48`
+   - ClawHub installer: `openclaw-workspace-governance-installer@0.1.48`
 
 ## 2) Session Start Checklist (Mandatory)
 
@@ -47,9 +56,20 @@ npm pack --dry-run
    - `gov_brain_audit`
 3. Host-side B5 evidence accumulation for `gov_apply` promotion decision.
 
-## 5) Last Major Changes (for continuity)
+## 5) Known Risks / Blockers
 
-1. Added deterministic apply runner:
+1. `gov_apply` 仍為 Experimental，未達 GA 門檻（缺 host-side B5 證據）。
+2. `gov_openclaw_json` 及 `gov_brain_audit` 尚無 deterministic runner，依賴 LLM 判斷路徑。
+3. Mode B（需證據回答）尚無 hard-enforcement gate。
+
+## 6) Last Major Changes (for continuity)
+
+1. Fixed `findLatestWriteRunReport()` filter to whitelist-only (`WRITE_RUN_REPORT_NAME_RE`):
+   - Non-deterministic LLM reports (`gov_brain_audit_*`, etc.) no longer picked up by audit
+   - Prevents QC 8 / QC 3 false failures after `/gov_brain_audit APPROVE`
+   - Regression test added: `audit-ignores-non-deterministic-run-reports` (baseline now `35/35`)
+   - Phase B6 scenario added to `OPENCLAW_PUBLIC_FLOW_REGRESSION.md`
+2. Added deterministic apply runner:
    - `tools/gov_apply_sync.mjs`
 2. Added deterministic `/gov_apply` command wiring:
    - `index.ts`
@@ -66,11 +86,41 @@ npm pack --dry-run
    - cleanup is explicit-target only
    - Brain Docs autofix backup detection/restore evidence is included
    - regression includes non-governance file preservation case
+7. Root-fixed quick-flow audit mismatch loop (`v0.1.46`):
+   - `gov_migrate` seeds missing `_control/PRESETS.md` and `_control/WORKSPACE_INDEX.md`
+   - `gov_migrate` repairs marker-count anomalies (for example duplicate `AUTOGEN END`)
+8. Added UX transparency output contract (`v0.1.47`):
+   - `SIGNAL` header + quick `flow_trace` + setup/migrate `execution_items` + audit `qc_12_item`
+   - runtime regression includes explicit visibility checks
 
-## 6) Update Rule
+## 7) Runtime Validation Snapshot (2026-02-23)
+
+1. OpenClaw host verification result (user runtime evidence):
+   - `/gov_setup quick` -> `PASS`
+   - auto-chain executed: `check -> upgrade -> migrate -> audit`
+   - `audit_qc_summary: PASS=10 FAIL=0 PASS_NA=2`
+2. Follow-up verification:
+   - `/gov_setup check` -> `READY`
+   - `/gov_migrate` -> `PASS`
+   - `/gov_audit` -> `PASS`
+
+## 8) Last Session Record
+
+1. Session date: `2026-02-24`
+2. Agent & Session ID: `Claude-Opus-4.6_20260224_bugfix`
+3. Key completion:
+   - fixed `findLatestWriteRunReport()` in `gov_audit_sync.mjs` to use whitelist-only filter (`WRITE_RUN_REPORT_NAME_RE`)
+   - root cause: LLM-generated brain audit run reports (e.g. `gov_brain_audit_apply_*`) bypassed the old `!/^gov_audit_/i` exclusion filter, causing QC 8 and QC 3 false failures
+   - added regression test `audit-ignores-non-deterministic-run-reports` (baseline `34/34` -> `35/35`)
+   - added Phase B6 scenario to `OPENCLAW_PUBLIC_FLOW_REGRESSION.md`
+4. Next session starting point:
+   - continue from `dev/GOVERNANCE_GAP_REGISTER.md` active `P1` items (`Mode B deterministic enforcement`, `gov_openclaw_json` parity, `gov_brain_audit` parity)
+
+## 9) Update Rule
 
 At end of each substantial session:
 1. Update section 1 snapshot if baseline changed.
 2. Update section 4 priorities if gap status changed.
-3. Append or revise section 5 with concise change bullets.
-4. If publish flow behavior changed on this machine, update `dev/LOCAL_PUBLISH_RUNBOOK_WINDOWS.md` in the same session.
+3. Update section 5 risks/blockers if status changed.
+4. Append or revise section 6 with concise change bullets.
+5. If publish flow behavior changed on this machine, update `dev/LOCAL_PUBLISH_RUNBOOK_WINDOWS.md` in the same session.

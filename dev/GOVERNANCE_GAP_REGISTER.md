@@ -31,10 +31,12 @@ Status legend:
 | Gap ID | Priority | Status | Resolution |
 | --- | --- | --- | --- |
 | GAP-C01 | P0 | DONE | `gov_apply` deterministic runner added and wired to command (`tools/gov_apply_sync.mjs`, `index.ts`) |
-| GAP-C02 | P0 | DONE | Runtime regression expanded to include apply + uninstall-integrity command-flow cases (`33/33`) |
+| GAP-C02 | P0 | DONE | Runtime regression expanded to include apply + uninstall-integrity command-flow cases (`34/34`) |
 | GAP-C03 | P0 | DONE | Consistency gate now validates apply runner registration and B5 matrix presence |
 | GAP-C04 | P0 | DONE | Baseline/docs updated to mark `gov_apply` as Experimental but deterministic-covered |
 | GAP-C05 | P0 | DONE | `gov_uninstall` root-fix: remove broad shared-folder delete behavior; enforce explicit target cleanup + brain backup restore evidence + non-governance file preservation regression |
+| GAP-C06 | P0 | DONE | Quick-flow loop root-fix: `gov_migrate` now seeds missing `_control/PRESETS.md` and `_control/WORKSPACE_INDEX.md`, and repairs marker-count anomalies before audit |
+| GAP-C07 | P1 | DONE | UX transparency contract delivered in deterministic outputs (`SIGNAL`, setup `flow_trace`, setup/migrate `execution_items`, audit `qc_12_item`) with regression assertions |
 
 ## Promotion Gate (for `gov_apply` EXP -> GA)
 

@@ -269,6 +269,35 @@ Case A5 - Missing required files:
    - `reason: MISSING_REQUIRED_FILES`
    - remediation routes to `/gov_setup upgrade` then retry
 
+## 4.5) Phase B6: Audit Resilience to Non-Deterministic Run Reports
+
+Goal: `/gov_audit` must ignore LLM-generated run reports (e.g. from `/gov_brain_audit`) that lack deterministic format.
+
+Case BA1 - Brain audit APPROVE followed by gov_audit:
+1. Preconditions:
+   - Valid workspace with canonical files passing all 12 QC items
+   - `_runs/` contains a non-deterministic brain audit report: `gov_brain_audit_apply_F001_F002_<ts>.md`
+   - Brain audit report lacks standard metadata (`backup_root`, `## TARGET_FILES_TO_CHANGE`, `## SEEDED_MISSING_FILES`)
+   - No deterministic write run report exists in `_runs/`
+2. Run: `/gov_audit`
+3. Expect:
+   - `PASS` with `FAIL=0`
+   - Audit selects no latest write run report (brain audit report excluded by `WRITE_RUN_REPORT_NAME_RE` whitelist filter)
+   - QC 8 (BEFORE/AFTER PROOF) returns `PASS (N/A)` (no latest write target set)
+   - QC 3 (INDEX UPDATED) not affected by non-deterministic report presence
+
+Case BA2 - Brain audit report coexists with deterministic report:
+1. Preconditions:
+   - Valid workspace as above
+   - `_runs/` contains both a brain audit report AND a valid `migrate_governance_rev6_<ts>.md`
+2. Run: `/gov_audit`
+3. Expect:
+   - Audit picks the deterministic migrate report (not the brain audit report)
+   - `PASS` (assuming migrate report has valid format)
+
+Covers: QC 3, QC 8 resilience to non-deterministic reports in `_runs/`.
+Runtime regression: `audit-ignores-non-deterministic-run-reports` in `dev/run_runtime_regression.mjs`.
+
 ## 5) Phase C: Natural-Language User Flows (Public behavior)
 
 Use natural language (not slash-first) in TUI:

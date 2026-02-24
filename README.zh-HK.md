@@ -16,9 +16,9 @@ ClawHub 安裝頁：
 
 | 版本 | 發佈時間（UTC） | 關鍵變更 | 對使用者的直接影響 |
 | --- | --- | --- | --- |
+| `v0.1.48` | 2026-02-24 | 修正 `/gov_brain_audit APPROVE` 後 audit 假失敗：`findLatestWriteRunReport()` 改用白名單過濾（`WRITE_RUN_REPORT_NAME_RE`），非確定性 LLM 報告不再被選中；regression 擴展至 35/35 | `/gov_audit` 不再因 `_runs/` 中僅存 brain audit 報告而在 QC 8/QC 3 假失敗 |
 | `v0.1.47` | 2026-02-23 | UX 透明化升級：新增 `SIGNAL` 標頭、一鍵流程 `flow_trace`、setup/migrate 的 `execution_items`，以及 audit 的 `qc_12_item` 清單；regression 合約維持 34/34 | 用戶可即場看到實際執行內容與價值，不必先打開 run report 才知道做過什麼 |
 | `v0.1.46` | 2026-02-23 | 完成 quick-flow audit 假失敗路徑 root-fix：migrate 會自動補齊缺失 `_control/PRESETS.md`、`_control/WORKSPACE_INDEX.md`，並修復 AUTOGEN marker 數量異常（例如 `AGENTS` 重覆 END）；regression 擴展至 34/34 | `/gov_setup quick` 對部分漂移工作區更有韌性，不再因可避免的 audit 契約不一致而循環失敗 |
-| `v0.1.45` | 2026-02-23 | 新增 deterministic `gov_help` 指令目錄與一鍵流程編排（`/gov_setup quick|auto`、`/gov_uninstall quick|auto`），並把全套生命周期/文檔手冊統一成 quick-first（保留手動備援） | 日常操作改為一鍵優先，仍保留嚴格手動控制，同時降低用戶走錯步驟機率 |
 
 來源：GitHub Releases（`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`）
 
