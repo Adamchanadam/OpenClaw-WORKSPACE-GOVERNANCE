@@ -37,6 +37,7 @@ Status legend:
 | GAP-C05 | P0 | DONE | `gov_uninstall` root-fix: remove broad shared-folder delete behavior; enforce explicit target cleanup + brain backup restore evidence + non-governance file preservation regression |
 | GAP-C06 | P0 | DONE | Quick-flow loop root-fix: `gov_migrate` now seeds missing `_control/PRESETS.md` and `_control/WORKSPACE_INDEX.md`, and repairs marker-count anomalies before audit |
 | GAP-C07 | P1 | DONE | UX transparency contract delivered in deterministic outputs (`SIGNAL`, setup `flow_trace`, setup/migrate `execution_items`, audit `qc_12_item`) with regression assertions |
+| GAP-C08 | P1 | DONE | UX branding refresh: `SIGNAL` text replaced by emoji prefix; `formatCommandOutput` uses branded header (`🐾`), `─────` dividers, `  •` bullets, `👉` next-step; regression `40/40` |
 
 ## Promotion Gate (for `gov_apply` EXP -> GA)
 

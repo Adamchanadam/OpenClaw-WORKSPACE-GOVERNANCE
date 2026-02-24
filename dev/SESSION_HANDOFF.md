@@ -10,14 +10,16 @@ Use this file as the first read in every new session.
    - `gov_help`, `gov_setup`, `gov_migrate`, `gov_apply`, `gov_audit`, `gov_uninstall`
    - one-click operator paths: `gov_setup quick`, `gov_uninstall quick`
 3. UX transparency contract:
-   - command output includes `SIGNAL` status class
+   - command output uses branded header (`🐾 OpenClaw Governance · v${VERSION}`) + emoji status prefix (✅/⚠️/❌/ℹ️)
+   - `SIGNAL` text block replaced by emoji prefix on STATUS line; `WHY`/`NEXT STEP (Operator)`/`COMMAND TO COPY` labels removed
+   - bullet style: `  •` (was `- `); next-step prefix: `👉`; section dividers: `─────`
    - `/gov_setup quick|auto` includes `flow_trace`
    - `gov_setup`/`gov_migrate` include `execution_items`
    - `gov_audit` includes `qc_12_item`
 4. Experimental boundary:
    - `gov_apply <NN>` remains controlled-UAT scope (deterministic-covered, not unattended GA).
 5. Runtime regression denominator baseline:
-   - `SUMMARY 35/35 passed`
+   - `SUMMARY 40/40 passed`
 6. Latest public release channels:
    - npm: `@adamchanadam/openclaw-workspace-governance@0.1.48`
    - GitHub release: `v0.1.48`
@@ -64,7 +66,11 @@ npm pack --dry-run
 
 ## 6) Last Major Changes (for continuity)
 
-1. Fixed `findLatestWriteRunReport()` filter to whitelist-only (`WRITE_RUN_REPORT_NAME_RE`):
+1. UX branding refresh (`v0.1.49`):
+   - `makeStatusSignal()` returns emoji (✅/⚠️/❌/ℹ️) instead of text (SUCCESS/ATTENTION/ACTION_REQUIRED/INFO)
+   - `formatCommandOutput()` uses branded header, `─────` dividers, `  •` bullets, `👉` next-step, removed redundant labels
+   - regression baseline 35/35 -> 40/40 (no test assertions changed)
+2. Fixed `findLatestWriteRunReport()` filter to whitelist-only (`WRITE_RUN_REPORT_NAME_RE`):
    - Non-deterministic LLM reports (`gov_brain_audit_*`, etc.) no longer picked up by audit
    - Prevents QC 8 / QC 3 false failures after `/gov_brain_audit APPROVE`
    - Regression test added: `audit-ignores-non-deterministic-run-reports` (baseline now `35/35`)
@@ -107,12 +113,11 @@ npm pack --dry-run
 ## 8) Last Session Record
 
 1. Session date: `2026-02-24`
-2. Agent & Session ID: `Claude-Opus-4.6_20260224_bugfix`
+2. Agent & Session ID: `Claude-Opus-4.6_20260224_ux_branding`
 3. Key completion:
-   - fixed `findLatestWriteRunReport()` in `gov_audit_sync.mjs` to use whitelist-only filter (`WRITE_RUN_REPORT_NAME_RE`)
-   - root cause: LLM-generated brain audit run reports (e.g. `gov_brain_audit_apply_*`) bypassed the old `!/^gov_audit_/i` exclusion filter, causing QC 8 and QC 3 false failures
-   - added regression test `audit-ignores-non-deterministic-run-reports` (baseline `34/34` -> `35/35`)
-   - added Phase B6 scenario to `OPENCLAW_PUBLIC_FLOW_REGRESSION.md`
+   - UX branding refresh: `makeStatusSignal()` emoji prefixes + `formatCommandOutput()` branded layout
+   - regression baseline: 40/40 (was 35/35; no test assertions changed)
+   - updated docs: README.zh-HK.md, VALUE_POSITIONING_AND_FACTORY_GAP.md, WORKSPACE_GOVERNANCE_README.md, dev/README.md, dev/SESSION_HANDOFF.md, dev/SESSION_LOG.md
 4. Next session starting point:
    - continue from `dev/GOVERNANCE_GAP_REGISTER.md` active `P1` items (`Mode B deterministic enforcement`, `gov_openclaw_json` parity, `gov_brain_audit` parity)
 

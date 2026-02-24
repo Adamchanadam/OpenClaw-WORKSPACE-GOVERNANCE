@@ -16,9 +16,9 @@ ClawHub installer page:
 
 | Version | Published (UTC) | Key Changes | Practical Impact |
 | --- | --- | --- | --- |
+| `v0.1.49` | 2026-02-24 | UX branding refresh: all `/gov_*` outputs now use branded header (`🐾 OpenClaw Governance · v0.1.49`), emoji status prefix (✅/⚠️/❌), `  •` bullets, `👉` next-step prefix, `─────` dividers; removed redundant SIGNAL/WHY/NEXT STEP/COMMAND TO COPY labels; regression expanded to 40/40 | Command responses are more readable with brand identity; operators can identify status and next action at a glance |
 | `v0.1.48` | 2026-02-24 | Fixed audit false-failure after `/gov_brain_audit APPROVE`: `findLatestWriteRunReport()` now uses whitelist-only filter (`WRITE_RUN_REPORT_NAME_RE`) so non-deterministic LLM reports are excluded; regression expanded to 35/35 | `/gov_audit` no longer fails on QC 8/QC 3 when only a brain audit run report exists in `_runs/` |
 | `v0.1.47` | 2026-02-23 | UX transparency upgrade: added `SIGNAL` header, `flow_trace` for one-click lifecycle, `execution_items` for setup/migrate, and `qc_12_item` list in audit output; regression contract still 34/34 | Operators can now see what actually ran and what value was delivered without opening run reports first |
-| `v0.1.46` | 2026-02-23 | Root-fixed quick-flow audit false-failure path: migrate now seeds missing `_control/PRESETS.md` + `_control/WORKSPACE_INDEX.md`, and repairs AUTOGEN marker-count anomalies (for example duplicate `AGENTS` END marker); regression expanded to 34/34 | `/gov_setup quick` is now resilient on partially-drifted workspaces and no longer loops on avoidable audit contract mismatches |
 
 Source: GitHub Releases (`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`)
 

@@ -31,12 +31,19 @@ Must-preserve functional pillars:
    - Experimental: `/gov_apply <NN>` (BOOT controlled apply; deterministic runner coverage exists, but rollout remains controlled-UAT).
 4. BOOT model remains read-only proposal first, human approval second, controlled apply third (`/gov_apply <NN>` only for approved item).
 5. Every block must be presented as governance policy gate (not system crash) with copy-paste remediation.
-6. Natural-language-first usage must remain first-class:
+6. Branded UX output contract must remain consistent across all `gov_*` commands:
+   - branded header: `🐾 OpenClaw Governance · v${VERSION}`
+   - emoji status prefix: ✅ (PASS/READY/CLEAN), ⚠️ (WARNING/PARTIAL/RESIDUAL/NOT_INSTALLED), ❌ (BLOCKED/FAIL), ℹ️ (default)
+   - `  •` bullet items (was `- ` prefix)
+   - `👉` next-step prefix (was `NEXT STEP (Operator)` label)
+   - `─────` dividers for section separation
+   - `STATUS` keyword must remain present in output (regression assertions depend on it)
+8. Natural-language-first usage must remain first-class:
    - slash commands are recommended shortcuts, not the only usable interface.
-7. Tool-exposure root-fix must remain enabled by default:
+9. Tool-exposure root-fix must remain enabled by default:
    - governance plugin tools require explicit `/gov_*` (or `/skill gov_*`) intent in current turn.
    - no implicit auto-invocation from permissive tool policy contexts.
-8. Cross-platform path compatibility must remain explicit:
+10. Cross-platform path compatibility must remain explicit:
    - runtime-resolved workspace root
    - no Linux-only hardcoded assumptions
    - Windows/PowerShell path and quoting scenarios must stay supported.

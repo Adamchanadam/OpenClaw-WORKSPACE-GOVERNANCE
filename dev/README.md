@@ -52,9 +52,9 @@ This folder stores governance regression and release-gate validation assets.
 
 11. `run_runtime_regression.mjs`
    - Executable runtime regression runner.
-   - Current baseline: 34 core anti-self-lock/runtime cases.
+   - Current baseline: 40 core anti-self-lock/runtime cases.
    - Includes UX transparency contract checks:
-     - `SIGNAL` header presence
+     - branded header (`🐾 OpenClaw Governance`) and emoji STATUS prefix (✅/⚠️/❌/ℹ️)
      - `flow_trace` visibility for one-click setup flow
      - `qc_12_item` visibility for audit output
    - Includes uninstall integrity cases:
@@ -88,7 +88,7 @@ Run from `workspace/prompts/governance`:
 A release is `BLOCKED` unless all items below pass:
 
 1. `node dev/check_release_consistency.mjs` -> `ALL_CHECKS_PASS`
-2. `node dev/run_runtime_regression.mjs` -> `SUMMARY 34/34 passed`
+2. `node dev/run_runtime_regression.mjs` -> `SUMMARY 40/40 passed`
 3. `dev/OPENCLAW_PUBLIC_FLOW_REGRESSION.md` required phases pass:
    - A, B, B0, B2, B3, B4, C, D, F, G
    - plus B5 when release touches `gov_apply` command/runner/contract

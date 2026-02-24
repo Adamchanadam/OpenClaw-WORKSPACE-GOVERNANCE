@@ -52,6 +52,7 @@ OpenClaw 出廠基線主要強調：
 4. BOOT 只讀提案 + 人工批准 + 受控套用（Experimental 成熟度）
 5. run report 證據化，支援回溯與降低重覆失誤
 6. Brain Docs 保守修補能力（`gov_brain_audit`）：先預覽、後批准套用、可回退
+7. 品牌化指令輸出：所有 `/gov_*` 回覆帶品牌標頭、emoji 狀態前綴、結構化分隔，操作者可一眼辨認狀態與下一步
 
 ## 5) 當前成熟度邊界
 
@@ -59,6 +60,7 @@ OpenClaw 出廠基線主要強調：
 1. `gov_help` 指令目錄 + 一鍵入口（`/gov_setup quick`、`/gov_uninstall quick`）
 2. 可確定性核心生命周期：`gov_setup`、`gov_migrate`、`gov_audit`、`gov_openclaw_json`、`gov_brain_audit`、`gov_uninstall`
 3. Runtime hard-gate 與顯式治理指令意圖 guard
+4. 品牌化 UX 輸出合約（`🐾` 標頭 + emoji 狀態 + `👉` 下一步 + 結構化分隔線）
 
 目前 Experimental：
 1. `gov_apply <NN>`（BOOT 受控套用）

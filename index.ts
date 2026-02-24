@@ -1042,12 +1042,10 @@ function toTextList(items: string[]): string {
 
 function makeStatusSignal(status: string): string {
   const key = String(status || "").toUpperCase();
-  if (key === "PASS" || key === "READY" || key === "CLEAN") return "SUCCESS";
-  if (key === "READY_WITH_WARNING" || key === "PASS_WITH_WARNING" || key === "PARTIAL" || key === "RESIDUAL" || key === "NOT_INSTALLED") {
-    return "ATTENTION";
-  }
-  if (key === "BLOCKED" || key === "FAIL") return "ACTION_REQUIRED";
-  return "INFO";
+  if (key === "PASS" || key === "READY" || key === "CLEAN") return "✅";
+  if (key === "READY_WITH_WARNING" || key === "PASS_WITH_WARNING" || key === "PARTIAL" || key === "RESIDUAL" || key === "NOT_INSTALLED") return "⚠️";
+  if (key === "BLOCKED" || key === "FAIL") return "❌";
+  return "ℹ️";
 }
 
 function makeQcItemSummaryLines(data: RunnerResult): string[] {
@@ -1095,6 +1093,8 @@ async function runInProcessRunner(
   }
 }
 
+const BRAND_DIVIDER = "─────────────────────────────────";
+
 function formatCommandOutput(
   status: string,
   whyLines: string[],
@@ -1103,20 +1103,21 @@ function formatCommandOutput(
 ): string {
   const signal = makeStatusSignal(status);
   return [
-    "SIGNAL",
-    signal,
+    `🐾 OpenClaw Governance · v${PLUGIN_VERSION}`,
+    BRAND_DIVIDER,
     "",
-    "STATUS",
+    `${signal}  STATUS`,
     status,
     "",
-    "WHY",
-    ...whyLines.map((line) => (line.startsWith("- ") ? line : `- ${line}`)),
+    ...whyLines.map((line) => (line.startsWith("  • ") ? line : `  • ${line.replace(/^- /, "")}`)),
     "",
-    "NEXT STEP (Operator)",
-    nextStep,
+    BRAND_DIVIDER,
+    `👉 ${nextStep}`,
     "",
-    "COMMAND TO COPY",
-    ...commandLines.map((line) => (line.startsWith("- ") ? line : `- ${line}`)),
+    ...commandLines.map((line) => {
+      const clean = line.replace(/^- /, "");
+      return `  ${clean}`;
+    }),
   ].join("\n");
 }
 

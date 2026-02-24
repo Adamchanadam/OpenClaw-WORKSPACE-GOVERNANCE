@@ -53,11 +53,23 @@ Fail-Closed 原則：
 1. 缺證據或路徑不明確時，必須停止
 2. 任一 QC 未通過，不可宣稱完成
 
-操作輸出建議格式：
-1. `STATUS`
-2. `WHY`
-3. `NEXT STEP (Operator)`
-4. `COMMAND TO COPY`
+操作輸出格式（v0.1.49 品牌化）：
+```
+🐾 OpenClaw Governance · v0.1.49
+─────────────────────────────────
+
+✅  STATUS
+PASS
+
+  • 項目一
+  • 項目二
+
+─────────────────────────────────
+👉 下一步操作指引。
+
+  /gov_setup quick
+```
+狀態前綴：✅ PASS/READY/CLEAN、⚠️ WARNING/PARTIAL、❌ BLOCKED/FAIL、ℹ️ 其他
 
 ---
 
