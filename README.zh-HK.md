@@ -16,9 +16,9 @@ ClawHub 安裝頁：
 
 | 版本 | 發佈時間（UTC） | 關鍵變更 | 對使用者的直接影響 |
 | --- | --- | --- | --- |
+| `v0.1.50` | 2026-02-24 | 根治卸載後 Brain Doc 死鎖：`gov_uninstall` 現在會從所有 Brain Docs 清除治理執行規則；生命週期 Prompt 對齊（Mode B/C 合約）；回歸測試擴展至 96/96 | 卸載後不再因殘留治理規則導致 AGENTS.md/SOUL.md 阻礙正常工作區運作 |
 | `v0.1.49` | 2026-02-24 | UX 品牌刷新：所有 `/gov_*` 輸出改用品牌標頭（`🐾 OpenClaw Governance`）、emoji 狀態指示（✅/⚠️/❌）、結構化項目清單、清晰 `👉` 下一步指引；移除冗餘標籤，輸出更簡潔 | 指令回覆更易讀，你可一眼辨認狀態與下一步 |
 | `v0.1.48` | 2026-02-24 | 修正 `/gov_audit` 在 Brain Docs 批准後出現假失敗：audit 現在只辨認治理 run report，不再因 Brain Docs 報告而誤判 | `/gov_audit` 在 Brain Docs 變更後不再出現假失敗 |
-| `v0.1.47` | 2026-02-23 | UX 透明化升級：指令輸出新增逐步執行追蹤、setup/migrate 的逐項明細，以及 audit 完整 12 項核對清單 | 你可以即場看到實際跑了什麼與驗證結果，不必另外打開 run report |
 
 來源：GitHub Releases（`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`）
 
