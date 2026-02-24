@@ -16,9 +16,9 @@ ClawHub installer page:
 
 | Version | Published (UTC) | Key Changes | Practical Impact |
 | --- | --- | --- | --- |
+| `v0.1.50` | 2026-02-24 | Root-fixed post-uninstall brain-doc deadlock: `gov_uninstall` now strips governance enforcement rules from all brain docs; lifecycle prompt alignment (Mode B/C contract); regression expanded to 96/96 | Uninstall no longer leaves residual governance rules in AGENTS.md/SOUL.md that block normal workspace operation |
 | `v0.1.49` | 2026-02-24 | UX branding refresh: all `/gov_*` outputs now show branded header (`🐾 OpenClaw Governance`), emoji status indicators (✅/⚠️/❌), structured bullet lists, and clear `👉` next-step guidance; redundant labels removed for cleaner output | Command responses are easier to read; you can identify status and next action at a glance |
 | `v0.1.48` | 2026-02-24 | Fixed `/gov_audit` false-failure after Brain Docs approval: audit now correctly identifies only governance run reports, preventing false failure reports after `/gov_brain_audit APPROVE` | `/gov_audit` no longer reports false failures after Brain Docs changes |
-| `v0.1.47` | 2026-02-23 | UX transparency upgrade: commands now show step-by-step execution trace for one-click flows, item-level detail for setup/migrate, and full 12-item checklist in audit output | You can see what actually ran and what was checked without opening separate run reports |
 
 Source: GitHub Releases (`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`)
 

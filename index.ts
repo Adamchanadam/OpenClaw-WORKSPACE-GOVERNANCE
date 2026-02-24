@@ -1216,7 +1216,7 @@ async function makeGovSetupQuickCommandResponse(lang: "en" | "zh"): Promise<stri
       "READY_WITH_WARNING",
       withFlowTrace(why),
       i18n(lang, "Align allowlist first, then rerun one-click quick flow.", "先對齊 allowlist，再重跑一鍵 quick 流程。"),
-      ["/gov_openclaw_json", "/gov_setup quick"],
+      ["/skill gov_openclaw_json", "/gov_setup quick"],
     );
   }
 
@@ -1256,7 +1256,7 @@ async function makeGovSetupQuickCommandResponse(lang: "en" | "zh"): Promise<stri
         "PASS_WITH_WARNING",
         withFlowTrace([...why, `setup_allow_status: ${setupAllowStatus}`]),
         i18n(lang, "Align allowlist first, then rerun quick flow.", "先對齊 allowlist，再重跑 quick 流程。"),
-        ["/gov_openclaw_json", "/gov_setup quick"],
+        ["/skill gov_openclaw_json", "/gov_setup quick"],
       );
     }
   }
@@ -1465,7 +1465,7 @@ async function makeGovSetupCommandResponse(ctx: PluginCommandContext): Promise<s
         "READY_WITH_WARNING",
         why,
         i18n(lang, "Align allowlist first, then rerun check.", "先對齊 allowlist，再重跑 check。"),
-        ["/gov_openclaw_json", "/gov_setup check"],
+        ["/skill gov_openclaw_json", "/gov_setup check"],
       );
     }
     if (shadowRequired || status === "PARTIAL") {
@@ -1539,7 +1539,7 @@ async function makeGovSetupCommandResponse(ctx: PluginCommandContext): Promise<s
       "PASS_WITH_WARNING",
       why,
       i18n(lang, "Align allowlist first, then rerun check.", "先對齊 allowlist，再重跑 check。"),
-      ["/gov_openclaw_json", "/gov_setup check"],
+      ["/skill gov_openclaw_json", "/gov_setup check"],
     );
   }
   if (mode === "install") {
