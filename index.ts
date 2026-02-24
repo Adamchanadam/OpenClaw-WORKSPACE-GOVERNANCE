@@ -98,6 +98,31 @@ const READ_EVIDENCE_PATTERNS = [
   /\bwg[-_: ]*read[-_: ]*gate[-_: ]*ok\b/i,
 ];
 
+const PLUGIN_VERSION = "0.1.49";
+const PLUGIN_NPM_PACKAGE = "@adamchanadam/openclaw-workspace-governance";
+
+async function fetchLatestNpmVersion(): Promise<string | null> {
+  try {
+    const url = `https://registry.npmjs.org/${PLUGIN_NPM_PACKAGE}/latest`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return typeof data.version === "string" ? data.version : null;
+  } catch {
+    return null;
+  }
+}
+
+function formatVersionLine(installed: string, latest: string | null, lang: "en" | "zh"): string {
+  if (!latest || latest === installed) {
+    return i18n(lang, `version: ${installed} (latest)`, `版本：${installed}（最新）`);
+  }
+  return i18n(lang, `version: ${installed} → ${latest} available (npm update)`, `版本：${installed} → ${latest} 可更新（npm update）`);
+}
+
 const HARD_WRITE_TOOL_NAMES = new Set([
   "apply_patch",
   "write_file",
@@ -1097,9 +1122,12 @@ function formatCommandOutput(
 
 async function makeGovHelpCommandResponse(ctx: PluginCommandContext): Promise<string> {
   const lang = pickCommandLanguage(ctx);
+  const latest = await fetchLatestNpmVersion();
+  const versionLine = formatVersionLine(PLUGIN_VERSION, latest, lang);
   return formatCommandOutput(
     "PASS",
     [
+      versionLine,
       i18n(
         lang,
         "Available governance commands: gov_help, gov_setup, gov_migrate, gov_audit, gov_uninstall, gov_apply (Experimental).",
@@ -1353,6 +1381,8 @@ async function makeGovUninstallQuickCommandResponse(lang: "en" | "zh"): Promise<
       `backup_root: ${String(uninstallData.backup_root || "none")}`,
       `brain_backup_used: ${String(uninstallData.brain_backup_used || "none")}`,
       `brain_backup_strategy: ${String(uninstallData.brain_backup_strategy || "none")}`,
+      `stripped_brain_docs: ${String(Array.isArray(uninstallData.stripped_brain_docs) ? uninstallData.stripped_brain_docs.length : 0)}`,
+      `post_uninstall_qc: ${uninstallData.post_uninstall_qc ? ((uninstallData.post_uninstall_qc as Record<string, unknown>).pass ? "PASS" : "FAIL") : "none"}`,
       uninstallData.run_report ? `run_report: ${String(uninstallData.run_report)}` : "",
     ].filter(Boolean),
     i18n(lang, "One-click workspace uninstall completed. Then disable/uninstall plugin package if needed.", "一鍵 workspace uninstall 完成。若需要，下一步可停用/卸載 plugin 套件。"),
@@ -1391,6 +1421,8 @@ async function makeGovSetupCommandResponse(ctx: PluginCommandContext): Promise<s
 
   const data = runner.data;
   if (mode === "check") {
+    const latest = await fetchLatestNpmVersion();
+    const versionLine = formatVersionLine(PLUGIN_VERSION, latest, lang);
     const status = String(data.status || "PARTIAL").toUpperCase();
     const allowStatus = String(data.allow_status || "ALLOW_NOT_SET");
     const shadowRequired = Boolean(data.shadow_reconcile_required);
@@ -1399,6 +1431,7 @@ async function makeGovSetupCommandResponse(ctx: PluginCommandContext): Promise<s
       : [];
     const summary = data.file_sync_summary || {};
     const why = [
+      versionLine,
       `status: ${status}`,
       `allow_status: ${allowStatus}`,
       `allowlist_alignment_required: ${String(Boolean(data.allowlist_alignment_required))}`,
@@ -1831,15 +1864,19 @@ async function makeGovUninstallCommandResponse(ctx: PluginCommandContext): Promi
 
   const removed = Array.isArray(data.removed_paths) ? data.removed_paths : [];
   const restored = Array.isArray(data.restored_paths) ? data.restored_paths : [];
+  const strippedBrainDocs = Array.isArray(data.stripped_brain_docs) ? data.stripped_brain_docs : [];
+  const postQC = data.post_uninstall_qc as Record<string, unknown> | undefined;
   const why = [
     `mode: ${mode}`,
     `removed_paths: ${String(removed.length)}`,
     `restored_paths: ${String(restored.length)}`,
+    `stripped_brain_docs: ${String(strippedBrainDocs.length)}`,
     `backup_root: ${String(data.backup_root || "none")}`,
     `brain_backup_used: ${String(data.brain_backup_used || "none")}`,
     `latest_brain_backup_detected: ${String(data.latest_brain_backup_detected || "none")}`,
     `brain_backup_strategy: ${String(data.brain_backup_strategy || "none")}`,
     `run_report: ${String(data.run_report || "none")}`,
+    `post_uninstall_qc: ${postQC ? (postQC.pass ? "PASS" : "FAIL") : "none"}`,
   ];
   if (Array.isArray(data.warnings) && data.warnings.length > 0) {
     why.push(`warnings:\n${toTextList(data.warnings.map((x) => String(x)))}`);

@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
 
+const AGENTS_AUTOGEN_MARKER = "AGENTS_CORE_v1";
+
 const allowedModes = new Set(["check", "uninstall"]);
 
 const promptTargets = [
@@ -139,6 +141,25 @@ function detectWorkspaceRoot(openclawJsonPath) {
 
 function normalizeRel(p) {
   return String(p).replace(/\\/g, "/");
+}
+
+function normalizeText(input) {
+  return String(input).replace(/\r\n/g, "\n").replace(/[ \t]+$/gm, "").replace(/\n?$/, "\n");
+}
+
+function escapeRegExp(input) {
+  return String(input).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function stripAutogenBlock(text, marker) {
+  const escaped = escapeRegExp(marker);
+  const pairedRe = new RegExp(
+    `[ \\t]*<!-- AUTOGEN:BEGIN ${escaped} -->\\r?\\n[\\s\\S]*?\\r?\\n[ \\t]*<!-- AUTOGEN:END ${escaped} -->[ \\t]*\\r?\\n?`, "g");
+  let result = text.replace(pairedRe, "");
+  const orphanBeginRe = new RegExp(`[ \\t]*<!-- AUTOGEN:BEGIN ${escaped} -->[ \\t]*\\r?\\n?`, "g");
+  const orphanEndRe = new RegExp(`[ \\t]*<!-- AUTOGEN:END ${escaped} -->[ \\t]*\\r?\\n?`, "g");
+  result = result.replace(orphanBeginRe, "").replace(orphanEndRe, "");
+  return result;
 }
 
 function toAbs(root, rel) {
@@ -341,10 +362,68 @@ function collectFootprint(workspaceRoot) {
     }
   }
 
-  const governanceRuns = listGovernanceRunFiles(workspaceRoot);
-  items.push(...governanceRuns);
+  // Note: governance run files are intentionally NOT included in footprint.
+  // They are preserved as historical records during uninstall.
 
   return Array.from(new Set(items.map((p) => path.resolve(p))));
+}
+
+function runPostUninstallQC(workspaceRoot) {
+  const checks = [];
+  const warnings = [];
+
+  // 1. AGENTS.md must still exist
+  const agentsPath = toAbs(workspaceRoot, "AGENTS.md");
+  const agentsExists = exists(agentsPath);
+  checks.push({ name: "agents_md_exists", pass: agentsExists });
+  if (!agentsExists) {
+    warnings.push("POST_QC_FAIL: AGENTS.md does not exist after uninstall — brain doc core was lost.");
+  }
+
+  // 2. No AUTOGEN markers remain in AGENTS.md
+  let noAutogenMarkers = true;
+  if (agentsExists) {
+    try {
+      const text = fs.readFileSync(agentsPath, "utf8");
+      if (text.includes("AUTOGEN:BEGIN AGENTS_CORE_v1")) {
+        noAutogenMarkers = false;
+        warnings.push("POST_QC_FAIL: AGENTS.md still contains AUTOGEN:BEGIN AGENTS_CORE_v1 marker after uninstall.");
+      }
+    } catch {
+      // unreadable — treat as warning
+      warnings.push("POST_QC_WARN: AGENTS.md exists but could not be read for marker scan.");
+    }
+  }
+  checks.push({ name: "agents_md_no_autogen_markers", pass: noAutogenMarkers });
+
+  // 3. Governance control files cleaned
+  const govBootstrapPath = toAbs(workspaceRoot, "_control/GOVERNANCE_BOOTSTRAP.md");
+  const regressionCheckPath = toAbs(workspaceRoot, "_control/REGRESSION_CHECK.md");
+  const controlsCleaned = !exists(govBootstrapPath) && !exists(regressionCheckPath);
+  checks.push({ name: "governance_control_files_cleaned", pass: controlsCleaned });
+  if (!controlsCleaned) {
+    warnings.push("POST_QC_FAIL: governance control files (GOVERNANCE_BOOTSTRAP.md or REGRESSION_CHECK.md) still exist.");
+  }
+
+  // 4. Governance prompts cleaned
+  const govPromptPath = toAbs(workspaceRoot, "prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md");
+  const migPromptPath = toAbs(workspaceRoot, "prompts/governance/WORKSPACE_GOVERNANCE_MIGRATION.md");
+  const promptsCleaned = !exists(govPromptPath) && !exists(migPromptPath);
+  checks.push({ name: "governance_prompts_cleaned", pass: promptsCleaned });
+  if (!promptsCleaned) {
+    warnings.push("POST_QC_FAIL: governance prompt files still exist after uninstall.");
+  }
+
+  // 5. _runs/ logs intact
+  const runsDir = path.join(workspaceRoot, "_runs");
+  const runsIntact = exists(runsDir);
+  checks.push({ name: "runs_logs_intact", pass: runsIntact });
+  if (!runsIntact) {
+    warnings.push("POST_QC_WARN: _runs/ directory does not exist (no historical logs).");
+  }
+
+  const allPass = checks.every((c) => c.pass);
+  return { pass: allPass, checks, warnings };
 }
 
 function writeRunReport(params) {
@@ -361,6 +440,8 @@ function writeRunReport(params) {
     targetsToChange,
     removed,
     restored,
+    strippedBrainDocs,
+    postUninstallQC,
     warnings,
     status,
     reason,
@@ -402,6 +483,19 @@ function writeRunReport(params) {
     for (const row of restored) lines.push(`- ${row.to} <= ${row.from}`);
   }
   lines.push("");
+  if (strippedBrainDocs && strippedBrainDocs.length > 0) {
+    lines.push("## STRIPPED_BRAIN_DOCS");
+    for (const doc of strippedBrainDocs) lines.push(`- ${doc}`);
+    lines.push("");
+  }
+  if (postUninstallQC) {
+    lines.push("## POST_UNINSTALL_QC");
+    lines.push(`- overall: ${postUninstallQC.pass ? "PASS" : "FAIL"}`);
+    for (const c of postUninstallQC.checks) {
+      lines.push(`- ${c.name}: ${c.pass ? "PASS" : "FAIL"}`);
+    }
+    lines.push("");
+  }
   if (warnings.length > 0) {
     lines.push("## WARNINGS");
     for (const w of warnings) lines.push(`- ${w}`);
@@ -505,6 +599,23 @@ function executeGovUninstallSync(modeInput) {
     removed.push(rel);
   }
 
+  // Strip AUTOGEN governance block from AGENTS.md instead of delete+restore
+  const strippedBrainDocs = [];
+  if (governanceAgents && exists(agentsPath)) {
+    const agentsText = fs.readFileSync(agentsPath, "utf8");
+    const stripped = stripAutogenBlock(agentsText, AGENTS_AUTOGEN_MARKER);
+    const strippedNorm = normalizeText(stripped);
+    if (strippedNorm !== normalizeText(agentsText)) {
+      if (!backedUp.has("AGENTS.md")) {
+        copyForBackup(agentsPath, backupRoot, workspaceRoot);
+        backedUp.add("AGENTS.md");
+      }
+      fs.writeFileSync(agentsPath, strippedNorm, "utf8");
+      if (!targetsToChange.includes("AGENTS.md")) targetsToChange.push("AGENTS.md");
+      strippedBrainDocs.push("AGENTS.md");
+    }
+  }
+
   const restoreByTo = new Map();
   for (const row of brainRestorePlan) {
     const toRel = normalizeRel(path.relative(workspaceRoot, row.to));
@@ -518,6 +629,7 @@ function executeGovUninstallSync(modeInput) {
 
   // Restore legacy assets and optional brain-doc backups if available.
   for (const [toRel, row] of restoreByTo.entries()) {
+    if (strippedBrainDocs.includes(toRel)) continue;
     if (!exists(row.from)) continue;
     ensureDir(path.dirname(row.to));
     if (exists(row.to) && !backedUp.has(toRel)) {
@@ -532,9 +644,9 @@ function executeGovUninstallSync(modeInput) {
     });
   }
 
-  if (governanceAgents && restored.every((x) => x.to !== "AGENTS.md")) {
+  if (governanceAgents && !strippedBrainDocs.includes("AGENTS.md") && restored.every((x) => x.to !== "AGENTS.md")) {
     warnings.push(
-      "AGENTS.md looked governance-managed but no legacy AGENTS backup was restored. Previous file is archived under _gov_uninstall_backup.",
+      "AGENTS.md looked governance-managed but no AUTOGEN block was stripped and no legacy AGENTS backup was restored. Previous file is archived under _gov_uninstall_backup.",
     );
   }
 
@@ -547,6 +659,12 @@ function executeGovUninstallSync(modeInput) {
 
   const runsRoot = path.join(workspaceRoot, "_runs");
   ensureDir(runsRoot);
+
+  // Post-uninstall QC verification (after ensureDir so _runs/ check is accurate)
+  const postUninstallQC = runPostUninstallQC(workspaceRoot);
+  if (postUninstallQC.warnings.length > 0) {
+    warnings.push(...postUninstallQC.warnings);
+  }
   const runRelPath = normalizeRel(path.join("_runs", `gov_uninstall_${ts}.md`));
   const runReportPath = path.join(workspaceRoot, runRelPath);
   writeRunReport({
@@ -566,6 +684,8 @@ function executeGovUninstallSync(modeInput) {
     targetsToChange,
     removed,
     restored,
+    strippedBrainDocs,
+    postUninstallQC,
     warnings,
     status: "PASS",
     reason: "",
@@ -592,6 +712,8 @@ function executeGovUninstallSync(modeInput) {
       brain_backup_strategy: brainBackupStrategy,
       removed_paths: removed,
       restored_paths: restored,
+      stripped_brain_docs: strippedBrainDocs,
+      post_uninstall_qc: postUninstallQC,
       warnings,
       run_report: runRelPath,
       next_action: "DISABLE_OR_UNINSTALL_PLUGIN",

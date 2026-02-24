@@ -162,6 +162,26 @@ function countAutogenMarkerPairs(text, marker) {
   return { begin, end };
 }
 
+function stripAutogenBlock(text, marker) {
+  const escaped = escapeRegExp(marker);
+  // Remove all paired BEGIN...END blocks with their content
+  const pairedRe = new RegExp(
+    `[ \\t]*<!-- AUTOGEN:BEGIN ${escaped} -->\\r?\\n[\\s\\S]*?\\r?\\n[ \\t]*<!-- AUTOGEN:END ${escaped} -->[ \\t]*\\r?\\n?`,
+    "g",
+  );
+  let result = text.replace(pairedRe, "");
+  // Remove orphan BEGIN/END markers
+  const orphanBeginRe = new RegExp(`[ \\t]*<!-- AUTOGEN:BEGIN ${escaped} -->[ \\t]*\\r?\\n?`, "g");
+  const orphanEndRe = new RegExp(`[ \\t]*<!-- AUTOGEN:END ${escaped} -->[ \\t]*\\r?\\n?`, "g");
+  result = result.replace(orphanBeginRe, "").replace(orphanEndRe, "");
+  return result;
+}
+
+function buildAutogenBlock(marker, innerContent) {
+  const normalizedInner = normalizeText(innerContent).replace(/\n$/, "");
+  return `<!-- AUTOGEN:BEGIN ${marker} -->\n${normalizedInner}\n<!-- AUTOGEN:END ${marker} -->`;
+}
+
 function computeEquality(targetText, canonicalInner, marker) {
   const targetInner = extractMarkerInner(targetText, marker);
   if (targetInner == null) {
@@ -357,22 +377,30 @@ function executeGovMigrateSync() {
     const targetPath = path.join(workspaceRoot, spec.targetRel);
     const targetText = fs.readFileSync(targetPath, "utf8");
     const markerCounts = countAutogenMarkerPairs(targetText, spec.marker);
-    if (markerCounts.begin !== 1 || markerCounts.end !== 1) {
-      const canonicalPayload = canonicalPayloadById.get(spec.id);
-      if (!canonicalPayload) {
-        return blocked("CANONICAL_PAYLOAD_MISSING", { canonical_block_path: spec.canonicalBlockPath });
-      }
-      fs.writeFileSync(targetPath, normalizeText(canonicalPayload), "utf8");
-      repairedMarkerAnomalyFiles.push(targetPath);
-      continue;
+
+    if (markerCounts.begin === 1 && markerCounts.end === 1) {
+      if (extractMarkerInner(targetText, spec.marker) != null) continue;
+      // (1,1) but extraction fails — fall through to anomaly repair
     }
-    if (extractMarkerInner(targetText, spec.marker) != null) continue;
-    const canonicalPayload = canonicalPayloadById.get(spec.id);
-    if (!canonicalPayload) {
+
+    const canonicalInner = canonicalInnerById.get(spec.id);
+    if (canonicalInner == null) {
       return blocked("CANONICAL_PAYLOAD_MISSING", { canonical_block_path: spec.canonicalBlockPath });
     }
-    fs.writeFileSync(targetPath, normalizeText(canonicalPayload), "utf8");
-    repairedMissingMarkerFiles.push(targetPath);
+    const autogenBlock = buildAutogenBlock(spec.marker, canonicalInner);
+
+    if (markerCounts.begin === 0 && markerCounts.end === 0) {
+      // No markers — INJECT block at end, preserve ALL user content
+      const base = normalizeText(targetText).replace(/\n$/, "");
+      fs.writeFileSync(targetPath, base + "\n\n" + autogenBlock + "\n", "utf8");
+      repairedMissingMarkerFiles.push(targetPath);
+    } else {
+      // Marker anomaly — strip all markers/content, reinject clean block
+      const stripped = stripAutogenBlock(targetText, spec.marker);
+      const base = normalizeText(stripped).replace(/\n$/, "");
+      fs.writeFileSync(targetPath, base + "\n\n" + autogenBlock + "\n", "utf8");
+      repairedMarkerAnomalyFiles.push(targetPath);
+    }
   }
 
   for (const spec of blockSpecs) {

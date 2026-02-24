@@ -726,6 +726,171 @@ cases.push(async () => {
 });
 
 cases.push(async () => {
+  const fixture = withTempWorkspace("migrate-preserves-user-content-no-markers", (root) => {
+    writeFile(
+      root,
+      "prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md",
+      makeCanonicalSource(),
+    );
+    writeFile(
+      root,
+      "prompts/governance/WORKSPACE_GOVERNANCE_MIGRATION.md",
+      makeMigrationPrompt(),
+    );
+    writeFile(root, "_control/WORKSPACE_INDEX.md", "# index\n");
+    // AGENTS.md with rich user content but NO AUTOGEN markers
+    writeFile(
+      root,
+      "AGENTS.md",
+      [
+        "# OpenClaw AGENTS",
+        "",
+        "## Memory",
+        "- Remember user preferences across sessions",
+        "",
+        "## Safety",
+        "- Never delete user files without confirmation",
+        "",
+        "## Heartbeats",
+        "- Check in every 30 minutes",
+        "",
+      ].join("\n"),
+    );
+    writeFile(
+      root,
+      "_control/GOVERNANCE_BOOTSTRAP.md",
+      [
+        "# GOV target",
+        "<!-- AUTOGEN:BEGIN GOV_CORE_v1 -->",
+        "OLD_GOV",
+        "<!-- AUTOGEN:END GOV_CORE_v1 -->",
+        "",
+      ].join("\n"),
+    );
+    writeFile(
+      root,
+      "_control/REGRESSION_CHECK.md",
+      [
+        "# REG target",
+        "<!-- AUTOGEN:BEGIN REGRESSION_12_v1 -->",
+        "OLD_REG",
+        "<!-- AUTOGEN:END REGRESSION_12_v1 -->",
+        "",
+      ].join("\n"),
+    );
+  });
+  try {
+    const { commands } = createHarness();
+    const migrate = commands.get("gov_migrate");
+    const out = await migrate.handler({});
+    const text = String(out?.text || "");
+    assert.match(text, /STATUS\s*\nPASS/i);
+    const agents = fs.readFileSync(path.join(fixture.root, "AGENTS.md"), "utf8");
+    // All user sections must be preserved
+    assert.ok(agents.includes("## Memory"), "Memory section must be preserved");
+    assert.ok(agents.includes("## Safety"), "Safety section must be preserved");
+    assert.ok(agents.includes("## Heartbeats"), "Heartbeats section must be preserved");
+    // AUTOGEN block must be injected
+    assert.ok(agents.includes("AUTOGEN:BEGIN AGENTS_CORE_v1"), "AUTOGEN block must be injected");
+    assert.ok(agents.includes("CANONICAL_AGENTS"), "Canonical inner must be present");
+    // Exactly 1 BEGIN + 1 END
+    const beginCount = (agents.match(/<!-- AUTOGEN:BEGIN AGENTS_CORE_v1 -->/g) || []).length;
+    const endCount = (agents.match(/<!-- AUTOGEN:END AGENTS_CORE_v1 -->/g) || []).length;
+    assert.equal(beginCount, 1, "must have exactly 1 BEGIN marker");
+    assert.equal(endCount, 1, "must have exactly 1 END marker");
+  } finally {
+    fixture.restore();
+  }
+});
+
+cases.push(async () => {
+  const fixture = withTempWorkspace("migrate-preserves-user-content-marker-anomaly", (root) => {
+    writeFile(
+      root,
+      "prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md",
+      makeCanonicalSource(),
+    );
+    writeFile(
+      root,
+      "prompts/governance/WORKSPACE_GOVERNANCE_MIGRATION.md",
+      makeMigrationPrompt(),
+    );
+    writeFile(root, "_control/WORKSPACE_INDEX.md", "# index\n");
+    // AGENTS.md with user content + 2 duplicate AUTOGEN blocks (begin=2, end=2)
+    writeFile(
+      root,
+      "AGENTS.md",
+      [
+        "# OpenClaw AGENTS",
+        "",
+        "## Memory",
+        "- Remember user preferences across sessions",
+        "",
+        "<!-- AUTOGEN:BEGIN AGENTS_CORE_v1 -->",
+        "OLD_AGENTS_BLOCK_1",
+        "<!-- AUTOGEN:END AGENTS_CORE_v1 -->",
+        "",
+        "## Safety",
+        "- Never delete user files without confirmation",
+        "",
+        "<!-- AUTOGEN:BEGIN AGENTS_CORE_v1 -->",
+        "OLD_AGENTS_BLOCK_2",
+        "<!-- AUTOGEN:END AGENTS_CORE_v1 -->",
+        "",
+        "## Heartbeats",
+        "- Check in every 30 minutes",
+        "",
+      ].join("\n"),
+    );
+    writeFile(
+      root,
+      "_control/GOVERNANCE_BOOTSTRAP.md",
+      [
+        "# GOV target",
+        "<!-- AUTOGEN:BEGIN GOV_CORE_v1 -->",
+        "OLD_GOV",
+        "<!-- AUTOGEN:END GOV_CORE_v1 -->",
+        "",
+      ].join("\n"),
+    );
+    writeFile(
+      root,
+      "_control/REGRESSION_CHECK.md",
+      [
+        "# REG target",
+        "<!-- AUTOGEN:BEGIN REGRESSION_12_v1 -->",
+        "OLD_REG",
+        "<!-- AUTOGEN:END REGRESSION_12_v1 -->",
+        "",
+      ].join("\n"),
+    );
+  });
+  try {
+    const { commands } = createHarness();
+    const migrate = commands.get("gov_migrate");
+    const out = await migrate.handler({});
+    const text = String(out?.text || "");
+    assert.match(text, /STATUS\s*\nPASS/i);
+    const agents = fs.readFileSync(path.join(fixture.root, "AGENTS.md"), "utf8");
+    // User sections must be preserved
+    assert.ok(agents.includes("## Memory"), "Memory section must be preserved");
+    assert.ok(agents.includes("## Safety"), "Safety section must be preserved");
+    assert.ok(agents.includes("## Heartbeats"), "Heartbeats section must be preserved");
+    // Old duplicate blocks must be removed
+    assert.ok(!agents.includes("OLD_AGENTS_BLOCK_1"), "old block 1 must be removed");
+    assert.ok(!agents.includes("OLD_AGENTS_BLOCK_2"), "old block 2 must be removed");
+    // Single clean AUTOGEN block with canonical content
+    assert.ok(agents.includes("CANONICAL_AGENTS"), "Canonical inner must be present");
+    const beginCount = (agents.match(/<!-- AUTOGEN:BEGIN AGENTS_CORE_v1 -->/g) || []).length;
+    const endCount = (agents.match(/<!-- AUTOGEN:END AGENTS_CORE_v1 -->/g) || []).length;
+    assert.equal(beginCount, 1, "must have exactly 1 BEGIN marker");
+    assert.equal(endCount, 1, "must have exactly 1 END marker");
+  } finally {
+    fixture.restore();
+  }
+});
+
+cases.push(async () => {
   const fixture = withTempWorkspace("audit-fail-missing-presets", (root) => {
     writeFile(
       root,
@@ -1149,6 +1314,185 @@ cases.push(() => {
     { sessionKey: "s15", channel: "restricted.chat" },
   );
   assert.equal(out, undefined);
+});
+
+// C38: uninstall-strips-agents-autogen-preserves-content
+cases.push(async () => {
+  const fixture = withTempWorkspace("uninstall-strips-agents-autogen-preserves-content", (root) => {
+    writeFile(
+      root,
+      "AGENTS.md",
+      [
+        "# OpenClaw AGENTS",
+        "",
+        "## Memory",
+        "- Remember user preferences across sessions",
+        "",
+        "<!-- AUTOGEN:BEGIN AGENTS_CORE_v1 -->",
+        "Workspace Agent Loader ->Governance Router",
+        "<!-- AUTOGEN:END AGENTS_CORE_v1 -->",
+        "",
+        "## Safety",
+        "- Never delete user files without confirmation",
+        "",
+        "## Heartbeats",
+        "- Check in every 30 minutes",
+        "",
+      ].join("\n"),
+    );
+    writeFile(
+      root,
+      "prompts/governance/WORKSPACE_GOVERNANCE_README.md",
+      "# gov prompt residual\n",
+    );
+    writeFile(
+      root,
+      "prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md",
+      "# bootstrap prompt\n",
+    );
+  });
+  try {
+    const { commands } = createHarness();
+    const uninstall = commands.get("gov_uninstall");
+    const out = await uninstall.handler({ args: "uninstall" });
+    const text = String(out?.text || "");
+    assert.match(text, /STATUS\s*\nPASS/i);
+    // AGENTS.md must still exist
+    assert.equal(fs.existsSync(path.join(fixture.root, "AGENTS.md")), true, "AGENTS.md must survive uninstall");
+    const agents = fs.readFileSync(path.join(fixture.root, "AGENTS.md"), "utf8");
+    // User sections preserved
+    assert.ok(agents.includes("## Memory"), "Memory section must be preserved");
+    assert.ok(agents.includes("## Safety"), "Safety section must be preserved");
+    assert.ok(agents.includes("## Heartbeats"), "Heartbeats section must be preserved");
+    // No AUTOGEN markers remain
+    assert.ok(!agents.includes("AUTOGEN:BEGIN AGENTS_CORE_v1"), "AUTOGEN:BEGIN marker must be removed");
+    assert.ok(!agents.includes("AUTOGEN:END AGENTS_CORE_v1"), "AUTOGEN:END marker must be removed");
+    assert.ok(!agents.includes("Governance Router"), "Governance Router content must be removed");
+    // Governance prompts removed
+    assert.equal(
+      fs.existsSync(path.join(fixture.root, "prompts/governance/WORKSPACE_GOVERNANCE_README.md")),
+      false,
+      "Governance prompt must be removed",
+    );
+    assert.equal(
+      fs.existsSync(path.join(fixture.root, "prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md")),
+      false,
+      "Bootstrap prompt must be removed",
+    );
+  } finally {
+    fixture.restore();
+  }
+});
+
+// C39: uninstall-preserves-runs-governance-logs
+cases.push(async () => {
+  const fixture = withTempWorkspace("uninstall-preserves-runs-governance-logs", (root) => {
+    writeFile(root, "AGENTS.md", "# workspace agents\n");
+    writeFile(
+      root,
+      "prompts/governance/WORKSPACE_GOVERNANCE_README.md",
+      "# gov prompt residual\n",
+    );
+    writeFile(
+      root,
+      "_runs/migrate_governance_rev6_20260224_120000.md",
+      "# governance migration log\n",
+    );
+    writeFile(
+      root,
+      "_runs/custom_user_report.md",
+      "KEEP_CUSTOM_RUN\n",
+    );
+  });
+  try {
+    const { commands } = createHarness();
+    const uninstall = commands.get("gov_uninstall");
+    const out = await uninstall.handler({ args: "uninstall" });
+    const text = String(out?.text || "");
+    assert.match(text, /STATUS\s*\nPASS/i);
+    // Both governance logs and user logs must be preserved
+    assert.equal(
+      fs.existsSync(path.join(fixture.root, "_runs/migrate_governance_rev6_20260224_120000.md")),
+      true,
+      "Governance run log must be preserved",
+    );
+    assert.equal(
+      fs.readFileSync(path.join(fixture.root, "_runs/migrate_governance_rev6_20260224_120000.md"), "utf8"),
+      "# governance migration log\n",
+      "Governance run log content must be intact",
+    );
+    assert.equal(
+      fs.existsSync(path.join(fixture.root, "_runs/custom_user_report.md")),
+      true,
+      "User run report must be preserved",
+    );
+    assert.equal(
+      fs.readFileSync(path.join(fixture.root, "_runs/custom_user_report.md"), "utf8"),
+      "KEEP_CUSTOM_RUN\n",
+      "User run report content must be intact",
+    );
+  } finally {
+    fixture.restore();
+  }
+});
+
+// C40: uninstall-post-qc-passes
+cases.push(async () => {
+  const fixture = withTempWorkspace("uninstall-post-qc-passes", (root) => {
+    writeFile(
+      root,
+      "AGENTS.md",
+      [
+        "# OpenClaw AGENTS",
+        "",
+        "<!-- AUTOGEN:BEGIN AGENTS_CORE_v1 -->",
+        "Workspace Agent Loader ->Governance Router",
+        "<!-- AUTOGEN:END AGENTS_CORE_v1 -->",
+        "",
+      ].join("\n"),
+    );
+    writeFile(
+      root,
+      "_control/GOVERNANCE_BOOTSTRAP.md",
+      "# gov bootstrap\n",
+    );
+    writeFile(
+      root,
+      "_control/REGRESSION_CHECK.md",
+      "# regression check\n",
+    );
+    writeFile(
+      root,
+      "prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md",
+      "# bootstrap prompt\n",
+    );
+  });
+  try {
+    const { commands } = createHarness();
+    const uninstall = commands.get("gov_uninstall");
+    const out = await uninstall.handler({ args: "uninstall" });
+    const text = String(out?.text || "");
+    assert.match(text, /STATUS\s*\nPASS/i);
+    // Post-uninstall QC fields must be present
+    assert.ok(text.includes("post_uninstall_qc"), "post_uninstall_qc must be in output");
+    // AGENTS.md must exist with no AUTOGEN markers
+    assert.equal(fs.existsSync(path.join(fixture.root, "AGENTS.md")), true, "AGENTS.md must exist");
+    const agents = fs.readFileSync(path.join(fixture.root, "AGENTS.md"), "utf8");
+    assert.ok(!agents.includes("AUTOGEN:BEGIN AGENTS_CORE_v1"), "No AUTOGEN markers must remain");
+    // Governance control files must be cleaned
+    assert.equal(
+      fs.existsSync(path.join(fixture.root, "_control/GOVERNANCE_BOOTSTRAP.md")),
+      false,
+      "GOVERNANCE_BOOTSTRAP.md must be removed",
+    );
+    assert.equal(
+      fs.existsSync(path.join(fixture.root, "_control/REGRESSION_CHECK.md")),
+      false,
+      "REGRESSION_CHECK.md must be removed",
+    );
+  } finally {
+    fixture.restore();
+  }
 });
 
 let pass = 0;
