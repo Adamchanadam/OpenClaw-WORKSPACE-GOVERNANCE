@@ -67,25 +67,21 @@ Then in OpenClaw chat:
 ```
 
 ## What you get
-1. `gov_help` for one-shot command list and one-click entry suggestions.
-2. `gov_setup` with `quick | install | upgrade | check`.
-3. `gov_migrate` for governance upgrades.
-4. `gov_audit` for 12/12 consistency checks.
-5. `gov_apply <NN>` for controlled BOOT proposal apply (**Experimental**, controlled UAT only).
-6. `gov_openclaw_json` for controlled platform control-plane updates:
-   - in scope: `~/.openclaw/openclaw.json`
-   - in scope when explicitly needed: `~/.openclaw/extensions/`
-   - not for Brain Docs (`USER.md`, `SOUL.md`, `memory/*.md`) or normal workspace docs
-7. `gov_brain_audit` for conservative Brain Docs risk review:
-   - single entry (read-only preview by default)
-   - approval-based minimal diff + backup
-   - rollback only when an approved backup exists
-8. `gov_uninstall quick|check|uninstall` for safe workspace cleanup before package removal.
+1. `gov_help` — see all commands and recommended entry points at a glance.
+2. `gov_setup quick|check|install|upgrade` — deploy, upgrade, or verify governance in one step.
+3. `gov_migrate` — align workspace behavior to the latest governance rules after install or upgrade.
+4. `gov_audit` — verify 12 integrity checks and catch drift before declaring completion.
+5. `gov_openclaw_json` — safely edit platform config (`openclaw.json`) with backup, validation, and rollback.
+6. `gov_brain_audit` — review and harden Brain Docs quality with preview-first approval and rollback.
+7. `gov_boot_audit` — scan for recurring issues and generate upgrade proposals (read-only diagnostic).
+8. `gov_uninstall quick|check|uninstall` — clean removal with backup and restore evidence.
+9. `gov_apply <NN>` — apply a single BOOT upgrade proposal with explicit human approval (**Experimental**, controlled UAT only).
 
 ## Feature maturity (important)
-1. GA flow for production rollout: `gov_setup -> gov_migrate -> gov_audit`, plus `gov_openclaw_json`, `gov_brain_audit`, `gov_uninstall`.
+1. GA flow for production rollout: `gov_setup -> gov_migrate -> gov_audit`, plus `gov_openclaw_json`, `gov_brain_audit`, `gov_boot_audit`, `gov_uninstall`.
 2. Experimental flow: `gov_apply <NN>` (BOOT controlled apply) is included in deterministic runtime regression baseline, but remains controlled-UAT scope.
 3. If you use `gov_apply <NN>`, keep it in controlled UAT and always close with `/gov_migrate` then `/gov_audit`.
+4. All `/gov_*` command outputs use branded format: `🐾` header, emoji status indicators (✅/⚠️/❌), structured bullets, and `👉` next-step guidance.
 
 ## When to use which command (quick map)
 1. Need command list fast: `gov_help`
@@ -99,6 +95,7 @@ Then in OpenClaw chat:
 9. Edit OpenClaw platform config safely: `gov_openclaw_json`
 10. Review/harden Brain Docs safely: `gov_brain_audit -> gov_brain_audit APPROVE: ... -> gov_brain_audit ROLLBACK (if needed)`
 11. Cleanup workspace governance artifacts safely: `gov_uninstall quick`
+12. Scan for recurring issues and get upgrade proposals: `gov_boot_audit`
 
 ## First-run status map
 After `/gov_setup quick`:
@@ -124,7 +121,7 @@ Version check (operator-side):
 2. Write/update/save commands require PLAN + READ evidence before CHANGE.
 3. If blocked by runtime gate, this usually means governance guard worked (not a system crash).
 4. Include `WG_PLAN_GATE_OK` + `WG_READ_GATE_OK` in governance output, then retry.
-5. Prefer final response shape from `gov_*`: `STATUS` -> `WHY` -> `NEXT STEP (Operator)` -> `COMMAND TO COPY`.
+5. All `gov_*` responses use branded output: `🐾` header, emoji status prefix (✅ PASS/READY, ⚠️ WARNING, ❌ BLOCKED/FAIL), structured `•` bullets, `👉` next-step, and `─────` dividers.
 6. If `gov_setup upgrade` still reports gate deadlock, update plugin to latest + restart gateway, then rerun `gov_setup check` and `gov_setup upgrade`.
 7. Tool-exposure root-fix is enabled by default: governance plugin tools require explicit `/gov_*` intent (or `/skill gov_*`) in the current turn window.
 
@@ -142,6 +139,7 @@ Use fallback commands:
 /skill gov_brain_audit
 /skill gov_brain_audit APPROVE: APPLY_ALL_SAFE
 /skill gov_brain_audit ROLLBACK
+/skill gov_boot_audit
 ```
 
 Or natural language:
