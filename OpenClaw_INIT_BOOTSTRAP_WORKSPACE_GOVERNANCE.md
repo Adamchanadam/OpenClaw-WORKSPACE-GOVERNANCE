@@ -278,9 +278,9 @@ ClawHub installer page:
 
 | Version | Published (UTC) | Key Changes | Practical Impact |
 | --- | --- | --- | --- |
+| `v0.1.52` | 2026-02-24 | Detection logic hardening: `gov_uninstall` now detects all 8 `_control/` file references in brain docs (previously only 3); release pipeline adds `PLUGIN_VERSION` constant alignment gate; refactored brain-doc scanning; regression expanded to 100/100 | Uninstall check/cleanup now catches previously-missed governance residue (e.g. `_control/ACTIVE_GUARDS.md` references); future version misalignment prevented by machine gate |
 | `v0.1.51` | 2026-02-24 | Hotfix: aligned `PLUGIN_VERSION` constant in runtime — v0.1.50 shipped with stale `0.1.49` in branded output headers | Branded output headers now correctly show `v0.1.51`; no functional change |
 | `v0.1.50` | 2026-02-24 | Root-fixed post-uninstall brain-doc deadlock: `gov_uninstall` now strips governance enforcement rules from all brain docs; lifecycle prompt alignment (Mode B/C contract); regression expanded to 96/96 | Uninstall no longer leaves residual governance rules in AGENTS.md/SOUL.md that block normal workspace operation |
-| `v0.1.49` | 2026-02-24 | UX branding refresh: all `/gov_*` outputs now show branded header (`🐾 OpenClaw Governance`), emoji status indicators (✅/⚠️/❌), structured bullet lists, and clear `👉` next-step guidance; redundant labels removed for cleaner output | Command responses are easier to read; you can identify status and next action at a glance |
 
 Source: GitHub Releases (`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`)
 

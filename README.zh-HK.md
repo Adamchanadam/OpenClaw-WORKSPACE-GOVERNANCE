@@ -16,9 +16,9 @@ ClawHub 安裝頁：
 
 | 版本 | 發佈時間（UTC） | 關鍵變更 | 對使用者的直接影響 |
 | --- | --- | --- | --- |
+| `v0.1.52` | 2026-02-24 | 偵測邏輯強化：`gov_uninstall` 現在偵測全部 8 個 `_control/` 檔案引用（舊版只查 3 個）；發佈管道新增 `PLUGIN_VERSION` 常數對齊閘門；重構 brain-doc 掃描邏輯；回歸測試擴展至 100/100 | 卸載檢查/清理現在能捕捉到之前遺漏的治理殘留（如 `_control/ACTIVE_GUARDS.md` 引用）；機器閘門防止未來版本號不對齊 |
 | `v0.1.51` | 2026-02-24 | 熱修復：對齊 runtime `PLUGIN_VERSION` 常數 — v0.1.50 出版時品牌輸出標頭仍顯示舊版 `0.1.49` | 品牌輸出標頭現在正確顯示 `v0.1.51`；無功能變更 |
 | `v0.1.50` | 2026-02-24 | 根治卸載後 Brain Doc 死鎖：`gov_uninstall` 現在會從所有 Brain Docs 清除治理執行規則；生命週期 Prompt 對齊（Mode B/C 合約）；回歸測試擴展至 96/96 | 卸載後不再因殘留治理規則導致 AGENTS.md/SOUL.md 阻礙正常工作區運作 |
-| `v0.1.49` | 2026-02-24 | UX 品牌刷新：所有 `/gov_*` 輸出改用品牌標頭（`🐾 OpenClaw Governance`）、emoji 狀態指示（✅/⚠️/❌）、結構化項目清單、清晰 `👉` 下一步指引；移除冗餘標籤，輸出更簡潔 | 指令回覆更易讀，你可一眼辨認狀態與下一步 |
 
 來源：GitHub Releases（`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`）
 
