@@ -60,8 +60,7 @@ Experimental（實驗性）：
 ## Visual Walkthrough（ref_doc）
 
 ![OpenClaw WORKSPACE_GOVERNANCE Infographic](./ref_doc/infograp_eng.png)
-![gov_setup install 畫面](./ref_doc/screen_gov_setup_inst.png)
-![gov_setup upgrade 畫面](./ref_doc/screen_gov_setup_upg.png)
+![gov_setup quick 畫面](./ref_doc/screen_gov_setup_quick.png)
 ![Page 1](./ref_doc/page_1.jpg)
 ![Page 2](./ref_doc/page_2.jpg)
 ![Page 3](./ref_doc/page_3.jpg)
