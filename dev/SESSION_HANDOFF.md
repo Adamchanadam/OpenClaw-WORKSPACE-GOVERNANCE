@@ -7,7 +7,7 @@ Use this file as the first read in every new session.
 1. Version baseline in repo:
    - `package.json` and `openclaw.plugin.json` currently aligned at `0.1.48`.
 2. Deterministic command set:
-   - `gov_help`, `gov_setup`, `gov_migrate`, `gov_apply`, `gov_audit`, `gov_uninstall`
+   - `gov_help`, `gov_setup`, `gov_migrate`, `gov_apply`, `gov_audit`, `gov_uninstall`, `gov_openclaw_json` (check mode), `gov_brain_audit` (preview mode), `gov_boot_audit` (scan mode)
    - one-click operator paths: `gov_setup quick`, `gov_uninstall quick`
 3. UX transparency contract:
    - command output uses branded header (`🐾 OpenClaw Governance · v${VERSION}`) + emoji status prefix (✅/⚠️/❌/ℹ️)
@@ -16,10 +16,11 @@ Use this file as the first read in every new session.
    - `/gov_setup quick|auto` includes `flow_trace`
    - `gov_setup`/`gov_migrate` include `execution_items`
    - `gov_audit` includes `qc_12_item`
+   - `gov_apply` includes `governance_maturity` delta
 4. Experimental boundary:
    - `gov_apply <NN>` remains controlled-UAT scope (deterministic-covered, not unattended GA).
 5. Runtime regression denominator baseline:
-   - `SUMMARY 40/40 passed`
+   - `SUMMARY 54/54 passed`
 6. Latest public release channels:
    - npm: `@adamchanadam/openclaw-workspace-governance@0.1.48`
    - GitHub release: `v0.1.48`
@@ -52,18 +53,18 @@ npm pack --dry-run
 
 ## 4) Open Priorities
 
-1. **Phase 1 (P1)**: `gov_openclaw_json` deterministic CHECK runner (`tools/gov_openclaw_json_sync.mjs`) — Platform Health Score (0-10), hybrid: check=deterministic, apply/custom=SKILL. [GAP-002]
-2. **Phase 2 (P1)**: `gov_brain_audit` deterministic PREVIEW runner (`tools/gov_brain_audit_sync.mjs`) — Brain Docs Health Score (0-100) via `brain_audit_rules.mjs`, hybrid: preview=deterministic, APPROVE/ROLLBACK=SKILL. [GAP-003]
-3. **Phase 3 (P2)**: BOOT audit deterministic runner (`tools/gov_boot_audit_sync.mjs`) — structured recurrence detection + UPGRADE MENU via `formatCommandOutput`. [GAP-007]
-4. **Phase 4 (P2)**: `gov_apply` maturity delta — add `governance_maturity: guards=N→N+1, lessons=N→N+1` to apply PASS output.
-5. Mode B deterministic hard-enforcement design and regression. [GAP-001]
-6. Host-side B5 evidence accumulation for `gov_apply` promotion decision. [GAP-004]
+1. ~~**Phase 1 (P1)**~~: **DONE** — `gov_openclaw_json` deterministic CHECK runner. [GAP-002]
+2. ~~**Phase 2 (P1)**~~: **DONE** — `gov_brain_audit` deterministic PREVIEW runner. [GAP-003]
+3. ~~**Phase 3 (P2)**~~: **DONE** — BOOT audit deterministic runner. [GAP-007]
+4. ~~**Phase 4 (P2)**~~: **DONE** — `gov_apply` maturity delta. [GAP-C09]
+5. ~~**Phase 5 (P1)**~~: **DONE** — Mode B deterministic hard-enforcement. [GAP-001]
+6. **Phase 6 (P1)**: Host-side B5 evidence accumulation for `gov_apply` promotion decision. [GAP-004] — **IN_PROGRESS** (protocol defined; evidence collection ongoing)
+7. ~~**GAP-005 (P2)**~~: **DONE** — Cross-doc repetition normalization.
+8. ~~**GAP-006 (P2)**~~: **DONE** — Regression denominator drift protocol.
 
 ## 5) Known Risks / Blockers
 
-1. `gov_apply` 仍為 Experimental，未達 GA 門檻（缺 host-side B5 證據）。
-2. `gov_openclaw_json` 及 `gov_brain_audit` 尚無 deterministic runner，依賴 LLM 判斷路徑。
-3. Mode B（需證據回答）尚無 hard-enforcement gate。
+1. `gov_apply` 仍為 Experimental，未達 GA 門檻（缺 host-side B5 證據；promotion protocol 已定義）。
 
 ## 6) Last Major Changes (for continuity)
 
@@ -76,31 +77,54 @@ npm pack --dry-run
    - Prevents QC 8 / QC 3 false failures after `/gov_brain_audit APPROVE`
    - Regression test added: `audit-ignores-non-deterministic-run-reports` (baseline now `35/35`)
    - Phase B6 scenario added to `OPENCLAW_PUBLIC_FLOW_REGRESSION.md`
-2. Added deterministic apply runner:
+3. Added deterministic apply runner:
    - `tools/gov_apply_sync.mjs`
-2. Added deterministic `/gov_apply` command wiring:
-   - `index.ts`
-3. Expanded runtime regression to apply cases:
+4. Expanded runtime regression to apply cases:
    - baseline now `34/34`
-4. Added B5 apply deep-dive matrix in public-flow regression plan.
-5. Added governance documentation stack:
-   - master spec
-   - traceability matrix
-   - gap register
-   - this handoff file
-6. Hardened `gov_uninstall` scope control:
-   - no broad delete of whole `prompts/governance/`
-   - cleanup is explicit-target only
-   - Brain Docs autofix backup detection/restore evidence is included
-   - regression includes non-governance file preservation case
-7. Root-fixed quick-flow audit mismatch loop (`v0.1.46`):
-   - `gov_migrate` seeds missing `_control/PRESETS.md` and `_control/WORKSPACE_INDEX.md`
-   - `gov_migrate` repairs marker-count anomalies (for example duplicate `AUTOGEN END`)
-8. Added UX transparency output contract (`v0.1.47`):
-   - `SIGNAL` header + quick `flow_trace` + setup/migrate `execution_items` + audit `qc_12_item`
-   - runtime regression includes explicit visibility checks
+5. Added B5 apply deep-dive matrix in public-flow regression plan.
+6. Added governance documentation stack:
+   - master spec, traceability matrix, gap register, this handoff file
+7. Added `gov_openclaw_json` hybrid command (GAP-002):
+   - `tools/gov_openclaw_json_sync.mjs`: deterministic Platform Health Score (0-10) CHECK runner
+   - `index.ts`: `makeGovOpenclawJsonCommandResponse` + command registration
+   - regression baseline: 40/40 -> 44/44 (C41-C44)
+8. Added `gov_brain_audit` hybrid command (GAP-003):
+   - `tools/gov_brain_audit_sync.mjs`: deterministic Brain Docs Health Score (0-100) PREVIEW runner
+   - `brain_audit_rules.mjs` refactored to export `runBrainAuditScan()` for reuse
+   - `index.ts`: `makeGovBrainAuditCommandResponse` + command registration
+   - regression baseline: 44/44 -> 49/49 (C45-C49)
+9. Added `gov_boot_audit` deterministic command (GAP-007):
+   - `tools/gov_boot_audit_sync.mjs`: recurrence scanner + upgrade menu generation
+   - `index.ts`: `makeGovBootAuditCommandResponse` + command registration
+   - regression baseline: 49/49 -> 52/52 (C50-C52)
+10. Added `gov_apply` maturity delta (GAP-C09):
+    - `governance_maturity: guards=N→N+1, lessons=N→N+1` in apply PASS output
+    - Updated both runner (`gov_apply_sync.mjs`) and command response (`index.ts`)
+11. Added Mode B deterministic enforcement (GAP-001):
+    - `isModeBSystemSensitive()` detection for system/version/time-sensitive questions
+    - `prependContext` verification directive injected in `before_prompt_build`
+    - Mode B fires only for read-only intent (Mode C takes precedence)
+    - regression baseline: 52/52 -> 54/54 (C53-C54)
+12. Defined B5 Evidence Accumulation Protocol (GAP-004):
+    - GA promotion threshold: 3+ host executions across 2+ releases
+    - Evidence recording protocol in `GOVERNANCE_GAP_REGISTER.md`
+13. Hardened `gov_uninstall` scope control
+14. Root-fixed quick-flow audit mismatch loop (`v0.1.46`)
+15. Added UX transparency output contract (`v0.1.47`)
+16. Cross-doc normalization (GAP-005):
+    - BASELINE_INVENTORY sections 3+4 replaced with cross-references to MASTER_SPEC/TRACEABILITY_MATRIX
+    - Handbooks (zh/en) annotated with canonical source note pointing to MASTER_SPEC §3
+17. Denominator drift protocol (GAP-006):
+    - Fixed stale denominators: PUBLISHING.md `34/34` → `54/54`, dev/README.md `40` → `54`
+    - Added automated `cases.push(` counter in `check_release_consistency.mjs`
+    - Added denominator-update checklist rule to PUBLISHING.md §2.1
+18. MASTER_SPEC expanded to Complete Plugin Reference (天書):
+    - Renamed from "SSOT for Engineering" to "Complete Plugin Reference"
+    - Added §11 Product Positioning, §12 UX Output Contract, §13 Skill Contract Summary, §14 Governance Execution Order & File Scope, §15 Operator Runbook Summary, §16 Troubleshooting Index, §17 Release & Distribution
+    - Canonical source notes added to: VALUE_POSITIONING docs (§11), handbooks §3 (§14), PUBLISHING.md (§17)
+    - No content removed from any file; no code changes; no regression impact
 
-## 7) Runtime Validation Snapshot (2026-02-23)
+## 7) Runtime Validation Snapshot (2026-02-24)
 
 1. OpenClaw host verification result (user runtime evidence):
    - `/gov_setup quick` -> `PASS`
@@ -114,13 +138,18 @@ npm pack --dry-run
 ## 8) Last Session Record
 
 1. Session date: `2026-02-24`
-2. Agent & Session ID: `Claude-Opus-4.6_20260224_ux_branding`
+2. Agent & Session ID: `Claude-Opus-4.6_20260224_phase_1_to_6`
 3. Key completion:
-   - UX branding refresh: `makeStatusSignal()` emoji prefixes + `formatCommandOutput()` branded layout
-   - regression baseline: 40/40 (was 35/35; no test assertions changed)
-   - updated docs: README.zh-HK.md, VALUE_POSITIONING_AND_FACTORY_GAP.md, WORKSPACE_GOVERNANCE_README.md, dev/README.md, dev/SESSION_HANDOFF.md, dev/SESSION_LOG.md
+   - Phase 1-6 implemented: all P1 gaps closed (GAP-001, GAP-002, GAP-003, GAP-007)
+   - Phase 4: `gov_apply` maturity delta
+   - Phase 5: Mode B hard enforcement
+   - Phase 6: B5 evidence protocol defined
+   - regression baseline: 40/40 -> 54/54
+   - new tools: `gov_openclaw_json_sync.mjs`, `gov_brain_audit_sync.mjs`, `gov_boot_audit_sync.mjs`
+   - new commands: `gov_openclaw_json`, `gov_brain_audit`, `gov_boot_audit`
 4. Next session starting point:
-   - continue from `dev/GOVERNANCE_GAP_REGISTER.md` active `P1` items (`Mode B deterministic enforcement`, `gov_openclaw_json` parity, `gov_brain_audit` parity)
+   - collect B5 host evidence for `gov_apply` GA promotion [GAP-004]
+   - P2 items: cross-doc normalization [GAP-005], denominator drift protocol [GAP-006]
 
 ## 9) Update Rule
 

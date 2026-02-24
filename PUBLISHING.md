@@ -1,5 +1,7 @@
 # Publishing Guide (Plugin + ClawHub)
 
+> Release gate canonical reference: `dev/GOVERNANCE_MASTER_SPEC.md` §17
+
 This document is for maintainers of `OpenClaw-WORKSPACE-GOVERNANCE`.
 Validation asset index: `dev/README.md`
 Machine-proven Windows publish path: `dev/LOCAL_PUBLISH_RUNBOOK_WINDOWS.md`
@@ -41,13 +43,14 @@ Use a dual-channel release model:
 Do not publish if any gate below fails:
 
 1. `node dev/check_release_consistency.mjs` must return `ALL_CHECKS_PASS`.
-2. `node dev/run_runtime_regression.mjs` must return full-pass summary (current baseline: `SUMMARY 34/34 passed`).
+2. `node dev/run_runtime_regression.mjs` must return full-pass summary (current baseline: `SUMMARY 54/54 passed`).
 3. Public-flow regression required phases must pass (`A/B/B0/B2/B3/B4/C/D/F/G`) per:
    - `dev/OPENCLAW_PUBLIC_FLOW_REGRESSION.md`
    - plus `B5` when release touches `gov_apply` command/runner/contract.
 4. BOOT post-flow acceptance must be recorded and pass:
    - `dev/BOOT_POSTFLOW_ACCEPTANCE_TEMPLATE.md` with `G1=PASS` and `G2=PASS`.
 5. If any gate fails, mark release as `BLOCKED`, fix issue, rerun full gate set; partial reruns are not valid signoff.
+6. Denominator-update rule: when adding/removing regression cases in `run_runtime_regression.mjs`, update the baseline count in this section (item 2) and in `dev/README.md` (Release Blocking Standard). The machine gate in `check_release_consistency.mjs` validates this automatically.
 
 ## 2.2 Refactor Preservation Gate (Hard)
 

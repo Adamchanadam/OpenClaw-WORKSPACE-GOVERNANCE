@@ -16,9 +16,9 @@ ClawHub installer page:
 
 | Version | Published (UTC) | Key Changes | Practical Impact |
 | --- | --- | --- | --- |
-| `v0.1.49` | 2026-02-24 | UX branding refresh: all `/gov_*` outputs now use branded header (`🐾 OpenClaw Governance · v0.1.49`), emoji status prefix (✅/⚠️/❌), `  •` bullets, `👉` next-step prefix, `─────` dividers; removed redundant SIGNAL/WHY/NEXT STEP/COMMAND TO COPY labels; regression expanded to 40/40 | Command responses are more readable with brand identity; operators can identify status and next action at a glance |
-| `v0.1.48` | 2026-02-24 | Fixed audit false-failure after `/gov_brain_audit APPROVE`: `findLatestWriteRunReport()` now uses whitelist-only filter (`WRITE_RUN_REPORT_NAME_RE`) so non-deterministic LLM reports are excluded; regression expanded to 35/35 | `/gov_audit` no longer fails on QC 8/QC 3 when only a brain audit run report exists in `_runs/` |
-| `v0.1.47` | 2026-02-23 | UX transparency upgrade: added `SIGNAL` header, `flow_trace` for one-click lifecycle, `execution_items` for setup/migrate, and `qc_12_item` list in audit output; regression contract still 34/34 | Operators can now see what actually ran and what value was delivered without opening run reports first |
+| `v0.1.49` | 2026-02-24 | UX branding refresh: all `/gov_*` outputs now show branded header (`🐾 OpenClaw Governance`), emoji status indicators (✅/⚠️/❌), structured bullet lists, and clear `👉` next-step guidance; redundant labels removed for cleaner output | Command responses are easier to read; you can identify status and next action at a glance |
+| `v0.1.48` | 2026-02-24 | Fixed `/gov_audit` false-failure after Brain Docs approval: audit now correctly identifies only governance run reports, preventing false failure reports after `/gov_brain_audit APPROVE` | `/gov_audit` no longer reports false failures after Brain Docs changes |
+| `v0.1.47` | 2026-02-23 | UX transparency upgrade: commands now show step-by-step execution trace for one-click flows, item-level detail for setup/migrate, and full 12-item checklist in audit output | You can see what actually ran and what was checked without opening separate run reports |
 
 Source: GitHub Releases (`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`)
 
@@ -32,30 +32,33 @@ If you run OpenClaw every day, the biggest risk is usually not model capability.
 
 ## Why This Matters
 
-Without governance, user pain compounds quickly:
-1. Tasks start with edits before verification, so mistakes spread across files.
-2. Plugin update is completed, but operators still do not know the next correct command.
-3. When a run fails, teams cannot quickly reconstruct change history or rollback steps.
+Without governance, common pain accumulates quickly:
+1. Changes happen before verification — mistakes spread across multiple files before anyone notices.
+2. After a plugin update, you still do not know the next correct command or whether the update is complete.
+3. When something goes wrong, there is no clear record of what changed or how to roll back safely.
+4. Team handovers lose context — the next person cannot tell what was done, what passed, or what still needs checking.
 
 What you get immediately:
-1. Predictable lifecycle: `PLAN -> READ -> CHANGE -> QC -> PERSIST`.
-2. Clear operating order: one-click `gov_setup quick`, or manual `check -> install/upgrade -> migrate -> audit`.
-3. Safer control-plane updates with backup, validation, and rollback evidence.
+1. Every change follows a fixed safety flow: plan first, read evidence, make the change, verify, then persist.
+2. One command to get started: `/gov_setup quick` handles check, install/upgrade, migration, and audit automatically.
+3. Platform config changes come with automatic backup, validation, and rollback — no more risky manual edits.
+4. Run reports and audit evidence make handovers and team accountability straightforward.
 
 ## Feature Maturity (No-Misleading Contract)
 
-GA (production default):
-1. `/gov_help` (one-shot command catalog)
-2. `/gov_setup quick|check|install|upgrade`
-3. `/gov_migrate`
-4. `/gov_audit`
-5. `/gov_openclaw_json`
-6. `/gov_brain_audit`
-7. `/gov_uninstall quick|check|uninstall`
+GA (production-ready):
+1. `/gov_help` — see all commands and recommended entry points at a glance
+2. `/gov_setup quick|check|install|upgrade` — deploy, upgrade, or verify governance in one step
+3. `/gov_migrate` — align workspace behavior to the latest governance rules after install or upgrade
+4. `/gov_audit` — verify 12 integrity checks and catch drift before declaring completion
+5. `/gov_openclaw_json` — safely edit platform config (`openclaw.json`) with backup, validation, and rollback
+6. `/gov_brain_audit` — review and harden Brain Docs quality with preview-first approval and rollback
+7. `/gov_uninstall quick|check|uninstall` — clean removal with backup and restore evidence
+8. `/gov_boot_audit` — scan for recurring issues and generate upgrade proposals (read-only diagnostic)
 
 Experimental:
-1. `/gov_apply <NN>` keeps the BOOT proposal-apply model available for controlled UAT, and is now covered by deterministic runtime regression baseline.
-2. Use `/gov_apply <NN>` only with explicit human approval of one BOOT proposal, then run `/gov_migrate` and `/gov_audit`.
+1. `/gov_apply <NN>` — apply a single BOOT upgrade proposal with explicit human approval (controlled testing only, covered by automated regression).
+2. After applying, always close with `/gov_migrate` and `/gov_audit`.
 
 ## Visual Walkthrough (ref_doc)
 
@@ -189,6 +192,7 @@ If you already uninstalled plugin package first:
 | Safely change OpenClaw control-plane config | `/gov_openclaw_json` | `/gov_audit` | Replaces risky direct editing with backup/validate/rollback evidence for recoverable platform operations |
 | Improve Brain Docs quality with minimal risk | `/gov_brain_audit` | approve findings -> `/gov_audit` | Detects high-risk wording, preserves persona intent, and only applies approved patches with rollback support |
 | One-click workspace cleanup before package removal | `/gov_uninstall quick` | optional `/gov_uninstall check` | Cleans governance artifacts with backup+restore evidence while reducing operator step count |
+| Scan for recurring issues and get upgrade proposals | `/gov_boot_audit` | review proposals -> `/gov_apply <NN>` (Experimental) | Read-only scan identifies repeat problems and generates numbered proposals you can review before deciding to apply |
 | Apply one BOOT proposal item (Experimental) | `/gov_apply <NN>` | `/gov_migrate` -> `/gov_audit` | Executes only one human-approved item in controlled UAT; do not treat as unattended GA automation |
 
 ## Core Capability: `/gov_brain_audit` for Brain Docs Performance
@@ -212,22 +216,24 @@ Execution pattern:
 /gov_brain_audit ROLLBACK
 ```
 
-## 3 Scenarios (Mode A/B/C in Practice)
+## How Your Requests Are Handled
 
-1. Mode A: conversation-only requests (no writes)
-Use when users ask strategy, explanation, or planning. Keep output advisory and do not perform file writes.
+Governance automatically adapts to what you are asking for:
 
-2. Mode B: evidence-answer requests (no writes)
-Use when users ask version/system/date-sensitive facts. Verify sources first, then answer with evidence.
+1. Questions and planning (no file changes)
+   You ask for strategy, explanation, or planning. The AI responds with advice only — no files are touched.
 
-3. Mode C: write/update/save requests (full governance flow)
-Use for coding, config edits, or document changes. Run `PLAN -> READ -> CHANGE -> QC -> PERSIST`, then close with `gov_migrate` and `gov_audit` when required.
+2. Verified answers (no file changes)
+   You ask about versions, system status, or dates. The AI verifies official sources first, then responds with evidence.
 
-## Tool Exposure Guard (Security Default)
+3. File changes (full governance protection)
+   You ask to write, update, or save files. The AI follows the full safety flow: plan first, read evidence, make the minimum change, verify quality, then persist with a run report. Close with `/gov_migrate` and `/gov_audit` when needed.
 
-1. Governance plugin tools are fail-closed by default: the current turn must contain explicit `/gov_*` intent (or `/skill gov_*` fallback) before governance tools run.
-2. This root-fix reduces plugin-tool trigger surface in permissive policy contexts (`default`, `agents.list.main`) when handling untrusted input.
-3. Normal OpenClaw usage is not replaced: if no explicit governance command is requested, governance plugin tools do not auto-run.
+## Security Default
+
+1. Governance tools only activate when you explicitly request them (via `/gov_*` or `/skill gov_*`). They never run on their own.
+2. This protects against unintended triggering — if you are just chatting or using regular OpenClaw features, governance stays inactive.
+3. Your normal OpenClaw workflow is unaffected. Governance adds protection without changing how you already use OpenClaw.
 
 ## FAQ (Decision-Oriented, New-User Focus)
 
