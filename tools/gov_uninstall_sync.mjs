@@ -168,12 +168,30 @@ function hasGovernanceEnforcementContent(text) {
   // uninstall, the references cause deadlock (rules demand reading deleted
   // files). This is the ROOT detection — not hardcoded to any specific
   // brain doc or section header.
-  const govInfraRefs = [
-    "_control/GOVERNANCE_BOOTSTRAP.md",
-    "_control/PRESETS.md",
-    "_control/REGRESSION_CHECK.md",
-  ];
-  return govInfraRefs.some((ref) => text.includes(ref));
+  // Regex matches all current controlTargets (8 files) and any future additions.
+  return /_control\/[A-Z][A-Z_]*\.md/i.test(text);
+}
+
+/**
+ * Scan all brain docs (except BOOT.md) for governance enforcement residue.
+ * Returns array of relative paths that contain _control/ infrastructure refs.
+ */
+function scanBrainDocsForResidue(workspaceRoot) {
+  const residueList = [];
+  for (const brainRel of brainDocTopLevelTargets) {
+    if (brainRel === "BOOT.md") continue;
+    const brainPath = toAbs(workspaceRoot, brainRel);
+    if (!exists(brainPath)) continue;
+    try {
+      const text = fs.readFileSync(brainPath, "utf8");
+      if (hasGovernanceEnforcementContent(text)) {
+        residueList.push(brainRel);
+      }
+    } catch {
+      // unreadable, skip
+    }
+  }
+  return residueList;
 }
 
 function stripGovernanceContentFromBrainDoc(text) {
@@ -214,10 +232,11 @@ function stripGovernanceContentFromBrainDoc(text) {
       const cleanLines = section.lines.filter((line) => {
         if (hasGovernanceEnforcementContent(line)) return false;
         const t = line.trim();
-        // Strip governance-specific header/reference lines
+        // Strip lines that reference governance infrastructure directly
+        if (/_control\/[A-Z][A-Z_]*\.md/i.test(t)) return false;
+        // Strip governance-specific headings/preamble that frame _control/ references
         if (/^#\s+Workspace Agent Loader/i.test(t)) return false;
         if (/^>\s*This file is intentionally short/i.test(t)) return false;
-        if (/^>\s*(Governance|Presets|QC)\s+SSOT:\s*`_control\//i.test(t)) return false;
         if (/^>\s*Operational playbook\s*\(non-SSOT\)/i.test(t)) return false;
         return true;
       });
@@ -494,22 +513,8 @@ function runPostUninstallQC(workspaceRoot) {
 
   // 6. No governance enforcement residue in ANY brain doc
   // ROOT CHECK: scans all brain docs for _control/ infrastructure references
-  let brainDocsClean = true;
-  const brainDocsWithResidue = [];
-  for (const brainRel of brainDocTopLevelTargets) {
-    if (brainRel === "BOOT.md") continue;
-    const brainPath = toAbs(workspaceRoot, brainRel);
-    if (!exists(brainPath)) continue;
-    try {
-      const text = fs.readFileSync(brainPath, "utf8");
-      if (hasGovernanceEnforcementContent(text)) {
-        brainDocsClean = false;
-        brainDocsWithResidue.push(brainRel);
-      }
-    } catch {
-      // unreadable, skip
-    }
-  }
+  const brainDocsWithResidue = scanBrainDocsForResidue(workspaceRoot);
+  const brainDocsClean = brainDocsWithResidue.length === 0;
   checks.push({ name: "brain_docs_no_governance_residue", pass: brainDocsClean });
   if (!brainDocsClean) {
     warnings.push(
@@ -638,20 +643,11 @@ function executeGovUninstallSync(modeInput) {
   if (mode === "check") {
     const warnings = [];
     // Detect governance enforcement residue in brain docs
-    const brainDocResidueList = [];
-    for (const brainRel of brainDocTopLevelTargets) {
-      if (brainRel === "BOOT.md") continue;
-      const brainCheckPath = toAbs(workspaceRoot, brainRel);
-      if (!exists(brainCheckPath)) continue;
-      try {
-        const brainCheckText = fs.readFileSync(brainCheckPath, "utf8");
-        if (hasGovernanceEnforcementContent(brainCheckText)) {
-          brainDocResidueList.push(brainRel);
-          warnings.push(
-            `${brainRel} contains governance enforcement rules referencing _control/ infrastructure. Use /gov_uninstall uninstall to strip them.`,
-          );
-        }
-      } catch { /* skip unreadable */ }
+    const brainDocResidueList = scanBrainDocsForResidue(workspaceRoot);
+    for (const brainRel of brainDocResidueList) {
+      warnings.push(
+        `${brainRel} contains governance enforcement rules referencing _control/ infrastructure. Use /gov_uninstall uninstall to strip them.`,
+      );
     }
     const status = footprint.length === 0 && brainRestorePlan.length === 0 && brainDocResidueList.length === 0 ? "CLEAN" : "RESIDUAL";
     if (governanceAgents && restorePlan.every((x) => normalizeRel(path.relative(workspaceRoot, x.to)) !== "AGENTS.md")) {
@@ -752,12 +748,10 @@ function executeGovUninstallSync(modeInput) {
   }
 
   // ROOT FIX: General brain-doc governance residue cleanup.
-  // Scan ALL brain docs (except AGENTS.md already handled above and BOOT.md
-  // handled by footprint) for governance enforcement content that references
-  // _control/ infrastructure. When found, strip it to prevent deadlock where
-  // uninstalled governance rules reference deleted _control/* files.
-  for (const brainRel of brainDocTopLevelTargets) {
-    if (brainRel === "BOOT.md") continue;
+  // Scan ALL brain docs for _control/ infrastructure references. When found,
+  // strip to prevent deadlock where uninstalled rules reference deleted files.
+  const brainResidueList = scanBrainDocsForResidue(workspaceRoot);
+  for (const brainRel of brainResidueList) {
     if (strippedBrainDocs.includes(brainRel)) continue;
     const brainPath = toAbs(workspaceRoot, brainRel);
     if (!exists(brainPath)) continue;
@@ -767,7 +761,6 @@ function executeGovUninstallSync(modeInput) {
     } catch {
       continue;
     }
-    if (!hasGovernanceEnforcementContent(brainText)) continue;
 
     // Governance enforcement content detected — clean it
     if (!backedUp.has(brainRel)) {
