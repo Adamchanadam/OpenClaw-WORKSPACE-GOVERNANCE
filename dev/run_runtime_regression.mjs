@@ -20,6 +20,10 @@ function ensureRunnerFixture() {
     "gov_audit_sync.mjs",
     "gov_apply_sync.mjs",
     "gov_uninstall_sync.mjs",
+    "gov_openclaw_json_sync.mjs",
+    "gov_brain_audit_sync.mjs",
+    "gov_boot_audit_sync.mjs",
+    "brain_audit_rules.mjs",
   ];
   for (const name of toolFiles) {
     const src = path.join(projectRoot, "tools", name);
@@ -426,6 +430,7 @@ cases.push(async () => {
     assert.ok(guards.includes("QC#3 Recurrence Elevation"));
     assert.ok(lessons.includes("QC#3 recurrence"));
     assert.ok(index.includes("apply_upgrade_from_boot_v1.md"));
+    assert.ok(text.includes("governance_maturity"), "governance_maturity must appear in apply PASS output");
   } finally {
     fixture.restore();
   }
@@ -1493,6 +1498,312 @@ cases.push(async () => {
   } finally {
     fixture.restore();
   }
+});
+
+// C41: gov_openclaw_json CHECK healthy (full config with governance entry)
+cases.push(async () => {
+  const fixture = withTempWorkspace("openclaw-json-check-healthy", (root) => {
+    writeFile(root, "AGENTS.md", "# workspace agents\n");
+    writeFile(root, "_control/WORKSPACE_INDEX.md", "# index\n");
+  });
+  try {
+    // Overwrite config to include full plugins.entries[] structure
+    writeFile(
+      fixture.root,
+      "openclaw.test.json",
+      JSON.stringify(
+        {
+          plugins: {
+            allow: ["openclaw-workspace-governance"],
+            entries: [
+              {
+                id: "openclaw-workspace-governance",
+                config: {
+                  runtimeGateEnabled: true,
+                  runtimeGatePolicy: { denyShellPrefixes: ["rm"] },
+                },
+              },
+            ],
+          },
+          agents: { defaults: { workspace: fixture.root } },
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+    const { commands } = createHarness();
+    const cmd = commands.get("gov_openclaw_json");
+    const out = await cmd.handler({ args: "check" });
+    const text = String(out?.text || "");
+    assert.match(text, /STATUS\s*\nPASS/i);
+    assert.ok(text.includes("health_score: 10/10"));
+    assert.ok(text.includes("Config File"));
+    assert.ok(text.includes("Plugin Allowlist"));
+    assert.ok(text.includes("Runtime Gate"));
+    assert.ok(text.includes("Gate Enablement"));
+  } finally {
+    fixture.restore();
+  }
+});
+
+// C42: gov_openclaw_json CHECK empty allowlist
+cases.push(async () => {
+  const fixture = withTempWorkspace(
+    "openclaw-json-check-empty-allow",
+    (root) => {
+      writeFile(root, "AGENTS.md", "# workspace agents\n");
+      writeFile(root, "_control/WORKSPACE_INDEX.md", "# index\n");
+    },
+    { allowList: [] },
+  );
+  try {
+    const { commands } = createHarness();
+    const cmd = commands.get("gov_openclaw_json");
+    const out = await cmd.handler({ args: "check" });
+    const text = String(out?.text || "");
+    assert.match(text, /STATUS\s*\nREADY_WITH_WARNING/i);
+    assert.ok(text.includes("health_score"));
+    assert.ok(!text.includes("health_score: 10/10"));
+    assert.ok(text.includes("/skill gov_openclaw_json"));
+  } finally {
+    fixture.restore();
+  }
+});
+
+// C43: gov_openclaw_json CHECK missing config
+cases.push(async () => {
+  const fixture = withTempWorkspace("openclaw-json-check-missing-config", (root) => {
+    writeFile(root, "AGENTS.md", "# workspace agents\n");
+    writeFile(root, "_control/WORKSPACE_INDEX.md", "# index\n");
+  });
+  const savedConfig = process.env.OPENCLAW_CONFIG;
+  try {
+    // Delete the config file and clear env var
+    const configPath = path.join(fixture.root, "openclaw.test.json");
+    if (fs.existsSync(configPath)) fs.unlinkSync(configPath);
+    delete process.env.OPENCLAW_CONFIG;
+    const { commands } = createHarness();
+    const cmd = commands.get("gov_openclaw_json");
+    const out = await cmd.handler({ args: "check" });
+    const text = String(out?.text || "");
+    assert.match(text, /STATUS\s*\nBLOCKED/i);
+    assert.ok(text.includes("health_score"));
+    assert.ok(text.includes("/skill gov_openclaw_json"));
+  } finally {
+    if (savedConfig !== undefined) process.env.OPENCLAW_CONFIG = savedConfig;
+    fixture.restore();
+  }
+});
+
+// C44: gov_openclaw_json invalid mode
+cases.push(async () => {
+  const { commands } = createHarness();
+  const cmd = commands.get("gov_openclaw_json");
+  const out = await cmd.handler({ args: "invalid-mode" });
+  const text = String(out?.text || "");
+  assert.ok(text.includes("STATUS"));
+  assert.ok(text.toLowerCase().includes("blocked"));
+  assert.ok(text.toLowerCase().includes("invalid mode"));
+});
+
+// C45: gov_brain_audit PREVIEW healthy workspace (no findings)
+cases.push(async () => {
+  const fixture = withTempWorkspace("brain-audit-preview-healthy", (root) => {
+    writeFile(root, "AGENTS.md", "# workspace agents\n");
+    writeFile(root, "_control/WORKSPACE_INDEX.md", "# index\n");
+  });
+  try {
+    const { commands } = createHarness();
+    const cmd = commands.get("gov_brain_audit");
+    const out = await cmd.handler({ args: "" });
+    const text = String(out?.text || "");
+    assert.match(text, /STATUS\s*\nPASS/i);
+    assert.ok(text.includes("health_score: 100/100"));
+    assert.ok(text.includes("files_scanned"));
+    assert.ok(text.includes("0 HIGH"));
+  } finally {
+    fixture.restore();
+  }
+});
+
+// C46: gov_brain_audit PREVIEW with findings (run report missing evidence)
+cases.push(async () => {
+  const fixture = withTempWorkspace("brain-audit-preview-findings", (root) => {
+    writeFile(root, "AGENTS.md", "# workspace agents\n");
+    writeFile(root, "_control/WORKSPACE_INDEX.md", "# index\n");
+    // Create a run report that claims PASS but has no FILES_READ or TARGET_FILES_TO_CHANGE
+    writeFile(
+      root,
+      "_runs/fake_run_20260224_100000.md",
+      [
+        "# fake run",
+        "",
+        "status: PASS",
+        "",
+      ].join("\n"),
+    );
+  });
+  try {
+    const { commands } = createHarness();
+    const cmd = commands.get("gov_brain_audit");
+    const out = await cmd.handler({ args: "preview" });
+    const text = String(out?.text || "");
+    // Should detect findings (COMPLETION_WITHOUT_EVIDENCE)
+    assert.ok(text.includes("health_score"));
+    assert.ok(!text.includes("health_score: 100/100"), "should not be perfect score with findings");
+    assert.ok(text.includes("HIGH") || text.includes("findings"));
+    assert.ok(text.includes("run_report"));
+  } finally {
+    fixture.restore();
+  }
+});
+
+// C47: gov_brain_audit PREVIEW no scope (empty workspace)
+cases.push(async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "gov-reg-brain-noscope-"));
+  const prevWorkspace = process.env.OPENCLAW_WORKSPACE;
+  const prevWorkspaceRoot = process.env.OPENCLAW_WORKSPACE_ROOT;
+  const prevConfig = process.env.OPENCLAW_CONFIG;
+  process.env.OPENCLAW_WORKSPACE = tempRoot;
+  process.env.OPENCLAW_WORKSPACE_ROOT = tempRoot;
+  delete process.env.OPENCLAW_CONFIG;
+  try {
+    const { commands } = createHarness();
+    const cmd = commands.get("gov_brain_audit");
+    const out = await cmd.handler({ args: "preview" });
+    const text = String(out?.text || "");
+    assert.match(text, /STATUS\s*\nBLOCKED/i);
+    assert.ok(text.includes("health_score: 0/100"));
+  } finally {
+    if (prevWorkspace === undefined) delete process.env.OPENCLAW_WORKSPACE;
+    else process.env.OPENCLAW_WORKSPACE = prevWorkspace;
+    if (prevWorkspaceRoot === undefined) delete process.env.OPENCLAW_WORKSPACE_ROOT;
+    else process.env.OPENCLAW_WORKSPACE_ROOT = prevWorkspaceRoot;
+    if (prevConfig === undefined) delete process.env.OPENCLAW_CONFIG;
+    else process.env.OPENCLAW_CONFIG = prevConfig;
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+// C48: gov_brain_audit invalid mode
+cases.push(async () => {
+  const { commands } = createHarness();
+  const cmd = commands.get("gov_brain_audit");
+  const out = await cmd.handler({ args: "invalid-mode" });
+  const text = String(out?.text || "");
+  assert.ok(text.includes("STATUS"));
+  assert.ok(text.toLowerCase().includes("blocked"));
+  assert.ok(text.toLowerCase().includes("invalid mode"));
+});
+
+// C49: gov_brain_audit APPROVE delegates to SKILL
+cases.push(async () => {
+  const { commands } = createHarness();
+  const cmd = commands.get("gov_brain_audit");
+  const out = await cmd.handler({ args: "approve" });
+  const text = String(out?.text || "");
+  assert.match(text, /STATUS\s*\nINFO/i);
+  assert.ok(text.includes("/skill gov_brain_audit"));
+});
+
+// C50: gov_boot_audit scan with no recurrences
+cases.push(async () => {
+  const fixture = withTempWorkspace("boot-audit-no-recurrences", (root) => {
+    writeFile(root, "AGENTS.md", "# workspace agents\n");
+    writeFile(root, "_control/WORKSPACE_INDEX.md", "# index\n");
+    writeFile(root, "_control/ACTIVE_GUARDS.md", "# ACTIVE_GUARDS\n### Guard #001: baseline\n- note: baseline\n");
+    // A passing run report (no recurrences)
+    writeFile(root, "_runs/run_pass_20260224_100000.md", "# run\n- status: PASS\n");
+  });
+  try {
+    const { commands } = createHarness();
+    const cmd = commands.get("gov_boot_audit");
+    const out = await cmd.handler({ args: "" });
+    const text = String(out?.text || "");
+    assert.match(text, /STATUS\s*\nPASS/i);
+    assert.ok(text.includes("reports_scanned"));
+    assert.ok(text.includes("qc_recurrences: 0"));
+    assert.ok(text.includes("guard_recurrences: 0"));
+  } finally {
+    fixture.restore();
+  }
+});
+
+// C51: gov_boot_audit scan with QC recurrences -> RECURRENCE_DETECTED + menu
+cases.push(async () => {
+  const fixture = withTempWorkspace("boot-audit-qc-recurrence", (root) => {
+    writeFile(root, "AGENTS.md", "# workspace agents\n");
+    writeFile(root, "_control/WORKSPACE_INDEX.md", "# index\n");
+    writeFile(root, "_control/ACTIVE_GUARDS.md", "# ACTIVE_GUARDS\n");
+    // Two FAIL run reports referencing same QC item
+    writeFile(
+      root,
+      "_runs/run_fail_a_20260224_100000.md",
+      "# run\nstatus: FAIL\n\n## qc_12_item\nQC#3: FAIL\nQC#5: PASS\n",
+    );
+    writeFile(
+      root,
+      "_runs/run_fail_b_20260224_110000.md",
+      "# run\nstatus: FAIL\n\n## qc_12_item\nQC#3: FAIL\nQC#7: PASS\n",
+    );
+  });
+  try {
+    const { commands } = createHarness();
+    const cmd = commands.get("gov_boot_audit");
+    const out = await cmd.handler({ args: "scan" });
+    const text = String(out?.text || "");
+    assert.match(text, /STATUS\s*\nREADY_WITH_WARNING/i);
+    assert.ok(text.includes("qc_recurrences: 1") || text.includes("QC#3"));
+    assert.ok(text.includes("upgrade_menu") || text.includes("Elevate"));
+    assert.ok(text.includes("/gov_apply"));
+  } finally {
+    fixture.restore();
+  }
+});
+
+// C52: gov_boot_audit invalid mode
+cases.push(async () => {
+  const { commands } = createHarness();
+  const cmd = commands.get("gov_boot_audit");
+  const out = await cmd.handler({ args: "invalid-mode" });
+  const text = String(out?.text || "");
+  assert.ok(text.includes("STATUS"));
+  assert.ok(text.toLowerCase().includes("blocked"));
+  assert.ok(text.toLowerCase().includes("invalid mode"));
+});
+
+// C53: Mode B enforcement fires on system-sensitive question (read-only intent)
+cases.push(() => {
+  const { handlers } = createHarness();
+  const beforePrompt = handlers.get("before_prompt_build");
+  const out = beforePrompt(
+    promptEvent("What is the latest version of openclaw?"),
+    { sessionKey: "s-modeB-1" },
+  );
+  const text = String(out?.prependContext || "");
+  assert.ok(
+    text.includes("Mode B enforcement") || text.includes("Mode B 強制"),
+    "expected Mode B enforcement directive for version-sensitive question",
+  );
+  assert.ok(
+    text.includes("verify") || text.includes("驗證"),
+    "expected verification requirement",
+  );
+});
+
+// C54: Mode B enforcement does NOT fire on write-intent (Mode C takes precedence)
+cases.push(() => {
+  const { handlers } = createHarness();
+  const beforePrompt = handlers.get("before_prompt_build");
+  const out = beforePrompt(
+    promptEvent("Create a file that shows the current version of openclaw"),
+    { sessionKey: "s-modeB-2" },
+  );
+  const text = String(out?.prependContext || "");
+  assert.ok(
+    !text.includes("Mode B enforcement"),
+    "Mode B should not fire when write intent detected (Mode C takes precedence)",
+  );
 });
 
 let pass = 0;

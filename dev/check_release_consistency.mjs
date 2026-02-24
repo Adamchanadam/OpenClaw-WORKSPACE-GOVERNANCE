@@ -332,6 +332,21 @@ if (!process.exitCode) {
   }
 }
 
+// --- Denominator drift check ---
+const regressionSrc = fs.readFileSync(runtimeRegressionPath, "utf8");
+const pushCount = (regressionSrc.match(/cases\.push\(/g) || []).length;
+
+const publishingPath = path.join(root, "PUBLISHING.md");
+const publishingSrc = fs.readFileSync(publishingPath, "utf8");
+const pubMatch = publishingSrc.match(/SUMMARY\s+(\d+)\/\1\s+passed/);
+const docCount = pubMatch ? parseInt(pubMatch[1], 10) : -1;
+
+if (pushCount !== docCount) {
+  fail(`regression denominator drift: code has ${pushCount} cases but PUBLISHING.md documents ${docCount}`);
+} else {
+  console.log(`PASS: regression denominator aligned (${pushCount}/${pushCount})`);
+}
+
 if (!process.exitCode) {
   console.log("ALL_CHECKS_PASS");
 }

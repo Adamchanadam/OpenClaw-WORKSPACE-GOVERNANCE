@@ -2,6 +2,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const SEVERITY_ORDER = { high: 0, medium: 1, low: 2 };
 const BRAIN_DOC_BASENAMES = [
@@ -365,17 +366,23 @@ function toMarkdown(workspace, scanned, findings, summary, blocked, noScope, opt
   return lines.join("\n");
 }
 
-function main() {
-  const opts = parseArgs(process.argv.slice(2));
-  if (opts.help) {
-    printHelp();
-    process.exit(0);
-  }
+export function runBrainAuditScan(workspace, options = {}) {
+  const opts = {
+    enableLexicalHints: Boolean(options.enableLexicalHints),
+    failOnHigh: Boolean(options.failOnHigh),
+    failOnAny: Boolean(options.failOnAny),
+  };
 
-  const workspace = opts.workspace;
   if (!fileExists(workspace)) {
-    process.stderr.write(`workspace not found: ${workspace}\n`);
-    process.exit(2);
+    return {
+      workspace: workspace.replace(/\\/g, "/"),
+      scannerMode: scannerMode(opts),
+      status: "BLOCKED",
+      noScope: true,
+      summary: { high: 0, medium: 0, low: 0, total: 0 },
+      scannedFiles: [],
+      findings: [],
+    };
   }
 
   const files = collectScopeFiles(workspace);
@@ -389,32 +396,56 @@ function main() {
     (opts.failOnAny && summary.total > 0) ||
     (opts.failOnHigh && summary.high > 0);
 
+  return {
+    workspace: workspace.replace(/\\/g, "/"),
+    scannerMode: scannerMode(opts),
+    status: blocked ? "BLOCKED" : summary.total > 0 ? "WARN" : "PASS",
+    noScope,
+    summary,
+    scannedFiles: files.map((f) => safeRelative(workspace, f)),
+    findings,
+  };
+}
+
+function main() {
+  const opts = parseArgs(process.argv.slice(2));
+  if (opts.help) {
+    printHelp();
+    process.exit(0);
+  }
+
+  const workspace = opts.workspace;
+  if (!fileExists(workspace)) {
+    process.stderr.write(`workspace not found: ${workspace}\n`);
+    process.exit(2);
+  }
+
+  const result = runBrainAuditScan(workspace, opts);
+
   if (opts.format === "json") {
-    const payload = {
-      workspace: workspace.replace(/\\/g, "/"),
-      scannerMode: scannerMode(opts),
-      status: blocked ? "BLOCKED" : summary.total > 0 ? "WARN" : "PASS",
-      noScope,
-      summary,
-      scannedFiles: files.map((f) => safeRelative(workspace, f)),
-      findings,
-    };
-    process.stdout.write(JSON.stringify(payload, null, 2) + "\n");
+    process.stdout.write(JSON.stringify(result, null, 2) + "\n");
   } else {
     process.stdout.write(
       toMarkdown(
         workspace,
-        files.map((f) => safeRelative(workspace, f)),
-        findings,
-        summary,
-        blocked,
-        noScope,
+        result.scannedFiles,
+        result.findings,
+        result.summary,
+        result.status === "BLOCKED",
+        result.noScope,
         opts,
       ) + "\n",
     );
   }
 
-  process.exit(blocked ? 1 : 0);
+  process.exit(result.status === "BLOCKED" ? 1 : 0);
 }
 
-main();
+function isDirectRun() {
+  const argv1 = process.argv[1] ? path.resolve(process.argv[1]) : "";
+  return argv1 === fileURLToPath(import.meta.url);
+}
+
+if (isDirectRun()) {
+  main();
+}

@@ -19,18 +19,16 @@ Status legend:
 
 | Gap ID | Priority | Status | Gap Statement | Current Impact | Acceptance Criteria |
 | --- | --- | --- | --- | --- | --- |
-| GAP-001 | P1 | OPEN | Mode B verification remains mostly contract-level, not hard deterministic runtime enforcement | Evidence-answer tasks can still rely on soft discipline | Add deterministic verification hook/policy for system/version/time-sensitive answer flows, with regression coverage |
-| GAP-002 | P1 | OPEN | `gov_openclaw_json` is skill-driven, not deterministic command parity in `index.ts` | Operational behavior depends more on free-form skill routing | Phase 1: add `tools/gov_openclaw_json_sync.mjs` deterministic CHECK runner with Platform Health Score (0-10); `registerCommand` wiring + `formatCommandOutput`; hybrid: check=deterministic, apply/custom=SKILL; ~4 regression cases |
-| GAP-003 | P1 | OPEN | `gov_brain_audit` is skill-driven, not deterministic command parity in `index.ts` | Critical safety path lacks same command-level determinism as core lifecycle commands | Phase 2: add `tools/gov_brain_audit_sync.mjs` deterministic PREVIEW runner with Brain Docs Health Score (0-100) via `brain_audit_rules.mjs`; hybrid: preview=deterministic, APPROVE/ROLLBACK=SKILL; ~5 regression cases |
-| GAP-004 | P1 | OPEN | `gov_apply` is deterministic locally but still Experimental by policy | Cannot claim unattended GA apply automation | Complete repeated host UAT evidence (Phase B5) across releases; define GA promotion threshold and pass gate |
-| GAP-005 | P2 | OPEN | Cross-doc repetition still exists between README and handbook sections | Higher maintenance cost, drift risk | Normalize repetitive sections into one canonical pattern and keep cross-links concise |
-| GAP-006 | P2 | OPEN | Regression denominator may drift without explicit update protocol | False confidence or stale release criteria | Enforce denominator-change checklist in dev docs and release notes template |
-| GAP-007 | P2 | OPEN | BOOT audit output is LLM-generated (prompt template only, not deterministic runner) | Cannot regression-test BOOT output format or recurrence detection logic | Phase 3: add `tools/gov_boot_audit_sync.mjs` deterministic scanner for `_runs/` + `_control/ACTIVE_GUARDS.md`; produce structured BOOT AUDIT REPORT + MENU through `formatCommandOutput`; ~3 regression cases |
+| GAP-004 | P1 | IN_PROGRESS | `gov_apply` is deterministic locally but still Experimental by policy | Cannot claim unattended GA apply automation | Complete repeated host UAT evidence (Phase B5) across releases; define GA promotion threshold and pass gate |
 
 ## Completed / Recently Closed
 
 | Gap ID | Priority | Status | Resolution |
 | --- | --- | --- | --- |
+| GAP-001 | P1 | DONE | Mode B deterministic enforcement: `isModeBSystemSensitive()` detection + `prependContext` directive for system/version/time-sensitive queries; regression C53-C54 |
+| GAP-002 | P1 | DONE | `gov_openclaw_json` hybrid command: `tools/gov_openclaw_json_sync.mjs` Platform Health Score (0-10) CHECK runner + command wiring; regression C41-C44 |
+| GAP-003 | P1 | DONE | `gov_brain_audit` hybrid command: `tools/gov_brain_audit_sync.mjs` Brain Docs Health Score (0-100) PREVIEW runner + command wiring; regression C45-C49 |
+| GAP-007 | P2 | DONE | BOOT audit deterministic runner: `tools/gov_boot_audit_sync.mjs` recurrence scanner + upgrade menu + command wiring; regression C50-C52 |
 | GAP-C01 | P0 | DONE | `gov_apply` deterministic runner added and wired to command (`tools/gov_apply_sync.mjs`, `index.ts`) |
 | GAP-C02 | P0 | DONE | Runtime regression expanded to include apply + uninstall-integrity command-flow cases (`34/34`) |
 | GAP-C03 | P0 | DONE | Consistency gate now validates apply runner registration and B5 matrix presence |
@@ -39,6 +37,9 @@ Status legend:
 | GAP-C06 | P0 | DONE | Quick-flow loop root-fix: `gov_migrate` now seeds missing `_control/PRESETS.md` and `_control/WORKSPACE_INDEX.md`, and repairs marker-count anomalies before audit |
 | GAP-C07 | P1 | DONE | UX transparency contract delivered in deterministic outputs (`SIGNAL`, setup `flow_trace`, setup/migrate `execution_items`, audit `qc_12_item`) with regression assertions |
 | GAP-C08 | P1 | DONE | UX branding refresh: `SIGNAL` text replaced by emoji prefix; `formatCommandOutput` uses branded header (`🐾`), `─────` dividers, `  •` bullets, `👉` next-step; regression `40/40` |
+| GAP-C09 | P2 | DONE | `gov_apply` maturity delta: `governance_maturity: guards=N→N+1, lessons=N→N+1` in apply PASS output |
+| GAP-005 | P2 | DONE | Cross-doc normalization: BASELINE_INVENTORY sections 3+4 replaced with cross-references to MASTER_SPEC/TRACEABILITY_MATRIX; handbooks annotated with canonical source notes |
+| GAP-006 | P2 | DONE | Denominator drift protocol: hardcoded counts fixed to 54/54; automated `cases.push(` counter added to `check_release_consistency.mjs`; update checklist added to PUBLISHING.md |
 
 ## Promotion Gate (for `gov_apply` EXP -> GA)
 
@@ -47,3 +48,24 @@ All conditions must pass:
 2. Public-flow B5 host evidence recorded for multiple releases/environments.
 3. No unresolved P0/P1 apply-path incidents in recent release window.
 4. README/handbook/publishing/baseline all switched in one atomic doc update.
+
+## B5 Evidence Accumulation Protocol
+
+Purpose: Track host-side UAT evidence for `gov_apply` GA promotion decision.
+
+### Evidence requirements
+1. At least 3 successful `gov_apply` host executions across different releases.
+2. Each execution must produce a PASS run report with:
+   - `governance_maturity` delta (guards_before/after, lessons_before/after)
+   - Backup evidence (`backup_root`)
+   - Follow-up chain evidence (`/gov_migrate` + `/gov_audit` both PASS after apply)
+3. No regressions introduced by any apply execution.
+
+### Evidence recording
+- Each host execution should be documented in `dev/OPENCLAW_PUBLIC_FLOW_REGRESSION.md` under the B5 section.
+- Include: date, release version, item applied, maturity delta, follow-up chain result.
+
+### GA threshold
+- Minimum 3 successful host executions across 2+ different release versions.
+- Zero P0/P1 incidents in the apply path during the evidence window.
+- All deterministic regression tests green at promotion time.

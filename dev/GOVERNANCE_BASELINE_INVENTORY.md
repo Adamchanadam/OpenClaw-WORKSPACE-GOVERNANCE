@@ -50,32 +50,23 @@ Must-preserve functional pillars:
 
 ## 3) Mode A/B/C Baseline
 
+Canonical definition: `dev/GOVERNANCE_MASTER_SPEC.md` §3 (Mode Contract).
+
 Source references:
 1. `WORKSPACE_GOVERNANCE_MIGRATION.md`
 2. `WORKSPACE_GOVERNANCE_README.md`
 3. `WORKSPACE_GOVERNANCE_README.en.md`
 
-Must-preserve mode contract:
-1. Mode A:
-   - conversational only
-   - no persistence
-   - no unverified system-truth claims
-2. Mode B:
-   - verified answer only
-   - no writes
-   - OpenClaw system claims must verify official docs
-   - latest/version-sensitive claims must verify official releases
-   - date/time claims must include runtime-verified absolute date/time context
-3. Mode C:
-   - any write/update/save/persist action
-   - full 5-gate lifecycle is mandatory
-   - if write intent is uncertain, classify as Mode C (fail-closed)
-   - Brain Docs writes require explicit READ evidence before write
-4. Multilingual UX:
-   - safety and remediation messaging must be language-adaptive (not fixed to one language)
-   - command snippets remain copy-paste executable regardless of UI language.
+Must-preserve invariants (refactor must not weaken):
+1. Mode A: no persistence, no unverified system-truth claims.
+2. Mode B: no writes, system/version/time claims require source verification.
+3. Mode C: full 5-gate lifecycle mandatory for any write, fail-closed on uncertainty.
+4. Multilingual UX: safety messaging must be language-adaptive; commands remain copy-paste executable.
 
-## 4) `gov_*` Command Baseline (Function + Value)
+## 4) `gov_*` Command Baseline (Refactor Invariants)
+
+Full command capability map: `dev/GOVERNANCE_TRACEABILITY_MATRIX.md`.
+Skill contracts: `skills/*/SKILL.md`.
 
 Source references:
 1. `skills/gov_setup/SKILL.md`
@@ -86,46 +77,27 @@ Source references:
 6. `skills/gov_brain_audit/SKILL.md`
 7. `skills/gov_uninstall/SKILL.md`
 
+Below: refactor-blocking invariants per command (must-preserve rules only).
+
 `gov_setup`:
-1. Function:
-   - `quick`: one-click chain (`check -> install/upgrade/skip -> migrate -> audit`)
-   - `check`: readiness diagnosis (files + allowlist + sync state)
-   - `install`: first deployment
-   - `upgrade`: package refresh for existing workspace
-2. User value:
-   - gives deterministic next action
-   - prevents wrong install/upgrade branch decisions
-3. Hard preserve:
+1. Hard preserve:
    - explicit `/gov_setup upgrade` must execute upgrade workflow
    - do not return `SKIPPED (No-op upgrade)` for explicit upgrade
    - preserve existing `plugins.allow` trusted ids while adding governance id
 
 `gov_migrate`:
-1. Function:
-   - align workspace behavior with migration contract
-2. User value:
-   - removes policy drift after setup/upgrade
-3. Hard preserve:
+1. Hard preserve:
    - do not run old pre-change canonical precheck flow
    - required sequence is CHANGE first, canonical equality at QC
    - stale migration prompt must trigger remediation to run setup upgrade first
 
 `gov_audit`:
-1. Function:
-   - post-change integrity verification with fixed denominator checks
-2. User value:
-   - prevents false completion claims
-   - catches drift before handoff
-3. Hard preserve:
+1. Hard preserve:
    - fixed-denominator audit discipline
    - evidence completeness checks for Brain Docs/platform/coding writes
 
 `gov_apply <NN>`:
-1. Function:
-   - execute only approved BOOT menu item with deterministic runner (`tools/gov_apply_sync.mjs`)
-2. User value:
-   - prevents ad-hoc unapproved patching
-3. Hard preserve:
+1. Hard preserve:
    - strict item-id input contract
    - requires BOOT menu context and selected item match
    - only approved item scope may be changed
@@ -142,36 +114,19 @@ Source references:
    - maturity boundary: keep Experimental until host UAT evidence is stable across releases
 
 `gov_openclaw_json`:
-1. Function:
-   - controlled OpenClaw control-plane updates (`openclaw.json`, bounded extension scope)
-2. User value:
-   - safe backup/validate/rollback for platform config changes
-3. Hard preserve:
+1. Hard preserve:
    - minimal patch policy
    - workspace-local backup evidence
    - runtime policy/allowlist adjustments must remain recoverable
 
 `gov_brain_audit`:
-1. Function:
-   - conservative semantic Brain Docs risk review
-   - preview first, approval-based apply, rollback path
-2. User value:
-   - reduces action-before-verification and unsupported-certainty drift
-   - preserves persona intent with minimal diffs
-3. Hard preserve:
+1. Hard preserve:
    - semantic-first language-agnostic review (keyword-only is insufficient)
    - preview must remain read-only
    - apply/rollback requires explicit operator intent
 
 `gov_uninstall`:
-1. Function:
-   - `quick`: one-click cleanup (`check -> uninstall` when residual exists)
-   - deterministic workspace cleanup for governance artifacts before package uninstall
-   - `check` + `uninstall` dual-mode flow with run-report evidence
-2. User value:
-   - prevents residual governance files from continuing to affect runtime after package removal
-   - provides reversible cleanup with backup and restore trace
-3. Hard preserve:
+1. Hard preserve:
    - uninstall sequence must be explicit and operator-safe:
      - `/gov_uninstall check` -> `/gov_uninstall uninstall` -> `/gov_uninstall check`
    - workspace backup evidence must be created under `archive/_gov_uninstall_backup_<ts>/...`

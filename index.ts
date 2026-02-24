@@ -208,6 +208,15 @@ const CRON_INTENT_HINT =
 const HOST_MAINTENANCE_INTENT_HINT =
   /(?:^|[\s`])openclaw\s+\S+|(?:\bopenclaw\b.*\b(?:plugins?|extensions?|skills?|hooks?|cron|gateway|onboard|configure|config|update|install|enable|disable|restart|run)\b)|(?:(?:openclaw).*(?:安裝|更新|升級|啟用|停用|設定|配置|重啟|執行|運行|管理))|(?:(?:安裝|更新|升級|啟用|停用|設定|配置|重啟|執行|運行|管理).*(?:openclaw))/i;
 
+const MODE_B_SYSTEM_SENSITIVE_HINT =
+  /\b(what\s+version|latest\s+version|current\s+version|which\s+version|version\s+of|what\s+release|latest\s+release|current\s+release|is\s+\S+\s+supported|what\s+time|what\s+date|current\s+date|current\s+time|today'?s?\s+date|right\s+now|system\s+info|system\s+status)\b|(?:(?:最新|目前|現在|當前)\s*(?:版本|version|release|日期|時間|時區|系統))|(?:幾多\s*(?:號|點))/i;
+const MODE_B_EVIDENCE_PATTERNS: RegExp[] = [
+  /\bverified\s+(?:against|from|via)\b/i,
+  /\bsource:\s*\S/i,
+  /\breference:\s*\S/i,
+  /\bhttps?:\/\//i,
+];
+
 const OPENCLAW_FLAGS_WITH_VALUE = new Set([
   "--profile",
   "--cwd",
@@ -419,6 +428,14 @@ function isBrainAuditIntent(text: string): boolean {
 
 function isGovSetupUpgradeIntent(text: string): boolean {
   return GOV_SETUP_UPGRADE_INTENT_HINT.test(text);
+}
+
+function isModeBSystemSensitive(text: string): boolean {
+  return MODE_B_SYSTEM_SENSITIVE_HINT.test(text);
+}
+
+function hasModeBEvidence(text: string): boolean {
+  return MODE_B_EVIDENCE_PATTERNS.some((re) => re.test(text));
 }
 
 function hasPlanEvidence(text: string): boolean {
@@ -1749,6 +1766,13 @@ async function makeGovApplyCommandResponse(ctx: PluginCommandContext): Promise<s
     );
   }
 
+  const maturity = (data.governance_maturity && typeof data.governance_maturity === "object")
+    ? data.governance_maturity as Record<string, number>
+    : null;
+  const maturityLine = maturity
+    ? `governance_maturity: guards=${String(maturity.guards_before ?? "?")}→${String(maturity.guards_after ?? "?")}, lessons=${String(maturity.lessons_before ?? "?")}→${String(maturity.lessons_after ?? "?")}`
+    : "";
+
   return formatCommandOutput(
     "PASS",
     [
@@ -1757,6 +1781,7 @@ async function makeGovApplyCommandResponse(ctx: PluginCommandContext): Promise<s
       `apply_type: ${String(data.apply_type || "n/a")}`,
       `menu_source: ${String(data.menu_source || "n/a")}`,
       `backup_root: ${String(data.backup_root || "n/a")}`,
+      maturityLine,
       data.run_report ? `run_report: ${String(data.run_report)}` : "",
     ].filter(Boolean),
     i18n(lang, "Run migration, then audit.", "先跑 migration，再跑 audit。"),
@@ -1958,6 +1983,251 @@ async function makeGovAuditCommandResponse(ctx: PluginCommandContext): Promise<s
   );
 }
 
+async function makeGovBootAuditCommandResponse(ctx: PluginCommandContext): Promise<string> {
+  const lang = pickCommandLanguage(ctx);
+  const mode = parseModeArg(ctx);
+
+  if (mode && mode !== "scan") {
+    return formatCommandOutput(
+      "BLOCKED",
+      [
+        i18n(
+          lang,
+          `Invalid mode: ${mode}. Use scan (or no args).`,
+          `無效模式：${mode}。請使用 scan（或不帶參數）。`,
+        ),
+      ],
+      i18n(lang, "Retry with valid mode.", "請使用有效模式重試。"),
+      ["/gov_boot_audit", "/gov_boot_audit scan"],
+    );
+  }
+
+  const runner = await runInProcessRunner("tools/gov_boot_audit_sync.mjs", "runGovBootAuditSync", ["scan"]);
+  if (!runner.ok || !runner.data) {
+    return formatCommandOutput(
+      "BLOCKED",
+      [i18n(lang, `deterministic runner failed: ${runner.err || "unknown error"}`, `deterministic runner 失敗：${runner.err || "未知錯誤"}`)],
+      i18n(lang, "Check plugin install path and retry.", "請檢查 plugin 安裝路徑後重試。"),
+      ["/gov_setup check", "/gov_boot_audit"],
+    );
+  }
+
+  const data = runner.data;
+  const status = String(data.status || "PASS").toUpperCase();
+  const reportsScanned = Number(data.reports_scanned ?? 0);
+  const qcRecurrences = Array.isArray(data.qc_recurrences) ? data.qc_recurrences as Array<{ item?: string; count?: number }> : [];
+  const guardRecurrences = Array.isArray(data.guard_recurrences) ? data.guard_recurrences as Array<{ item?: string; count?: number }> : [];
+  const menuItems = Array.isArray(data.menu_items) ? data.menu_items as Array<{ id?: string; title?: string }> : [];
+  const activeGuards = (data.active_guards && typeof data.active_guards === "object")
+    ? data.active_guards as { exists?: boolean; count?: number }
+    : { exists: false, count: 0 };
+
+  const whyLines = [
+    `reports_scanned: ${reportsScanned}`,
+    `active_guards: ${String(activeGuards.count ?? 0)}`,
+    `qc_recurrences: ${qcRecurrences.length}`,
+    `guard_recurrences: ${guardRecurrences.length}`,
+    ...qcRecurrences.map((r) => `${String(r.item || "?")}: ${String(r.count || 0)} recurrences`),
+    ...guardRecurrences.map((r) => `${String(r.item || "?")}: ${String(r.count || 0)} recurrences`),
+    data.run_report ? `run_report: ${String(data.run_report)}` : "",
+  ].filter(Boolean);
+
+  if (status === "PASS") {
+    return formatCommandOutput(
+      "PASS",
+      whyLines,
+      i18n(lang, "No recurrence patterns detected. Governance is stable.", "未偵測到重複模式。治理狀態穩定。"),
+      ["/gov_audit"],
+    );
+  }
+
+  const menuLines = menuItems.length > 0
+    ? menuItems.map((m) => `${String(m.id || "??")}  ${String(m.title || "?")}`)
+    : [];
+
+  return formatCommandOutput(
+    "READY_WITH_WARNING",
+    [
+      ...whyLines,
+      menuLines.length > 0 ? `upgrade_menu:\n${menuLines.map((l) => `- ${l}`).join("\n")}` : "",
+    ].filter(Boolean),
+    i18n(lang, "Recurrences detected. Apply an upgrade item to harden governance.", "偵測到重複模式。套用升級項目以強化治理。"),
+    menuItems.length > 0
+      ? [`/gov_apply ${String(menuItems[0].id || "01")}`, "/gov_boot_audit"]
+      : ["/gov_boot_audit"],
+  );
+}
+
+async function makeGovBrainAuditCommandResponse(ctx: PluginCommandContext): Promise<string> {
+  const lang = pickCommandLanguage(ctx);
+  const mode = parseModeArg(ctx);
+  const validModes = ["preview", "approve", "rollback", ""];
+
+  if (mode && !validModes.includes(mode)) {
+    return formatCommandOutput(
+      "BLOCKED",
+      [
+        i18n(
+          lang,
+          `Invalid mode: ${mode}. Use preview, approve, or rollback.`,
+          `無效模式：${mode}。請使用 preview、approve 或 rollback。`,
+        ),
+      ],
+      i18n(lang, "Retry with a valid mode.", "請使用有效模式重試。"),
+      ["/gov_brain_audit", "/skill gov_brain_audit"],
+    );
+  }
+
+  if (mode === "approve" || mode === "rollback") {
+    return formatCommandOutput(
+      "INFO",
+      [
+        i18n(
+          lang,
+          `Mode "${mode}" delegates to LLM SKILL for interactive approval/rollback workflow.`,
+          `模式「${mode}」委派給 LLM SKILL 進行互動式審批/回滾流程。`,
+        ),
+      ],
+      i18n(lang, "Use preview for deterministic health score, or invoke SKILL for interactive workflow.", "使用 preview 取得確定性健康分數，或使用 SKILL 進行互動式流程。"),
+      ["/gov_brain_audit", `/skill gov_brain_audit ${mode}`],
+    );
+  }
+
+  const runner = await runInProcessRunner("tools/gov_brain_audit_sync.mjs", "runGovBrainAuditSync", ["preview"]);
+  if (!runner.ok || !runner.data) {
+    return formatCommandOutput(
+      "BLOCKED",
+      [i18n(lang, `deterministic runner failed: ${runner.err || "unknown error"}`, `deterministic runner 失敗：${runner.err || "未知錯誤"}`)],
+      i18n(lang, "Check plugin install path and retry.", "請檢查 plugin 安裝路徑後重試。"),
+      ["/gov_setup check", "/gov_brain_audit"],
+    );
+  }
+
+  const data = runner.data;
+  const status = String(data.status || "BLOCKED").toUpperCase();
+  const healthScore = Number(data.health_score ?? 0);
+  const filesScanned = Number(data.files_scanned ?? 0);
+  const summary = (data.findings_summary && typeof data.findings_summary === "object")
+    ? data.findings_summary as Record<string, number>
+    : { high: 0, medium: 0, low: 0, total: 0 };
+  const findings = Array.isArray(data.findings)
+    ? (data.findings as Array<{ id?: string; severity?: string; rule?: string; file?: string; line?: number }>)
+    : [];
+
+  const whyLines = [
+    `health_score: ${healthScore}/100`,
+    `files_scanned: ${filesScanned}`,
+    `findings: ${String(summary.high ?? 0)} HIGH, ${String(summary.medium ?? 0)} MEDIUM, ${String(summary.low ?? 0)} LOW`,
+    ...findings.slice(0, 5).map((f) => `${String(f.id || "?")} | ${String(f.severity || "?").toUpperCase()} | ${String(f.rule || "?")} | ${String(f.file || "?")}:${String(f.line || 0)}`),
+    findings.length > 5 ? `... and ${findings.length - 5} more` : "",
+    data.run_report ? `run_report: ${String(data.run_report)}` : "",
+  ].filter(Boolean);
+
+  if (status === "PASS") {
+    return formatCommandOutput(
+      "PASS",
+      whyLines,
+      i18n(lang, "Brain docs are healthy. No findings detected.", "Brain docs 健康。未偵測到問題。"),
+      ["/gov_audit"],
+    );
+  }
+  if (status === "WARN") {
+    return formatCommandOutput(
+      "READY_WITH_WARNING",
+      whyLines,
+      i18n(lang, "Review findings above, then approve selected items.", "請檢視上方問題，然後審批所選項目。"),
+      ["/skill gov_brain_audit APPROVE: F001", "/gov_brain_audit"],
+    );
+  }
+  return formatCommandOutput(
+    "BLOCKED",
+    whyLines,
+    i18n(lang, "Brain docs have critical findings. Use SKILL to review and fix.", "Brain docs 有嚴重問題。請使用 SKILL 檢視並修正。"),
+    ["/skill gov_brain_audit", "/gov_brain_audit"],
+  );
+}
+
+async function makeGovOpenclawJsonCommandResponse(ctx: PluginCommandContext): Promise<string> {
+  const lang = pickCommandLanguage(ctx);
+  const mode = parseModeArg(ctx);
+  const validModes = ["check", "apply", ""];
+  if (mode && !validModes.includes(mode)) {
+    return formatCommandOutput(
+      "BLOCKED",
+      [
+        i18n(
+          lang,
+          `Invalid mode: ${mode}. Use check or apply.`,
+          `無效模式：${mode}。請使用 check 或 apply。`,
+        ),
+      ],
+      i18n(lang, "Retry with a valid mode.", "請使用有效模式重試。"),
+      ["/gov_openclaw_json check", "/skill gov_openclaw_json"],
+    );
+  }
+
+  if (mode === "apply" || mode === "") {
+    return formatCommandOutput(
+      "INFO",
+      [
+        i18n(
+          lang,
+          `Mode "${mode || "default"}" delegates to LLM SKILL for interactive platform config editing.`,
+          `模式「${mode || "default"}」委派給 LLM SKILL 進行互動式平台設定。`,
+        ),
+      ],
+      i18n(lang, "Use check for deterministic health score, or invoke SKILL for interactive config.", "使用 check 取得確定性健康分數，或使用 SKILL 進行互動式設定。"),
+      ["/gov_openclaw_json check", "/skill gov_openclaw_json"],
+    );
+  }
+
+  const runner = await runInProcessRunner("tools/gov_openclaw_json_sync.mjs", "runGovOpenclawJsonSync", ["check"]);
+  if (!runner.ok || !runner.data) {
+    return formatCommandOutput(
+      "BLOCKED",
+      [i18n(lang, `deterministic runner failed: ${runner.err || "unknown error"}`, `deterministic runner 失敗：${runner.err || "未知錯誤"}`)],
+      i18n(lang, "Check plugin install path and retry.", "請檢查 plugin 安裝路徑後重試。"),
+      ["/gov_setup check", "/gov_openclaw_json check"],
+    );
+  }
+
+  const data = runner.data;
+  const status = String(data.status || "BLOCKED").toUpperCase();
+  const healthScore = Number(data.health_score ?? 0);
+  const dimensions = Array.isArray(data.dimensions)
+    ? (data.dimensions as Array<{ name?: string; score?: number; max?: number }>)
+    : [];
+
+  const whyLines = [
+    `health_score: ${healthScore}/10`,
+    ...dimensions.map((d) => `${String(d.name || "unknown")}: ${String(d.score ?? 0)}/${String(d.max ?? 0)}`),
+    data.run_report ? `run_report: ${String(data.run_report)}` : "",
+  ].filter(Boolean);
+
+  if (status === "PASS") {
+    return formatCommandOutput(
+      "PASS",
+      whyLines,
+      i18n(lang, "Platform health is optimal. Proceed with setup or audit.", "平台健康狀態最佳。請繼續 setup 或 audit。"),
+      ["/gov_setup check", "/gov_audit"],
+    );
+  }
+  if (status === "READY_WITH_WARNING") {
+    return formatCommandOutput(
+      "READY_WITH_WARNING",
+      whyLines,
+      i18n(lang, "Platform config needs attention. Use SKILL to fix, then recheck.", "平台設定需要修正。使用 SKILL 修正後重新檢查。"),
+      ["/skill gov_openclaw_json", "/gov_openclaw_json check"],
+    );
+  }
+  return formatCommandOutput(
+    "BLOCKED",
+    whyLines,
+    i18n(lang, "Platform config is critically incomplete. Use SKILL to configure.", "平台設定嚴重不完整。請使用 SKILL 進行設定。"),
+    ["/skill gov_openclaw_json", "/gov_openclaw_json check"],
+  );
+}
+
 function registerDeterministicGovCommands(api: OpenClawPluginApi): void {
   if (typeof api.registerCommand !== "function") {
     api.logger.warn("[governance-command] registerCommand API unavailable; falling back to skill-only mode.");
@@ -2005,7 +2275,28 @@ function registerDeterministicGovCommands(api: OpenClawPluginApi): void {
     requireAuth: true,
     handler: async (ctx: PluginCommandContext) => ({ text: await makeGovAuditCommandResponse(ctx) }),
   });
-  api.logger.info("[governance-command] registered deterministic commands: gov_help, gov_setup, gov_migrate, gov_apply, gov_uninstall, gov_audit");
+  api.registerCommand({
+    name: "gov_openclaw_json",
+    description: "Hybrid platform config: check=deterministic health score, apply/default=SKILL.",
+    acceptsArgs: true,
+    requireAuth: true,
+    handler: async (ctx: PluginCommandContext) => ({ text: await makeGovOpenclawJsonCommandResponse(ctx) }),
+  });
+  api.registerCommand({
+    name: "gov_brain_audit",
+    description: "Hybrid brain docs audit: preview=deterministic health score, approve/rollback=SKILL.",
+    acceptsArgs: true,
+    requireAuth: true,
+    handler: async (ctx: PluginCommandContext) => ({ text: await makeGovBrainAuditCommandResponse(ctx) }),
+  });
+  api.registerCommand({
+    name: "gov_boot_audit",
+    description: "Deterministic BOOT recurrence scanner with upgrade menu generation.",
+    acceptsArgs: true,
+    requireAuth: true,
+    handler: async (ctx: PluginCommandContext) => ({ text: await makeGovBootAuditCommandResponse(ctx) }),
+  });
+  api.logger.info("[governance-command] registered deterministic commands: gov_help, gov_setup, gov_migrate, gov_apply, gov_uninstall, gov_audit, gov_openclaw_json, gov_brain_audit, gov_boot_audit");
 }
 
 function maybePruneExpiredStates(): void {
@@ -2169,6 +2460,18 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
       if (upgradeDirectiveText) {
         return {
           prependContext: upgradeDirectiveText,
+        };
+      }
+
+      const modeBDetected = isModeBSystemSensitive(latestUserTurn) && !modeCRequired;
+      if (modeBDetected) {
+        const modeBDirective = i18n(
+          state.uxLang,
+          "Mode B enforcement: system/version/time-sensitive question detected. You MUST verify your answer against authoritative sources (official docs, release pages, runtime context) before responding. Include a source reference (URL or file path) in your answer. Do not guess or rely on training data for version-sensitive claims.",
+          "Mode B 強制：偵測到系統/版本/時間敏感問題。回答前你必須先向權威來源（官方文件、release 頁面、runtime context）驗證。在回答中附上來源參考（URL 或檔案路徑）。勿猜測或依賴訓練資料回答版本敏感聲明。",
+        );
+        return {
+          prependContext: modeBDirective,
         };
       }
 

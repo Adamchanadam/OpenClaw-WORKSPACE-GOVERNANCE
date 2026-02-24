@@ -365,8 +365,10 @@ function executeGovApplySync(itemInput) {
   }
 
   const activeText = fs.readFileSync(activeGuardsPath, "utf8");
-  fs.readFileSync(lessonsPath, "utf8");
+  const lessonsText = fs.readFileSync(lessonsPath, "utf8");
   fs.readFileSync(indexPath, "utf8");
+  const guardsBefore = collectGuardIds(activeText).length;
+  const lessonsBefore = (lessonsText.match(/^##\s+Lesson\b/gim) || []).length;
   const changes = [];
 
   const backupRoot = path.join(workspaceRoot, "archive", `_apply_backup_${ts}`);
@@ -458,6 +460,9 @@ function executeGovApplySync(itemInput) {
     followups,
   });
 
+  const guardsAfter = collectGuardIds(fs.readFileSync(activeGuardsPath, "utf8")).length;
+  const lessonsAfter = (fs.readFileSync(lessonsPath, "utf8").match(/^##\s+Lesson\b/gim) || []).length;
+
   return {
     exitCode: 0,
     result: {
@@ -472,6 +477,12 @@ function executeGovApplySync(itemInput) {
       menu_source: toRel(workspaceRoot, latestMenu.sourcePath),
       backup_root: toRel(workspaceRoot, backupRoot),
       workspace_index_updated: indexUpdated,
+      governance_maturity: {
+        guards_before: guardsBefore,
+        guards_after: guardsAfter,
+        lessons_before: lessonsBefore,
+        lessons_after: lessonsAfter,
+      },
       followup: ["/gov_migrate", "/gov_audit"],
     },
   };
