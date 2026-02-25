@@ -14,8 +14,9 @@ Audit Brain Docs conservatively to reduce two recurring risks:
 
 Runtime integration:
 1. Governance runtime may suggest this preview before write-capable actions.
-2. Hard-require trigger points are post-change windows (after `gov_setup upgrade`, `gov_migrate`, `gov_audit`) or repeated blocked writes.
-3. Session/gateway start should default to nudge-only (not hard block) to avoid daily-flow self-lock.
+2. Post-command windows (after `gov_setup upgrade`, `gov_migrate`, `gov_audit`) trigger advisory nudge only (not hard block).
+3. Hard blocks only apply to high-risk writes (Brain Docs, `openclaw.json`) on the 3rd+ attempt without evidence.
+4. Session/gateway start should default to nudge-only (not hard block) to avoid daily-flow self-lock.
 
 Single-entry UX:
 1. Run `/gov_brain_audit` -> read-only preview (default)

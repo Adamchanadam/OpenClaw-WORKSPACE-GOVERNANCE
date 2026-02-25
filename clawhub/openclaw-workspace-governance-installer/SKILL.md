@@ -118,11 +118,11 @@ Version check (operator-side):
 
 ## Runtime gate behavior (important)
 1. Read-only diagnostics/testing commands are allowed and should not be blocked.
-2. Write/update/save commands require PLAN + READ evidence before CHANGE.
-3. If blocked by runtime gate, this usually means governance guard worked (not a system crash).
-4. Include `WG_PLAN_GATE_OK` + `WG_READ_GATE_OK` in governance output, then retry.
-5. All `gov_*` responses use branded output: `🐾` header, emoji status prefix (✅ PASS/READY, ⚠️ WARNING, ❌ BLOCKED/FAIL), structured `•` bullets, `👉` next-step, and `─────` dividers.
-6. If `gov_setup upgrade` still reports gate deadlock, update plugin to latest + restart gateway, then rerun `gov_setup check` and `gov_setup upgrade`.
+2. **Normal writes** (skills/, projects/, code): always advisory — write proceeds with a logged warning, never hard-blocked.
+3. **High-risk writes** (Brain Docs, `openclaw.json`, `_control/*`, governance prompts): advisory on 1st-2nd attempt, hard block on 3rd+ without evidence.
+4. If blocked by runtime gate, this usually means governance guard worked (not a system crash). Include your plan and list of files read, then retry.
+5. If blocked 3+ times: use `/gov_brain_audit force-accept` to clear all gates (with audit trail).
+6. All `gov_*` responses use branded output: `🐾` header, emoji status prefix (✅ PASS/READY, ⚠️ WARNING, ❌ BLOCKED/FAIL), structured `•` bullets, `👉` next-step, and `─────` dividers.
 7. Tool-exposure root-fix is enabled by default: governance plugin tools require explicit `/gov_*` intent (or `/skill gov_*`) in the current turn window.
 
 ## If slash routing is unstable

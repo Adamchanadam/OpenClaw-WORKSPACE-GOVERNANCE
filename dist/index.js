@@ -41,7 +41,7 @@ const READ_EVIDENCE_PATTERNS = [
     /\b(?:已讀|已檢查|檔案內容|現有內容)\b/i,
     /\bexisting\s+(?:content|files?|code)\b/i,
 ];
-const PLUGIN_VERSION = "0.1.56";
+const PLUGIN_VERSION = "0.1.57";
 const PLUGIN_NPM_PACKAGE = "@adamchanadam/openclaw-workspace-governance";
 async function fetchLatestNpmVersion() {
     try {
@@ -274,6 +274,7 @@ function ensureState(sessionKey) {
         writeSeen: false,
         blockedWrites: 0,
         highRiskBlockedWrites: 0,
+        advisoryWriteCount: 0,
         forceAcceptCount: 0,
         sameBlockCount: 0,
         updatedAt: now,
@@ -1606,6 +1607,7 @@ async function makeGovBrainAuditCommandResponse(ctx) {
             st.brainAuditRequiredReason = undefined;
             st.blockedWrites = 0;
             st.highRiskBlockedWrites = 0;
+            st.advisoryWriteCount = 0;
             st.sameBlockCount = 0;
             st.forceAcceptCount += 1;
             clearedSessions += 1;
@@ -1834,6 +1836,7 @@ export default function registerWorkspaceGovernancePlugin(api) {
         if (state.blockedWrites > 0 && now - state.updatedAt > 30_000) {
             state.blockedWrites = 0;
             state.highRiskBlockedWrites = 0;
+            state.advisoryWriteCount = 0;
             state.sameBlockCount = 0;
         }
         state.planSeen = state.planSeen || hasPlanEvidence(tailText);
@@ -1859,6 +1862,7 @@ export default function registerWorkspaceGovernancePlugin(api) {
                 state.brainAuditRequiredReason = undefined;
                 state.blockedWrites = 0;
                 state.highRiskBlockedWrites = 0;
+                state.advisoryWriteCount = 0;
             }
         }
         if (explicitGovCommandRequested) {
@@ -1933,6 +1937,19 @@ export default function registerWorkspaceGovernancePlugin(api) {
             states.set(sessionKey, state);
             return {
                 prependContext: i18n(state.uxLang, "For Brain Docs changes, consider /gov_brain_audit preview for a health check. Then proceed directly with your task.", "如涉及 Brain Docs 變更，可考慮先 /gov_brain_audit 預覽健康檢查。然後直接繼續你的任務。"),
+            };
+        }
+        // Advisory feedback: if prior turn had advisory writes without evidence, inject visible guidance
+        if (state.advisoryWriteCount > 0 && modeCRequired && (!state.planSeen || !state.readSeen)) {
+            const count = state.advisoryWriteCount;
+            state.advisoryWriteCount = 0;
+            state.updatedAt = now;
+            states.set(sessionKey, state);
+            const highRiskNote = state.highRiskBlockedWrites > 0
+                ? i18n(state.uxLang, ` ${state.highRiskBlockedWrites} of these targeted high-risk governance files — hard block activates on the 3rd high-risk attempt without evidence.`, ` 其中 ${state.highRiskBlockedWrites} 次針對高風險治理檔案——第 3 次無證據時將硬封鎖。`)
+                : "";
+            return {
+                prependContext: i18n(state.uxLang, `Notice: your last ${count} write(s) proceeded without PLAN/READ evidence.${highRiskNote} Best practice: (1) state your plan before writing, (2) list the files you have read. This helps governance verify your work and avoids hard blocks on high-risk targets. Proceed with the user's task — include plan and read evidence naturally in your response.`, `注意：你上一輪有 ${count} 次寫入未包含 PLAN/READ 證據。${highRiskNote} 最佳實踐：(1) 寫入前陳述你的計劃，(2) 列出你已讀的檔案。這有助治理驗證你的工作並避免高風險目標被硬封鎖。繼續處理使用者的任務——在回覆中自然包含計劃和讀取證據。`),
             };
         }
         if (modeCRequired &&
@@ -2092,6 +2109,7 @@ export default function registerWorkspaceGovernancePlugin(api) {
             if (!highRisk) {
                 // Normal writes (skills/, projects/, _runs/, code): ALWAYS advisory, never hard block
                 api.logger.warn(`[governance-gate] write without PLAN/READ evidence — advisory only (normal target, attempt ${state.blockedWrites})`);
+                state.advisoryWriteCount += 1;
                 state.writeSeen = true;
                 state.lastWriteTool = event.toolName;
                 state.updatedAt = now;
@@ -2104,6 +2122,7 @@ export default function registerWorkspaceGovernancePlugin(api) {
             // A5: First 2 high-risk attempts are advisory
             if (state.highRiskBlockedWrites <= 2) {
                 api.logger.warn(`[governance-gate] high-risk write without PLAN/READ evidence (advisory ${state.highRiskBlockedWrites}/2)`);
+                state.advisoryWriteCount += 1;
                 state.writeSeen = true;
                 state.lastWriteTool = event.toolName;
                 state.updatedAt = now;
@@ -2157,6 +2176,7 @@ export default function registerWorkspaceGovernancePlugin(api) {
             state.writeSeen = false;
             state.blockedWrites = 0;
             state.highRiskBlockedWrites = 0;
+            state.advisoryWriteCount = 0;
         }
         // gov_* bypass is single-turn scoped.
         state.govEntrypointSeen = false;

@@ -16,10 +16,9 @@ ClawHub 安裝頁：
 
 | 版本 | 發佈時間（UTC） | 關鍵變更 | 對使用者的直接影響 |
 | --- | --- | --- | --- |
+| `v0.1.57` | 2026-02-25 | 建議性回饋迴路：AI 在無證據寫入後下一輪收到輔導指引；README 寫入保護用語修正（透明化，非誤導性的「建議性附帶警告」）；回歸測試 135→140/140 | AI 在建議性寫入後自動修正行為，不再只在硬封鎖時才學到；用戶理解一般寫入完全透明無可見警告 |
 | `v0.1.56` | 2026-02-25 | 建議優先 UX 改革：一般寫入永遠建議性（不硬封鎖）；硬封鎖僅針對高風險治理目標；自然語言證據偵測；prependContext 引導 AI 直接執行；封鎖訊息人性化（無機器 token）；AGENTS.md payload 從指令式改為最佳實踐 | AI 不再在一般 coding 任務中自我封鎖；使用者不再看到機器 token；治理保護高風險目標同時讓日常工作順暢 |
 | `v0.1.55` | 2026-02-25 | 預修改設定參考驗證（`configRefScan`）；嚴格度合理化（首 2 次寫入封鎖為建議性、第 3 次起硬封鎖；brain audit 視窗 30min→60s；封鎖門檻 3→5）；逃生艙（`/gov_brain_audit force-accept` 3+ 次循環後清除所有閘門）；`scannerTolerance` 設定（`strict`/`tolerant`/`lenient`）支援 LLM 格式自由度；回歸測試 108→124/124 | 寫入封鎖不再讓新用戶措手不及（首 2 次為建議性）；卡住的用戶有明確逃生路線；LLM 生成的 run reports 無論格式均可接受 |
-| `v0.1.54` | 2026-02-25 | 修正 `gov_brain_audit` 誤報：唯讀 audit run reports（audit/preview/scan）不再觸發 `COMPLETION_WITHOUT_EVIDENCE`；WARN/BLOCKED 下一步指引現在顯示實際 finding IDs；回歸測試 104/104 | 從 v0.1.53 升級的其他 runtime 不再看到來自 audit 報告的虛假 HIGH findings；操作者可直接複製正確的 APPROVE 指令 |
-| `v0.1.53` | 2026-02-25 | `/gov_help` 重新設計：ASCII art 品牌橫幅 + 完整 9 指令目錄；README 指令排序對齊；章節標題加入 emoji；ROOT SPRAWL 回歸修正（temp workspace chain tests）；回歸測試 103/103 | 用戶一眼看到全部指令目錄與品牌橫幅；emoji 標題加速 README 導覽；所有產品介面顯示一致的指令排序 |
 
 來源：GitHub Releases（`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`）
 
@@ -65,12 +64,13 @@ Experimental（實驗性）：
 
 ![OpenClaw WORKSPACE_GOVERNANCE Infographic](./ref_doc/infograp_eng.png)
 ![gov_setup quick 畫面](./ref_doc/screen_gov_setup_quick.png)
-![Page 1](./ref_doc/page_1.jpg)
-![Page 2](./ref_doc/page_2.jpg)
-![Page 3](./ref_doc/page_3.jpg)
-![Page 4](./ref_doc/page_4.jpg)
-![Page 5](./ref_doc/page_5.jpg)
-![Page 6](./ref_doc/page_6.jpg)
+![Page 1](./ref_doc/page_001.jpg)
+![Page 2](./ref_doc/page_002.jpg)
+![Page 3](./ref_doc/page_003.jpg)
+![Page 4](./ref_doc/page_004.jpg)
+![Page 5](./ref_doc/page_005.jpg)
+![Page 6](./ref_doc/page_006.jpg)
+![Page 7](./ref_doc/page_007.jpg)
 
 <a id="install"></a>
 ## 🚀 60-Second Start
@@ -244,18 +244,18 @@ openclaw gateway restart
 
 | 步驟 | 發生什麼 | 用戶動作 |
 |------|----------|---------|
-| 一般寫入（skills/、projects/、代碼） | **永遠建議性** — 寫入放行並記錄警告 | 無需操作；可繼續工作 |
-| 高風險寫入（治理基礎設施、Brain Docs）第 1-2 次 | **建議性** — 寫入放行並記錄警告 | 無需操作 |
-| 高風險寫入第 3 次以上無證據 | **硬封鎖** — 寫入被攔截 | 在回覆中包含你的計劃和已讀檔案，然後重試 |
-| 同一閘門連續封鎖 3 次以上 | **逃生提示**出現在封鎖訊息中 | 使用 `/gov_brain_audit force-accept` 清除所有閘門（含稽核記錄） |
+| 一般寫入（skills/、projects/、代碼） | **透明** — 寫入正常執行（治理內部記錄，你不會看到任何東西） | 無需操作——你不會看到任何東西；寫入直接完成 |
+| 高風險寫入（治理基礎設施、Brain Docs）第 1-2 次 | **透明** — 寫入正常執行（內部記錄） | 無需操作——AI 在下一輪自動收到輔導回饋 |
+| 高風險寫入第 3 次以上無證據 | **硬封鎖** — 寫入被攔截 | AI 自動收到輔導回饋；你也可以說：「請包含你的計劃和已讀檔案」 |
+| 同一閘門連續封鎖 3 次以上 | **逃生提示**自動出現在封鎖訊息中 | 使用 `/gov_brain_audit force-accept` 清除所有閘門（含稽核記錄） |
 | 執行 `/gov_setup`、`/gov_migrate`、`/gov_audit` 之後 | **建議性提示**（非硬封鎖） | 可選擇性執行 `/gov_brain_audit` 做健康檢查預覽 |
 
 ### 風險分類
 
 | 風險層級 | 目標 | Runtime 行為 |
 |---------|------|-------------|
-| **高風險** | Brain Docs（`AGENTS.md`、`SOUL.md`、`USER.md`、`IDENTITY.md`、`TOOLS.md`、`MEMORY.md`、`HEARTBEAT.md`）、`openclaw.json`、`_control/*`、`prompts/governance/*` | 第 1-2 次建議性，**第 3 次起硬封鎖** |
-| **一般** | 其他所有檔案（`skills/`、`projects/`、`_runs/`、原始碼、設定、文檔等） | **永遠建議性**（不會硬封鎖） |
+| **高風險** | Brain Docs（`AGENTS.md`、`SOUL.md`、`USER.md`、`IDENTITY.md`、`TOOLS.md`、`MEMORY.md`、`HEARTBEAT.md`）、`openclaw.json`、`_control/*`、`prompts/governance/*` | 第 1-2 次透明（AI 下一輪收到輔導），**第 3 次起硬封鎖** |
+| **一般** | 其他所有檔案（`skills/`、`projects/`、`_runs/`、原始碼、設定、文檔等） | **永遠透明**（不會硬封鎖，治理內部記錄） |
 
 所有寫入（無論風險層級）在內部都遵循完整的 Mode C 治理流程：PLAN→READ→CHANGE→QC→PERSIST。風險層級只決定 runtime gate 是否能硬封鎖寫入嘗試。
 
@@ -276,6 +276,7 @@ openclaw gateway restart
 - Brain audit 要求視窗：**60 秒**（60 秒後自動清除）
 - 封鎖門檻：連續 **5** 次被封鎖的寫入才會啟動硬要求
 - 每輪重置：當提示間隔超過 30 秒時，blockedWrites 計數器重置
+- 建議性回饋：無證據寫入後，AI 在下一輪收到輔導指引——無需用戶操作
 
 ### Scanner 容錯度
 

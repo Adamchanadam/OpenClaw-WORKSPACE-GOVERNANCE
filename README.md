@@ -16,10 +16,9 @@ ClawHub installer page:
 
 | Version | Published (UTC) | Key Changes | Practical Impact |
 | --- | --- | --- | --- |
+| `v0.1.57` | 2026-02-25 | Advisory feedback loop: AI receives coaching guidance after writes without evidence; README write-protection wording clarified (transparent, not misleading "advisory with warning"); regression 135→140/140 | AI self-corrects after advisory writes instead of only learning at hard-block; users understand that normal writes are fully transparent with no visible warning |
 | `v0.1.56` | 2026-02-25 | Advisory-first UX reform: normal writes always advisory (never hard block); hard blocks only for high-risk governance targets; natural-language evidence detection; prependContext guides AI to proceed directly; block messages human-readable (no machine tokens); AGENTS.md payload reformed from directive to best-practice | AI stops self-blocking on normal coding tasks; users never see machine tokens; governance protects high-risk targets while letting daily work flow freely |
 | `v0.1.55` | 2026-02-25 | Pre-modification config reference verification (`configRefScan`); strictness rationalization (first 2 write blocks advisory, hard block on 3rd+; brain audit window 30min→60s; block threshold 3→5); escape hatch (`/gov_brain_audit force-accept` clears all gates after 3+ loops); `scannerTolerance` config (`strict`/`tolerant`/`lenient`) for LLM format freedom; regression 108→124/124 | Write blocks no longer surprise new users (first 2 are advisory); stuck users get a clear escape route; LLM-generated run reports accepted regardless of formatting style |
-| `v0.1.54` | 2026-02-25 | Fixed `gov_brain_audit` false positives: read-only audit run reports (audit/preview/scan) no longer trigger `COMPLETION_WITHOUT_EVIDENCE`; WARN/BLOCKED next-step guidance now shows actual finding IDs; regression 104/104 | Other runtimes upgrading from v0.1.53 no longer see spurious HIGH findings from audit reports; operators can copy-paste correct APPROVE command directly |
-| `v0.1.53` | 2026-02-25 | `/gov_help` redesigned with ASCII art banner and complete 9-command catalog; README command ordering aligned; section heading emojis; ROOT SPRAWL regression fix (temp workspace chain tests); regression 103/103 | Users see full command menu at a glance with branded banner; README navigation faster with emoji headings; all product surfaces show consistent command ordering |
 
 Source: GitHub Releases (`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`)
 
@@ -65,12 +64,13 @@ Experimental:
 
 ![OpenClaw WORKSPACE_GOVERNANCE Infographic](./ref_doc/infograp_eng.png)
 ![gov_setup quick screen](./ref_doc/screen_gov_setup_quick.png)
-![Page 1](./ref_doc/page_1.jpg)
-![Page 2](./ref_doc/page_2.jpg)
-![Page 3](./ref_doc/page_3.jpg)
-![Page 4](./ref_doc/page_4.jpg)
-![Page 5](./ref_doc/page_5.jpg)
-![Page 6](./ref_doc/page_6.jpg)
+![Page 1](./ref_doc/page_001.jpg)
+![Page 2](./ref_doc/page_002.jpg)
+![Page 3](./ref_doc/page_003.jpg)
+![Page 4](./ref_doc/page_004.jpg)
+![Page 5](./ref_doc/page_005.jpg)
+![Page 6](./ref_doc/page_006.jpg)
+![Page 7](./ref_doc/page_007.jpg)
 
 <a id="install"></a>
 ## 🚀 60-Second Start
@@ -244,18 +244,18 @@ When you ask AI to write or modify files, the governance runtime gate activates 
 
 | Step | What Happens | User Action |
 |------|-------------|-------------|
-| Normal writes (skills/, projects/, code) | **Always advisory** — write proceeds with a logged warning | None needed; you can continue working |
-| High-risk writes (governance infra, Brain Docs) 1st-2nd | **Advisory** — write is allowed through with a logged warning | None needed |
-| High-risk writes 3rd+ without evidence | **Hard block** — write is stopped | Include your plan and files read in your response, then retry |
-| 3+ consecutive blocks on same gate | **Escape hint** appears in block message | Use `/gov_brain_audit force-accept` to clear all gates (with audit trail) |
+| Normal writes (skills/, projects/, code) | **Transparent** — write proceeds normally (governance logs internally, you see nothing) | None — you won't see anything; write just works |
+| High-risk writes (governance infra, Brain Docs) 1st-2nd | **Transparent** — write proceeds normally (logged internally) | None — AI receives coaching feedback automatically on the next turn |
+| High-risk writes 3rd+ without evidence | **Hard block** — write is stopped | AI receives coaching feedback automatically; you can also say: "Please include your plan and files read" |
+| 3+ consecutive blocks on same gate | **Escape hint** appears automatically in block message | Use `/gov_brain_audit force-accept` to clear all gates (with audit trail) |
 | After running `/gov_setup`, `/gov_migrate`, `/gov_audit` | **Advisory nudge** only (not a hard block) | Optionally run `/gov_brain_audit` for a health-check preview |
 
 ### Risk Classification
 
 | Risk Level | Targets | Runtime Behavior |
 |-----------|---------|-----------------|
-| **High-risk** | Brain Docs (`AGENTS.md`, `SOUL.md`, `USER.md`, `IDENTITY.md`, `TOOLS.md`, `MEMORY.md`, `HEARTBEAT.md`), `openclaw.json`, `_control/*`, `prompts/governance/*` | Advisory 1st-2nd write, **hard block** on 3rd+ |
-| **Normal** | Everything else (`skills/`, `projects/`, `_runs/`, source code, configs, docs, etc.) | **Always advisory** (never hard-blocked) |
+| **High-risk** | Brain Docs (`AGENTS.md`, `SOUL.md`, `USER.md`, `IDENTITY.md`, `TOOLS.md`, `MEMORY.md`, `HEARTBEAT.md`), `openclaw.json`, `_control/*`, `prompts/governance/*` | Transparent 1st-2nd (AI coached on next turn), **hard block** on 3rd+ |
+| **Normal** | Everything else (`skills/`, `projects/`, `_runs/`, source code, configs, docs, etc.) | **Always transparent** (never hard-blocked, governance logs internally) |
 
 All writes (both risk levels) follow the full Mode C governance flow internally: PLAN→READ→CHANGE→QC→PERSIST. The risk level only determines whether the runtime gate can hard-block a write attempt.
 
@@ -276,6 +276,7 @@ All governance write commands (`/gov_setup install`, `/gov_migrate`, `/gov_apply
 - Brain audit requirement window: **60 seconds** (auto-clears after 60s)
 - Block threshold: **5** consecutive blocked writes before hard requirement activates
 - Per-turn reset: blocked-writes counter resets when prompt gap exceeds 30 seconds
+- Advisory feedback: after writes without evidence, AI receives coaching guidance on the next turn — no user action needed
 
 ### Scanner Tolerance
 
