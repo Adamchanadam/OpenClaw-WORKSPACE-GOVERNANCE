@@ -16,9 +16,9 @@ ClawHub 安裝頁：
 
 | 版本 | 發佈時間（UTC） | 關鍵變更 | 對使用者的直接影響 |
 | --- | --- | --- | --- |
+| `v0.1.54` | 2026-02-25 | 修正 `gov_brain_audit` 誤報：唯讀 audit run reports（audit/preview/scan）不再觸發 `COMPLETION_WITHOUT_EVIDENCE`；WARN/BLOCKED 下一步指引現在顯示實際 finding IDs；回歸測試 104/104 | 從 v0.1.53 升級的其他 runtime 不再看到來自 audit 報告的虛假 HIGH findings；操作者可直接複製正確的 APPROVE 指令 |
 | `v0.1.53` | 2026-02-25 | `/gov_help` 重新設計：ASCII art 品牌橫幅 + 完整 9 指令目錄；README 指令排序對齊；章節標題加入 emoji；ROOT SPRAWL 回歸修正（temp workspace chain tests）；回歸測試 103/103 | 用戶一眼看到全部指令目錄與品牌橫幅；emoji 標題加速 README 導覽；所有產品介面顯示一致的指令排序 |
 | `v0.1.52` | 2026-02-24 | 偵測邏輯強化：`gov_uninstall` 現在偵測全部 8 個 `_control/` 檔案引用（舊版只查 3 個）；發佈管道新增 `PLUGIN_VERSION` 常數對齊閘門；重構 brain-doc 掃描邏輯；回歸測試擴展至 100/100 | 卸載檢查/清理現在能捕捉到之前遺漏的治理殘留（如 `_control/ACTIVE_GUARDS.md` 引用）；機器閘門防止未來版本號不對齊 |
-| `v0.1.51` | 2026-02-24 | 熱修復：對齊 runtime `PLUGIN_VERSION` 常數 — v0.1.50 出版時品牌輸出標頭仍顯示舊版 `0.1.49` | 品牌輸出標頭現在正確顯示 `v0.1.51`；無功能變更 |
 
 來源：GitHub Releases（`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`）
 

@@ -16,9 +16,9 @@ ClawHub installer page:
 
 | Version | Published (UTC) | Key Changes | Practical Impact |
 | --- | --- | --- | --- |
+| `v0.1.54` | 2026-02-25 | Fixed `gov_brain_audit` false positives: read-only audit run reports (audit/preview/scan) no longer trigger `COMPLETION_WITHOUT_EVIDENCE`; WARN/BLOCKED next-step guidance now shows actual finding IDs; regression 104/104 | Other runtimes upgrading from v0.1.53 no longer see spurious HIGH findings from audit reports; operators can copy-paste correct APPROVE command directly |
 | `v0.1.53` | 2026-02-25 | `/gov_help` redesigned with ASCII art banner and complete 9-command catalog; README command ordering aligned; section heading emojis; ROOT SPRAWL regression fix (temp workspace chain tests); regression 103/103 | Users see full command menu at a glance with branded banner; README navigation faster with emoji headings; all product surfaces show consistent command ordering |
 | `v0.1.52` | 2026-02-24 | Detection logic hardening: `gov_uninstall` now detects all 8 `_control/` file references in brain docs (previously only 3); release pipeline adds `PLUGIN_VERSION` constant alignment gate; refactored brain-doc scanning; regression expanded to 100/100 | Uninstall check/cleanup now catches previously-missed governance residue (e.g. `_control/ACTIVE_GUARDS.md` references); future version misalignment prevented by machine gate |
-| `v0.1.51` | 2026-02-24 | Hotfix: aligned `PLUGIN_VERSION` constant in runtime — v0.1.50 shipped with stale `0.1.49` in branded output headers | Branded output headers now correctly show `v0.1.51`; no functional change |
 
 Source: GitHub Releases (`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`)
 
