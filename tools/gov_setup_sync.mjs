@@ -149,6 +149,39 @@ function classifyAllowStatus(openclawJsonPath) {
   return { allow_status: "ALLOW_OK", allowlist_alignment_required: false };
 }
 
+/**
+ * Ensure openclaw.json exists and plugins.allow contains "openclaw-workspace-governance".
+ * Preserves all existing config and allowlist entries.
+ * Returns { aligned, action, previous_allow }.
+ */
+function alignAllowlistEntry(openclawJsonPath) {
+  const GOV_ID = "openclaw-workspace-governance";
+  if (!openclawJsonPath) {
+    return { aligned: false, action: "NO_CONFIG_PATH", previous_allow: null };
+  }
+  try {
+    let cfg = {};
+    if (exists(openclawJsonPath)) {
+      cfg = readJsonSafe(openclawJsonPath) || {};
+    } else {
+      fs.mkdirSync(path.dirname(openclawJsonPath), { recursive: true });
+    }
+    if (!cfg.plugins || typeof cfg.plugins !== "object") cfg.plugins = {};
+    const prev = Array.isArray(cfg.plugins.allow) ? [...cfg.plugins.allow] : null;
+    if (!Array.isArray(cfg.plugins.allow)) {
+      cfg.plugins.allow = [GOV_ID];
+    } else if (!cfg.plugins.allow.includes(GOV_ID)) {
+      cfg.plugins.allow.push(GOV_ID);
+    } else {
+      return { aligned: true, action: "ALREADY_OK", previous_allow: prev };
+    }
+    fs.writeFileSync(openclawJsonPath, JSON.stringify(cfg, null, 2) + "\n", "utf8");
+    return { aligned: true, action: prev === null ? "CREATED" : "APPENDED", previous_allow: prev };
+  } catch (err) {
+    return { aligned: false, action: "WRITE_FAILED", previous_allow: null, error: String(err?.message || err) };
+  }
+}
+
 function collectFileStates(workspaceRoot) {
   const states = [];
   const missingSources = [];
@@ -365,6 +398,8 @@ function executeGovSetupSync(modeInput) {
 export function runGovSetupSync(modeInput = "install") {
   return executeGovSetupSync(modeInput).result;
 }
+
+export { alignAllowlistEntry };
 
 function isDirectRun() {
   const argv1 = process.argv[1] ? path.resolve(process.argv[1]) : "";

@@ -98,7 +98,7 @@ const READ_EVIDENCE_PATTERNS = [
   /\bwg[-_: ]*read[-_: ]*gate[-_: ]*ok\b/i,
 ];
 
-const PLUGIN_VERSION = "0.1.52";
+const PLUGIN_VERSION = "0.1.53";
 const PLUGIN_NPM_PACKAGE = "@adamchanadam/openclaw-workspace-governance";
 
 async function fetchLatestNpmVersion(): Promise<string | null> {
@@ -1142,42 +1142,49 @@ async function makeGovHelpCommandResponse(ctx: PluginCommandContext): Promise<st
   const lang = pickCommandLanguage(ctx);
   const latest = await fetchLatestNpmVersion();
   const versionLine = formatVersionLine(PLUGIN_VERSION, latest, lang);
-  return formatCommandOutput(
-    "PASS",
-    [
-      versionLine,
-      i18n(
-        lang,
-        "Available governance commands: gov_help, gov_setup, gov_migrate, gov_audit, gov_uninstall, gov_apply (Experimental).",
-        "可用治理指令：gov_help、gov_setup、gov_migrate、gov_audit、gov_uninstall、gov_apply（Experimental）。",
-      ),
-      i18n(
-        lang,
-        "One-click recommended for daily onboarding/upgrade: /gov_setup quick",
-        "日常安裝/升級建議一鍵：/gov_setup quick",
-      ),
-      i18n(
-        lang,
-        "One-click recommended for workspace cleanup before package removal: /gov_uninstall quick",
-        "卸載前 workspace 清理建議一鍵：/gov_uninstall quick",
-      ),
-      i18n(
-        lang,
-        "Read-only diagnostics: /gov_setup check, /gov_uninstall check",
-        "只讀檢查：/gov_setup check、/gov_uninstall check",
-      ),
-    ],
-    i18n(lang, "Copy one command and run.", "請直接複製一條指令執行。"),
-    [
-      "/gov_setup quick",
-      "/gov_uninstall quick",
-      "/gov_setup check",
-      "/gov_uninstall check",
-      "/gov_migrate",
-      "/gov_audit",
-      "/gov_apply 01",
-    ],
-  );
+  const divider = "─────────────────────────────────────────────────";
+  const banner = [
+    "    \u2572  \u2572  \u2572",
+    "     \u2572  \u2572  \u2572     O P E N C L A W",
+    "      \u2572  \u2572  \u2572    \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
+    "       \u2572  \u2572  \u2572   G O V E R N A N C E",
+    `                  ${versionLine}`,
+  ].join("\n");
+  const gaLabel = i18n(lang, "GA Commands", "\u6B63\u5F0F\u6307\u4EE4");
+  const expLabel = i18n(lang, "Experimental", "\u5BE6\u9A57\u6027");
+  const gaCommands = [
+    ["/gov_setup quick",   i18n(lang, "One-click install, upgrade, migrate and audit", "\u4E00\u9375\u5B89\u88DD\u3001\u5347\u7D1A\u3001\u9077\u79FB\u53CA\u5BE9\u6838")],
+    ["/gov_setup check",   i18n(lang, "Read-only status and sync diagnostic", "\u552F\u8B80\u72C0\u614B\u53CA\u540C\u6B65\u8A3A\u65B7")],
+    ["/gov_migrate",       i18n(lang, "Align workspace to latest governance rules", "\u5C0D\u9F4A workspace \u81F3\u6700\u65B0\u6CBB\u7406\u898F\u5247")],
+    ["/gov_audit",         i18n(lang, "Verify 12 integrity checks and catch drift", "\u9A57\u8B49 12 \u9805\u5B8C\u6574\u6027\u6AA2\u67E5")],
+    ["/gov_uninstall quick", i18n(lang, "Clean removal with backup and restore", "\u542B\u5099\u4EFD\u7684\u5B89\u5168\u6E05\u9664")],
+    ["/gov_openclaw_json", i18n(lang, "Platform config health check and edit", "\u5E73\u53F0\u8A2D\u5B9A\u5065\u5EB7\u6AA2\u67E5\u53CA\u7DE8\u8F2F")],
+    ["/gov_brain_audit",   i18n(lang, "Brain Docs quality audit and hardening", "Brain Docs \u54C1\u8CEA\u5BE9\u6838\u53CA\u5F37\u5316")],
+    ["/gov_boot_audit",    i18n(lang, "Scan recurring issues and suggest upgrades", "\u6383\u63CF\u91CD\u8907\u554F\u984C\u4E26\u5EFA\u8B70\u5347\u7D1A")],
+  ];
+  const expCommands = [
+    ["/gov_apply <NN>",    i18n(lang, "Apply an approved BOOT upgrade item", "\u5957\u7528\u5DF2\u6279\u51C6\u7684 BOOT \u5347\u7D1A\u9805\u76EE")],
+  ];
+  const pad = (cmd: string) => cmd.padEnd(23);
+  const cmdBlock = [
+    `  ${gaLabel}`,
+    "",
+    ...gaCommands.map(([cmd, desc]) => `  ${pad(cmd)}${desc}`),
+    "",
+    `  ${expLabel}`,
+    "",
+    ...expCommands.map(([cmd, desc]) => `  ${pad(cmd)}${desc}`),
+  ].join("\n");
+  const copyHint = i18n(lang, "\uD83D\uDC49 Copy one command and run.", "\uD83D\uDC49 \u8ACB\u76F4\u63A5\u8907\u88FD\u4E00\u689D\u6307\u4EE4\u57F7\u884C\u3002");
+  const copyBlock = [
+    "  /gov_setup quick",
+    "  /gov_uninstall quick",
+    "  /gov_openclaw_json check",
+    "  /gov_brain_audit",
+    "  /gov_boot_audit",
+    "  /gov_apply 01",
+  ].join("\n");
+  return [banner, divider, "", cmdBlock, "", divider, copyHint, "", copyBlock].join("\n");
 }
 
 async function makeGovSetupQuickCommandResponse(lang: "en" | "zh"): Promise<string> {
@@ -1212,12 +1219,17 @@ async function makeGovSetupQuickCommandResponse(lang: "en" | "zh"): Promise<stri
   ];
 
   if (allowStatus !== "ALLOW_OK") {
-    return formatCommandOutput(
-      "READY_WITH_WARNING",
-      withFlowTrace(why),
-      i18n(lang, "Align allowlist first, then rerun one-click quick flow.", "先對齊 allowlist，再重跑一鍵 quick 流程。"),
-      ["/skill gov_openclaw_json", "/gov_setup quick"],
-    );
+    const alignRunner = await runInProcessRunner("tools/gov_setup_sync.mjs", "alignAllowlistEntry", [checkData.platform_config_path || ""]);
+    if (!alignRunner.ok || !alignRunner.data?.aligned) {
+      return formatCommandOutput(
+        "READY_WITH_WARNING",
+        withFlowTrace(why),
+        i18n(lang, "Could not auto-align allowlist. Align manually, then rerun quick flow.", "無法自動對齊 allowlist。請手動對齊後重跑 quick 流程。"),
+        ["/skill gov_openclaw_json", "/gov_setup quick"],
+      );
+    }
+    flowTrace.push(`allow_auto_align: ${String(alignRunner.data.action)}`);
+    why.push(`allow_auto_aligned: ${String(alignRunner.data.action)}`);
   }
 
   let setupStep: "install" | "upgrade" | "skip" = "skip";
@@ -1250,15 +1262,7 @@ async function makeGovSetupQuickCommandResponse(lang: "en" | "zh"): Promise<stri
     flowTrace.push(`setup(${setupStep}): PASS | detail=${String(setupData.pass_detail || "updated")}`);
     why.push(`setup_pass_detail: ${String(setupData.pass_detail || "updated")}`);
     if (setupData.backup_root) why.push(`setup_backup_root: ${String(setupData.backup_root)}`);
-    const setupAllowStatus = String(setupData.allow_status || "ALLOW_NOT_SET");
-    if (setupAllowStatus !== "ALLOW_OK") {
-      return formatCommandOutput(
-        "PASS_WITH_WARNING",
-        withFlowTrace([...why, `setup_allow_status: ${setupAllowStatus}`]),
-        i18n(lang, "Align allowlist first, then rerun quick flow.", "先對齊 allowlist，再重跑 quick 流程。"),
-        ["/skill gov_openclaw_json", "/gov_setup quick"],
-      );
-    }
+    // Allowlist already aligned in pre-install step — no secondary check needed
   }
 
   const migrateRunner = await runInProcessRunner("tools/gov_migrate_sync.mjs", "runGovMigrateSync", []);
@@ -2255,11 +2259,11 @@ function registerDeterministicGovCommands(api: OpenClawPluginApi): void {
     handler: async (ctx: PluginCommandContext) => ({ text: await makeGovMigrateCommandResponse(ctx) }),
   });
   api.registerCommand({
-    name: "gov_apply",
-    description: "Deterministic BOOT-approved governance apply runner.",
-    acceptsArgs: true,
+    name: "gov_audit",
+    description: "Deterministic governance audit runner.",
+    acceptsArgs: false,
     requireAuth: true,
-    handler: async (ctx: PluginCommandContext) => ({ text: await makeGovApplyCommandResponse(ctx) }),
+    handler: async (ctx: PluginCommandContext) => ({ text: await makeGovAuditCommandResponse(ctx) }),
   });
   api.registerCommand({
     name: "gov_uninstall",
@@ -2267,13 +2271,6 @@ function registerDeterministicGovCommands(api: OpenClawPluginApi): void {
     acceptsArgs: true,
     requireAuth: true,
     handler: async (ctx: PluginCommandContext) => ({ text: await makeGovUninstallCommandResponse(ctx) }),
-  });
-  api.registerCommand({
-    name: "gov_audit",
-    description: "Deterministic governance audit runner.",
-    acceptsArgs: false,
-    requireAuth: true,
-    handler: async (ctx: PluginCommandContext) => ({ text: await makeGovAuditCommandResponse(ctx) }),
   });
   api.registerCommand({
     name: "gov_openclaw_json",
@@ -2296,7 +2293,14 @@ function registerDeterministicGovCommands(api: OpenClawPluginApi): void {
     requireAuth: true,
     handler: async (ctx: PluginCommandContext) => ({ text: await makeGovBootAuditCommandResponse(ctx) }),
   });
-  api.logger.info("[governance-command] registered deterministic commands: gov_help, gov_setup, gov_migrate, gov_apply, gov_uninstall, gov_audit, gov_openclaw_json, gov_brain_audit, gov_boot_audit");
+  api.registerCommand({
+    name: "gov_apply",
+    description: "Deterministic BOOT-approved governance apply runner.",
+    acceptsArgs: true,
+    requireAuth: true,
+    handler: async (ctx: PluginCommandContext) => ({ text: await makeGovApplyCommandResponse(ctx) }),
+  });
+  api.logger.info("[governance-command] registered deterministic commands: gov_help, gov_setup, gov_migrate, gov_audit, gov_uninstall, gov_openclaw_json, gov_brain_audit, gov_boot_audit, gov_apply");
 }
 
 function maybePruneExpiredStates(): void {

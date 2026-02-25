@@ -12,25 +12,25 @@ ClawHub 安裝頁：
 
 ---
 
-## Release Notes 最新 3 版重點報告板
+## 📋 Release Notes 最新 3 版重點報告板
 
 | 版本 | 發佈時間（UTC） | 關鍵變更 | 對使用者的直接影響 |
 | --- | --- | --- | --- |
+| `v0.1.53` | 2026-02-25 | `/gov_help` 重新設計：ASCII art 品牌橫幅 + 完整 9 指令目錄；README 指令排序對齊；章節標題加入 emoji；ROOT SPRAWL 回歸修正（temp workspace chain tests）；回歸測試 103/103 | 用戶一眼看到全部指令目錄與品牌橫幅；emoji 標題加速 README 導覽；所有產品介面顯示一致的指令排序 |
 | `v0.1.52` | 2026-02-24 | 偵測邏輯強化：`gov_uninstall` 現在偵測全部 8 個 `_control/` 檔案引用（舊版只查 3 個）；發佈管道新增 `PLUGIN_VERSION` 常數對齊閘門；重構 brain-doc 掃描邏輯；回歸測試擴展至 100/100 | 卸載檢查/清理現在能捕捉到之前遺漏的治理殘留（如 `_control/ACTIVE_GUARDS.md` 引用）；機器閘門防止未來版本號不對齊 |
 | `v0.1.51` | 2026-02-24 | 熱修復：對齊 runtime `PLUGIN_VERSION` 常數 — v0.1.50 出版時品牌輸出標頭仍顯示舊版 `0.1.49` | 品牌輸出標頭現在正確顯示 `v0.1.51`；無功能變更 |
-| `v0.1.50` | 2026-02-24 | 根治卸載後 Brain Doc 死鎖：`gov_uninstall` 現在會從所有 Brain Docs 清除治理執行規則；生命週期 Prompt 對齊（Mode B/C 合約）；回歸測試擴展至 96/96 | 卸載後不再因殘留治理規則導致 AGENTS.md/SOUL.md 阻礙正常工作區運作 |
 
 來源：GitHub Releases（`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`）
 
 ---
 
-## Hero
+## 🎯 Hero
 
 如果你每天使用 OpenClaw，最大風險通常不是模型能力不足，而是操作漂移：你很難快速知道改了什麼、下一步該跑哪條指令、升級動作是否安全。WORKSPACE_GOVERNANCE 的作用，就是把這種不確定感轉成可重覆執行的流程。
 
 [Install](#install) | [Quick Start](#quick-start)
 
-## Why This Matters
+## 💡 Why This Matters
 
 沒有治理機制時，常見痛點會快速累積：
 1. 還未核實就先改檔——錯誤在被發現前已擴散到多個檔案。
@@ -44,23 +44,23 @@ ClawHub 安裝頁：
 3. 平台設定改動自帶備份、驗證與回退——不再有高風險手動直改。
 4. run report 與 audit 證據讓團隊交接與責任歸屬變得簡單。
 
-## 功能成熟度（不誤導聲明）
+## ✅ 功能成熟度（不誤導聲明）
 
 GA（正式可落地）：
 1. `/gov_help` — 一次列出全部指令與建議入口
 2. `/gov_setup quick|check|install|upgrade` — 一步完成治理部署、升級或驗證
 3. `/gov_migrate` — install 或 upgrade 後，將工作區行為對齊最新治理規則
 4. `/gov_audit` — 驗證 12 項完整性核對，在宣稱完成前捕捉漂移
-5. `/gov_openclaw_json` — 安全編輯平台設定（`openclaw.json`），含備份、驗證與回退
-6. `/gov_brain_audit` — 預覽優先、批准後套用、可回退的 Brain Docs 品質修補
-7. `/gov_uninstall quick|check|uninstall` — 安全清理，含備份與回復證據
+5. `/gov_uninstall quick|check|uninstall` — 安全清理，含備份與回復證據
+6. `/gov_openclaw_json` — 安全編輯平台設定（`openclaw.json`），含備份、驗證與回退
+7. `/gov_brain_audit` — 預覽優先、批准後套用、可回退的 Brain Docs 品質修補
 8. `/gov_boot_audit` — 掃描重覆問題並生成升級提案（只讀診斷）
 
 Experimental（實驗性）：
 1. `/gov_apply <NN>` — 以人工明確批准的方式套用單一 BOOT 升級提案（僅限受控測試，已納入自動化回歸驗證）。
 2. 套用後，務必以 `/gov_migrate` 與 `/gov_audit` 收尾。
 
-## Visual Walkthrough（ref_doc）
+## 🖼️ Visual Walkthrough（ref_doc）
 
 ![OpenClaw WORKSPACE_GOVERNANCE Infographic](./ref_doc/infograp_eng.png)
 ![gov_setup quick 畫面](./ref_doc/screen_gov_setup_quick.png)
@@ -72,7 +72,7 @@ Experimental（實驗性）：
 ![Page 6](./ref_doc/page_6.jpg)
 
 <a id="install"></a>
-## 60-Second Start
+## 🚀 60-Second Start
 
 ### 最快入口（建議）
 在 OpenClaw TUI 直接輸入：
@@ -179,23 +179,23 @@ openclaw gateway restart
 3. 需要時再停用/卸載 plugin 套件
 
 <a id="quick-start"></a>
-## Command Chooser（指令選擇器）
+## 🧭 Command Chooser（指令選擇器）
 
 | 你的目標 | 先執行 | 再執行 | 對使用者的具體價值 |
 | --- | --- | --- | --- |
 | 一次列出全部治理指令 | `/gov_help` | 再選 quick 或手動流程 | 用戶無需先讀文檔或記指令 |
 | 一鍵完成治理部署/升級+稽核 | `/gov_setup quick` | 若 blocked 才跟下一步指示 | 自動串 check/install-or-upgrade/migrate/audit，減少操作負擔 |
 | 在任何改動前先確認正確路徑（手動） | `/gov_setup check` | 依回覆下一步執行 | 把不確定轉為明確行動，避免新手走錯 install/upgrade 分支 |
-| 先清除平台信任警告再進治理流程 | `/gov_openclaw_json` | `/gov_setup check` | 避免後續因信任未對齊而失敗，提供單一路徑完成信任對齊 |
 | 首次部署治理到工作區 | `/gov_setup install` | `/gov_migrate` -> `/gov_audit` | 先部署治理套件檔，再由 migration 決定性補齊缺失的 `_control` 基線檔 |
 | 升級既有治理工作區 | `/gov_setup upgrade` | `/gov_migrate` -> `/gov_audit` | 同步治理檔版本與策略，並在變更後完成驗證 |
+| 一鍵清理 workspace 治理殘留 | `/gov_uninstall quick` | 可選再跑 `/gov_uninstall check` | 以最少步驟完成安全清理，保留備份/回復證據 |
+| 先清除平台信任警告再進治理流程 | `/gov_openclaw_json` | `/gov_setup check` | 避免後續因信任未對齊而失敗，提供單一路徑完成信任對齊 |
 | 安全修改 OpenClaw 平台控制面 | `/gov_openclaw_json` | `/gov_audit` | 以備份/驗證/回退取代高風險直改，讓平台變更可恢復 |
 | 低風險優化 Brain Docs 品質 | `/gov_brain_audit` | 批准 findings -> `/gov_audit` | 檢出高風險語句、保留人設方向，僅批准後套用且可回退 |
-| 一鍵清理 workspace 治理殘留 | `/gov_uninstall quick` | 可選再跑 `/gov_uninstall check` | 以最少步驟完成安全清理，保留備份/回復證據 |
 | 掃描重覆問題並取得升級提案 | `/gov_boot_audit` | 審閱提案 -> `/gov_apply <NN>`（Experimental） | 只讀掃描找出重覆問題並生成編號提案，你可先審閱再決定是否套用 |
 | 套用單一 BOOT 提案項目（Experimental） | `/gov_apply <NN>` | `/gov_migrate` -> `/gov_audit` | 只執行單一人手批准項目，適用受控 UAT；不可視為無人值守 GA 自動化 |
 
-## 核心能力：`/gov_brain_audit` 如何優化 Brain Docs 效能
+## 🧠 核心能力：`/gov_brain_audit` 如何優化 Brain Docs 效能
 
 `/gov_brain_audit` 不只是文字檢查，它會提升 OpenClaw agent 的運作品質，讓 Brain Docs 更一致、可驗證、較少自我矛盾。
 
@@ -216,7 +216,7 @@ openclaw gateway restart
 /gov_brain_audit ROLLBACK
 ```
 
-## 你的請求如何被處理
+## ⚙️ 你的請求如何被處理
 
 治理機制會自動適配你的請求類型：
 
@@ -229,13 +229,13 @@ openclaw gateway restart
 3. 改動檔案（完整治理保護）
    你要求寫入、更新或保存檔案。AI 會走完整安全流程：先規劃、讀取證據、做最小改動、驗證品質，最後留存 run report。需要時以 `/gov_migrate` 與 `/gov_audit` 收尾。
 
-## 安全預設
+## 🔒 安全預設
 
 1. 治理工具只在你明確請求時才啟動（透過 `/gov_*` 或 `/skill gov_*`）。它們不會自行執行。
 2. 這能防止意外觸發——如果你只是聊天或使用一般 OpenClaw 功能，治理工具不會介入。
 3. 你原有的 OpenClaw 工作方式完全不受影響。治理是額外的保護層，不改變你現有的使用方式。
 
-## FAQ（新手決策導向，10 題）
+## ❓ FAQ（新手決策導向，10 題）
 
 1. 我平時不會用 slash，第一句最安全怎樣講？
 可直接貼這句自然語言：
@@ -333,7 +333,7 @@ openclaw gateway restart
 請用 governance 收尾此任務：如有需要先 migrate，再做 audit，最後輸出可交接的證據摘要。
 ```
 
-## Deep Docs Links
+## 📚 Deep Docs Links
 
 1. Operations 手冊（EN）: [`WORKSPACE_GOVERNANCE_README.en.md`](./WORKSPACE_GOVERNANCE_README.en.md)
 2. Positioning 與價值定位（EN）: [`VALUE_POSITIONING_AND_FACTORY_GAP.en.md`](./VALUE_POSITIONING_AND_FACTORY_GAP.en.md)

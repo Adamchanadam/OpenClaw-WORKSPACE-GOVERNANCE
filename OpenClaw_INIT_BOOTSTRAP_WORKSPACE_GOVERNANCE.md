@@ -274,25 +274,25 @@ ClawHub installer page:
 
 ---
 
-## Release Notes Board (Latest 3)
+## 📋 Release Notes Board (Latest 3)
 
 | Version | Published (UTC) | Key Changes | Practical Impact |
 | --- | --- | --- | --- |
+| `v0.1.53` | 2026-02-25 | `/gov_help` redesigned with ASCII art banner and complete 9-command catalog; README command ordering aligned; section heading emojis; ROOT SPRAWL regression fix (temp workspace chain tests); regression 103/103 | Users see full command menu at a glance with branded banner; README navigation faster with emoji headings; all product surfaces show consistent command ordering |
 | `v0.1.52` | 2026-02-24 | Detection logic hardening: `gov_uninstall` now detects all 8 `_control/` file references in brain docs (previously only 3); release pipeline adds `PLUGIN_VERSION` constant alignment gate; refactored brain-doc scanning; regression expanded to 100/100 | Uninstall check/cleanup now catches previously-missed governance residue (e.g. `_control/ACTIVE_GUARDS.md` references); future version misalignment prevented by machine gate |
 | `v0.1.51` | 2026-02-24 | Hotfix: aligned `PLUGIN_VERSION` constant in runtime — v0.1.50 shipped with stale `0.1.49` in branded output headers | Branded output headers now correctly show `v0.1.51`; no functional change |
-| `v0.1.50` | 2026-02-24 | Root-fixed post-uninstall brain-doc deadlock: `gov_uninstall` now strips governance enforcement rules from all brain docs; lifecycle prompt alignment (Mode B/C contract); regression expanded to 96/96 | Uninstall no longer leaves residual governance rules in AGENTS.md/SOUL.md that block normal workspace operation |
 
 Source: GitHub Releases (`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`)
 
 ---
 
-## Hero
+## 🎯 Hero
 
 If you run OpenClaw every day, the biggest risk is usually not model capability. The real risk is operational drift: you cannot quickly tell what changed, what to run next, and whether upgrade actions are safe. WORKSPACE_GOVERNANCE turns that uncertainty into a repeatable path.
 
 [Install](#install) | [Quick Start](#quick-start)
 
-## Why This Matters
+## 💡 Why This Matters
 
 Without governance, common pain accumulates quickly:
 1. Changes happen before verification — mistakes spread across multiple files before anyone notices.
@@ -306,23 +306,23 @@ What you get immediately:
 3. Platform config changes come with automatic backup, validation, and rollback — no more risky manual edits.
 4. Run reports and audit evidence make handovers and team accountability straightforward.
 
-## Feature Maturity (No-Misleading Contract)
+## ✅ Feature Maturity (No-Misleading Contract)
 
 GA (production-ready):
 1. `/gov_help` — see all commands and recommended entry points at a glance
 2. `/gov_setup quick|check|install|upgrade` — deploy, upgrade, or verify governance in one step
 3. `/gov_migrate` — align workspace behavior to the latest governance rules after install or upgrade
 4. `/gov_audit` — verify 12 integrity checks and catch drift before declaring completion
-5. `/gov_openclaw_json` — safely edit platform config (`openclaw.json`) with backup, validation, and rollback
-6. `/gov_brain_audit` — review and harden Brain Docs quality with preview-first approval and rollback
-7. `/gov_uninstall quick|check|uninstall` — clean removal with backup and restore evidence
+5. `/gov_uninstall quick|check|uninstall` — clean removal with backup and restore evidence
+6. `/gov_openclaw_json` — safely edit platform config (`openclaw.json`) with backup, validation, and rollback
+7. `/gov_brain_audit` — review and harden Brain Docs quality with preview-first approval and rollback
 8. `/gov_boot_audit` — scan for recurring issues and generate upgrade proposals (read-only diagnostic)
 
 Experimental:
 1. `/gov_apply <NN>` — apply a single BOOT upgrade proposal with explicit human approval (controlled testing only, covered by automated regression).
 2. After applying, always close with `/gov_migrate` and `/gov_audit`.
 
-## Visual Walkthrough (ref_doc)
+## 🖼️ Visual Walkthrough (ref_doc)
 
 ![OpenClaw WORKSPACE_GOVERNANCE Infographic](./ref_doc/infograp_eng.png)
 ![gov_setup quick screen](./ref_doc/screen_gov_setup_quick.png)
@@ -334,7 +334,7 @@ Experimental:
 ![Page 6](./ref_doc/page_6.jpg)
 
 <a id="install"></a>
-## 60-Second Start
+## 🚀 60-Second Start
 
 ### Fastest Operator Entry (Recommended)
 In OpenClaw TUI:
@@ -441,23 +441,23 @@ If you already uninstalled plugin package first:
 3. Then disable/uninstall package again if needed
 
 <a id="quick-start"></a>
-## Command Chooser
+## 🧭 Command Chooser
 
 | If your goal is... | Run this first | Then run | Detailed user value |
 | --- | --- | --- | --- |
 | List all governance commands in one shot | `/gov_help` | choose one quick/manual entry | Gives users a zero-memory command menu in-session |
 | One-click governance deployment/upgrade/audit | `/gov_setup quick` | follow returned next step only if blocked | Runs check/install-or-upgrade/migrate/audit automatically with deterministic evidence |
 | Avoid wrong first steps before any change (manual) | `/gov_setup check` | follow returned next action | Converts uncertainty into a concrete action path, so new users do not branch into wrong install/upgrade sequences |
-| Clear platform trust warning before governance deployment | `/gov_openclaw_json` | `/gov_setup check` | Prevents setup from failing later due to trust misalignment and gives operators one deterministic trust-fix route |
 | First governance deployment in this workspace | `/gov_setup install` | `/gov_migrate` -> `/gov_audit` | Installs governance package files, then deterministically reconciles missing baseline `_control` files during migration |
 | Upgrade existing governance workspace | `/gov_setup upgrade` | `/gov_migrate` -> `/gov_audit` | Updates package files, aligns workspace policy, and confirms readiness after change |
+| One-click workspace cleanup before package removal | `/gov_uninstall quick` | optional `/gov_uninstall check` | Cleans governance artifacts with backup+restore evidence while reducing operator step count |
+| Clear platform trust warning before governance deployment | `/gov_openclaw_json` | `/gov_setup check` | Prevents setup from failing later due to trust misalignment and gives operators one deterministic trust-fix route |
 | Safely change OpenClaw control-plane config | `/gov_openclaw_json` | `/gov_audit` | Replaces risky direct editing with backup/validate/rollback evidence for recoverable platform operations |
 | Improve Brain Docs quality with minimal risk | `/gov_brain_audit` | approve findings -> `/gov_audit` | Detects high-risk wording, preserves persona intent, and only applies approved patches with rollback support |
-| One-click workspace cleanup before package removal | `/gov_uninstall quick` | optional `/gov_uninstall check` | Cleans governance artifacts with backup+restore evidence while reducing operator step count |
 | Scan for recurring issues and get upgrade proposals | `/gov_boot_audit` | review proposals -> `/gov_apply <NN>` (Experimental) | Read-only scan identifies repeat problems and generates numbered proposals you can review before deciding to apply |
 | Apply one BOOT proposal item (Experimental) | `/gov_apply <NN>` | `/gov_migrate` -> `/gov_audit` | Executes only one human-approved item in controlled UAT; do not treat as unattended GA automation |
 
-## Core Capability: `/gov_brain_audit` for Brain Docs Performance
+## 🧠 Core Capability: `/gov_brain_audit` for Brain Docs Performance
 
 `/gov_brain_audit` is not only a wording checker. It improves the operating quality of the OpenClaw agent by making Brain Docs more consistent, evidence-driven, and less self-contradictory.
 
@@ -478,7 +478,7 @@ Execution pattern:
 /gov_brain_audit ROLLBACK
 ```
 
-## How Your Requests Are Handled
+## ⚙️ How Your Requests Are Handled
 
 Governance automatically adapts to what you are asking for:
 
@@ -491,13 +491,13 @@ Governance automatically adapts to what you are asking for:
 3. File changes (full governance protection)
    You ask to write, update, or save files. The AI follows the full safety flow: plan first, read evidence, make the minimum change, verify quality, then persist with a run report. Close with `/gov_migrate` and `/gov_audit` when needed.
 
-## Security Default
+## 🔒 Security Default
 
 1. Governance tools only activate when you explicitly request them (via `/gov_*` or `/skill gov_*`). They never run on their own.
 2. This protects against unintended triggering — if you are just chatting or using regular OpenClaw features, governance stays inactive.
 3. Your normal OpenClaw workflow is unaffected. Governance adds protection without changing how you already use OpenClaw.
 
-## FAQ (Decision-Oriented, New-User Focus)
+## ❓ FAQ (Decision-Oriented, New-User Focus)
 
 1. I do not use slash commands. What is the safest first message to AI?
 Copy-paste this natural-language request:
@@ -595,7 +595,7 @@ Use one closeout request at the end:
 Please finish this task with governance closeout: migrate if needed, run audit, and summarize evidence for handover.
 ```
 
-## Deep Docs Links
+## 📚 Deep Docs Links
 
 1. Operations Handbook (EN): [`WORKSPACE_GOVERNANCE_README.en.md`](./WORKSPACE_GOVERNANCE_README.en.md)
 2. Positioning and Value Narrative (EN): [`VALUE_POSITIONING_AND_FACTORY_GAP.en.md`](./VALUE_POSITIONING_AND_FACTORY_GAP.en.md)
