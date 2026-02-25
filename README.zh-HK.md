@@ -230,6 +230,12 @@ openclaw gateway restart
 3. 改動檔案（完整治理保護）
    你要求寫入、更新或保存檔案。AI 會走完整安全流程：先規劃、讀取證據、做最小改動、驗證品質，最後留存 run report。需要時以 `/gov_migrate` 與 `/gov_audit` 收尾。
 
+### 治理流程總覽
+
+<p align="center">
+  <img src="ref_doc/governance_flow_zh.png" alt="治理流程：Mode A/B/C → 5 Gate 生命週期 + 風險分層保護" width="600" />
+</p>
+
 ## ⚡ Runtime Gate 行為（透明公開）
 
 當你要求 AI 寫入或修改檔案時，治理 runtime gate 會自動啟動。以下是完整運作方式：

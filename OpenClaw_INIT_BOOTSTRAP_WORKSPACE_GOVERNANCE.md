@@ -497,6 +497,12 @@ Governance automatically adapts to what you are asking for:
 3. File changes (full governance protection)
    You ask to write, update, or save files. The AI follows the full safety flow: plan first, read evidence, make the minimum change, verify quality, then persist with a run report. Close with `/gov_migrate` and `/gov_audit` when needed.
 
+### Governance Flow Overview
+
+<p align="center">
+  <img src="ref_doc/governance_flow_en.png" alt="Governance Flow: Mode A/B/C → 5-Gate Lifecycle with Risk-Tiered Protection" width="600" />
+</p>
+
 ## ⚡ Runtime Gate Behavior (Transparent)
 
 When you ask AI to write or modify files, the governance runtime gate activates automatically. Here is exactly how it works:
