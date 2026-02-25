@@ -71,14 +71,14 @@ Then in OpenClaw chat:
 2. `gov_setup quick|check|install|upgrade` — deploy, upgrade, or verify governance in one step.
 3. `gov_migrate` — align workspace behavior to the latest governance rules after install or upgrade.
 4. `gov_audit` — verify 12 integrity checks and catch drift before declaring completion.
-5. `gov_openclaw_json` — safely edit platform config (`openclaw.json`) with backup, validation, and rollback.
-6. `gov_brain_audit` — review and harden Brain Docs quality with preview-first approval and rollback.
-7. `gov_boot_audit` — scan for recurring issues and generate upgrade proposals (read-only diagnostic).
-8. `gov_uninstall quick|check|uninstall` — clean removal with backup and restore evidence.
+5. `gov_uninstall quick|check|uninstall` — clean removal with backup and restore evidence.
+6. `gov_openclaw_json` — safely edit platform config (`openclaw.json`) with backup, validation, and rollback.
+7. `gov_brain_audit` — review and harden Brain Docs quality with preview-first approval and rollback.
+8. `gov_boot_audit` — scan for recurring issues and generate upgrade proposals (read-only diagnostic).
 9. `gov_apply <NN>` — apply a single BOOT upgrade proposal with explicit human approval (**Experimental**, controlled UAT only).
 
 ## Feature maturity (important)
-1. GA flow for production rollout: `gov_setup -> gov_migrate -> gov_audit`, plus `gov_openclaw_json`, `gov_brain_audit`, `gov_boot_audit`, `gov_uninstall`.
+1. GA flow for production rollout: `gov_setup -> gov_migrate -> gov_audit`, plus `gov_uninstall`, `gov_openclaw_json`, `gov_brain_audit`, `gov_boot_audit`.
 2. Experimental flow: `gov_apply <NN>` (BOOT controlled apply) is included in deterministic runtime regression baseline, but remains controlled-UAT scope.
 3. If you use `gov_apply <NN>`, keep it in controlled UAT and always close with `/gov_migrate` then `/gov_audit`.
 4. All `/gov_*` command outputs use branded format: `🐾` header, emoji status indicators (✅/⚠️/❌), structured bullets, and `👉` next-step guidance.
@@ -91,11 +91,11 @@ Then in OpenClaw chat:
 5. Existing deployment update (manual): `gov_setup upgrade`
 6. Policy alignment after deploy/update: `gov_migrate`
 7. Final verification before claiming done: `gov_audit`
-8. Apply approved BOOT menu item only (Experimental): `gov_apply <NN>`
+8. Cleanup workspace governance artifacts safely: `gov_uninstall quick`
 9. Edit OpenClaw platform config safely: `gov_openclaw_json`
 10. Review/harden Brain Docs safely: `gov_brain_audit -> gov_brain_audit APPROVE: ... -> gov_brain_audit ROLLBACK (if needed)`
-11. Cleanup workspace governance artifacts safely: `gov_uninstall quick`
-12. Scan for recurring issues and get upgrade proposals: `gov_boot_audit`
+11. Scan for recurring issues and get upgrade proposals: `gov_boot_audit`
+12. Apply approved BOOT menu item only (Experimental): `gov_apply <NN>`
 
 ## First-run status map
 After `/gov_setup quick`:
@@ -133,13 +133,14 @@ Use fallback commands:
 /skill gov_setup upgrade
 /skill gov_migrate
 /skill gov_audit
-# Experimental only:
-/skill gov_apply 01
+/skill gov_uninstall quick
 /skill gov_openclaw_json
 /skill gov_brain_audit
 /skill gov_brain_audit APPROVE: APPLY_ALL_SAFE
 /skill gov_brain_audit ROLLBACK
 /skill gov_boot_audit
+# Experimental only:
+/skill gov_apply 01
 ```
 
 Or natural language:
