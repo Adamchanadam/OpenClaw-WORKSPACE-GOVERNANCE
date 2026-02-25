@@ -246,7 +246,9 @@ function scanFileForRules(workspace, fullPath, findings) {
     );
     const hasFilesRead = filesReadSection.found;
     const hasTargets = targetSection.found;
-    if (hasCompletionClaim && (!hasFilesRead || !hasTargets)) {
+    const readOnlyReportRe = /^(audit_|gov_audit_|gov_brain_audit_preview_|gov_boot_audit_)/i;
+    const isReadOnlyReport = readOnlyReportRe.test(path.basename(fullPath));
+    if (hasCompletionClaim && !isReadOnlyReport && (!hasFilesRead || !hasTargets)) {
       const lineNo = Math.max(1, lines.findIndex((line) => completionClaimRe.test(line)) + 1);
       findings.push(
         makeFinding({

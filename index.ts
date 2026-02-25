@@ -2135,19 +2135,24 @@ async function makeGovBrainAuditCommandResponse(ctx: PluginCommandContext): Prom
       ["/gov_audit"],
     );
   }
+  const findingIds = findings.slice(0, 5).map((f) => String(f.id || "")).filter(Boolean).join(",");
   if (status === "WARN") {
     return formatCommandOutput(
       "READY_WITH_WARNING",
       whyLines,
-      i18n(lang, "Review findings above, then approve selected items.", "請檢視上方問題，然後審批所選項目。"),
-      ["/skill gov_brain_audit APPROVE: F001", "/gov_brain_audit"],
+      i18n(lang, "Review findings above, then approve or use SKILL to review.", "請檢視上方問題，然後審批或使用 SKILL 檢視。"),
+      findingIds
+        ? [`/gov_brain_audit APPROVE: ${findingIds}`, "/skill gov_brain_audit"]
+        : ["/skill gov_brain_audit", "/gov_brain_audit"],
     );
   }
   return formatCommandOutput(
     "BLOCKED",
     whyLines,
-    i18n(lang, "Brain docs have critical findings. Use SKILL to review and fix.", "Brain docs 有嚴重問題。請使用 SKILL 檢視並修正。"),
-    ["/skill gov_brain_audit", "/gov_brain_audit"],
+    i18n(lang, "Brain docs have critical findings. Approve fixes or use SKILL to review.", "Brain docs 有嚴重問題。批准修正或使用 SKILL 檢視。"),
+    findingIds
+      ? [`/gov_brain_audit APPROVE: ${findingIds}`, "/skill gov_brain_audit"]
+      : ["/skill gov_brain_audit", "/gov_brain_audit"],
   );
 }
 
