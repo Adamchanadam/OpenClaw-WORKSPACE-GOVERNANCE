@@ -1,0 +1,2175 @@
+const states = new Map();
+const DEFAULT_SESSION = "__default__";
+const STATE_TTL_MS = 45 * 60 * 1000;
+const GOV_BYPASS_WINDOW_MS = 8 * 60 * 1000;
+const GOV_BYPASS_MAX_WRITES = 64;
+const GOV_SETUP_FLOW_WINDOW_MS = 12 * 60 * 1000;
+const GOV_COMMAND_INTENT_WINDOW_MS = 15 * 60 * 1000;
+const BRAIN_AUDIT_REQUIRE_WINDOW_MS = 60 * 1000;
+const BRAIN_AUDIT_NUDGE_COOLDOWN_MS = 5 * 60 * 1000;
+const BRAIN_AUDIT_BLOCK_THRESHOLD = 5;
+const TOOL_EXPOSURE_ADVISORY_COOLDOWN_MS = 3 * 60 * 1000;
+const POST_UPDATE_REMINDER_WINDOW_MS = 45 * 60 * 1000;
+const PRUNE_INTERVAL_MS = 60 * 1000;
+const DEFAULT_PERMISSIVE_TOOL_POLICY_CONTEXTS = ["default", "agents.list.main"];
+let lastPruneAt = 0;
+let forceAcceptUntil = 0;
+let configuredScannerTolerance = "tolerant";
+let globalGovBypassUntil = 0;
+let globalGovBypassWritesLeft = 0;
+let globalGovSetupFlowUntil = 0;
+const PLAN_EVIDENCE_PATTERNS = [
+    // Legacy machine-token patterns (backward compat)
+    /\bplan\s*gate\b/i,
+    /\bplan[-_\s]*first\b/i,
+    /\bwg[-_: ]*plan[-_: ]*gate[-_: ]*ok\b/i,
+    // Natural-language plan evidence
+    /\b(?:plan|objective|approach|strategy)\s*[:：]/i,
+    /\bwill\s+(?:create|write|build|update|modify|implement|fix|add|remove|refactor|generate|scaffold)\b/i,
+    /\b(?:計劃|目標|方案|步驟|策略)\s*[:：]/i,
+    /\bsteps?\s*[:：]/i,
+];
+const READ_EVIDENCE_PATTERNS = [
+    // Legacy machine-token patterns (backward compat)
+    /\bread\s*gate\b/i,
+    /\bfiles[-_\s]*read\b/i,
+    /\btarget[-_\s]*files[-_\s]*to[-_\s]*change\b/i,
+    /\bwg[-_: ]*read[-_: ]*gate[-_: ]*ok\b/i,
+    // Natural-language read evidence
+    /\b(?:read|reviewed|checked|examined)\s+(?:the\s+)?(?:files?|sources?|code|content|config)\b/i,
+    /\bfiles?\s+(?:read|reviewed|checked|examined)\b/i,
+    /\b(?:已讀|已檢查|檔案內容|現有內容)\b/i,
+    /\bexisting\s+(?:content|files?|code)\b/i,
+];
+const PLUGIN_VERSION = "0.1.56";
+const PLUGIN_NPM_PACKAGE = "@adamchanadam/openclaw-workspace-governance";
+async function fetchLatestNpmVersion() {
+    try {
+        const url = `https://registry.npmjs.org/${PLUGIN_NPM_PACKAGE}/latest`;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        const res = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeout);
+        if (!res.ok)
+            return null;
+        const data = await res.json();
+        return typeof data.version === "string" ? data.version : null;
+    }
+    catch {
+        return null;
+    }
+}
+function formatVersionLine(installed, latest, lang) {
+    if (!latest || latest === installed) {
+        return i18n(lang, `version: ${installed} (latest)`, `版本：${installed}（最新）`);
+    }
+    return i18n(lang, `version: ${installed} → ${latest} available (npm update)`, `版本：${installed} → ${latest} 可更新（npm update）`);
+}
+const HARD_WRITE_TOOL_NAMES = new Set([
+    "apply_patch",
+    "write_file",
+    "edit_file",
+    "delete_file",
+    "move_file",
+    "rename_file",
+    "copy_file",
+    "mkdir",
+    "create_file",
+    "save_file",
+]);
+const READ_TOOL_HINTS = [
+    "read",
+    "list",
+    "find",
+    "search",
+    "grep",
+    "cat",
+    "ls",
+    "stat",
+];
+const WRITE_NAME_HINTS = [
+    "write",
+    "edit",
+    "patch",
+    "append",
+    "save",
+    "create",
+    "mkdir",
+    "remove",
+    "delete",
+    "rename",
+    "move",
+    "copy",
+];
+const SHELL_LIKE_TOOL_HINTS = [
+    "shell",
+    "exec",
+    "command",
+    "bash",
+    "powershell",
+];
+const WRITE_COMMAND_HINTS = [
+    /(^|[\s;|&])(rm|mv|cp|mkdir|touch|truncate|install|ln|chmod|chown|dd|sed\s+-i|perl\s+-i|tee)([\s;|&]|$)/i,
+    /(^|[\s;|&])(del|erase|copy|move|ren|md|rd|rmdir)([\s;|&]|$)/i,
+    /(^|[\s;|&])(set-content|add-content|out-file|new-item|copy-item|move-item|remove-item|rename-item)([\s;|&]|$)/i,
+    /(^|[\s;|&])git\s+(add|rm|mv|commit|tag|reset|checkout)([\s;|&]|$)/i,
+    /(^|[\s;|&])(npm|pnpm|yarn)\s+(install|add)\b/i,
+    /(^|[\s;|&])pip\s+install\b/i,
+    /(^|[\s;|&])apply_patch([\s;|&]|$)/i,
+    /(^|[^0-9A-Za-z])>>?(?!=)/,
+];
+const READONLY_COMMAND_HINTS = [
+    /(^|[\s;|&])(ls|dir|pwd|cat|type|find|grep|rg|head|tail|wc|stat|tree)([\s;|&]|$)/i,
+    /(^|[\s;|&])(git)\s+(status|log|show|diff|branch|rev-parse)([\s;|&]|$)/i,
+    /(^|[\s;|&])(openclaw)\s+(skills|plugins|config|get|status|help)\b/i,
+    /(^|[\s;|&])(curl|wget)\b/i,
+    /(^|[\s;|&])(echo|printf)([\s;|&]|$)/i,
+    /(^|[\s;|&])(python|python3|node)\s+(-c|--version)\b/i,
+];
+const WRITE_INTENT_HINT = /\b(create|write|edit|update|modify|fix|refactor|implement|build|add|remove|delete|rename|move|patch|save|generate|scaffold)\b|寫|修改|更新|修正|新增|刪除|重構|建立|生成/i;
+const PLATFORM_CHANGE_HINT = /openclaw\.json|platform\s+config|control[-\s]*plane|plugins\.entries|extensions\/|修改\s*openclaw\.json|平台設定|控制面/i;
+const BRAIN_AUDIT_HINT = /(brain\s*docs?|user\.md|identity\.md|tools\.md|soul\.md|memory\.md|heartbeat\.md|memory\/\*\.md|brain\s*doc|人格|記憶|行為提示|思維|習慣)/i;
+const BRAIN_FIX_ACTION_HINT = /(audit|harden|fix|repair|review|conservative|risk|修補|審核|檢查|修正|改善|保守)/i;
+const GOV_SETUP_UPGRADE_INTENT_HINT = /(?:\b(?:upgrade|update|sync|refresh|redeploy|re-deploy)\b.*\b(?:gov_setup|prompts\/governance|governance\s+files?|governance\s+prompts?)\b)|(?:(?:升級|更新|同步|重新部署).*(?:治理文件|治理|prompts\/governance))/i;
+const OPENCLAW_UPDATE_INTENT_HINT = /(?:^|[\s`])openclaw\s+(?:update|plugins\s+update|extensions\s+update)\b|(?:剛|已經|已)\s*(?:更新|升級).*(?:openclaw|plugin|外掛|插件|擴充)/i;
+const NEGATED_UPDATE_INTENT_HINT = /(?:\b(?:don'?t|do\s+not|no\s+need|skip)\b.*\b(?:update|upgrade)\b)|(?:不要|唔好|無需|不用).*(?:更新|升級)/i;
+const CRON_INTENT_HINT = /(?:^|[\s`])(?:openclaw\s+cron\b|\/cron\b|cron\s+(?:job|jobs|add|update|remove|run|runs|list|ls|pause|resume)\b)|(?:cron\s*job|排程|定時任務)/i;
+const HOST_MAINTENANCE_INTENT_HINT = /(?:^|[\s`])openclaw\s+\S+|(?:\bopenclaw\b.*\b(?:plugins?|extensions?|skills?|hooks?|cron|gateway|onboard|configure|config|update|install|enable|disable|restart|run)\b)|(?:(?:openclaw).*(?:安裝|更新|升級|啟用|停用|設定|配置|重啟|執行|運行|管理))|(?:(?:安裝|更新|升級|啟用|停用|設定|配置|重啟|執行|運行|管理).*(?:openclaw))/i;
+const MODE_B_SYSTEM_SENSITIVE_HINT = /\b(what\s+version|latest\s+version|current\s+version|which\s+version|version\s+of|what\s+release|latest\s+release|current\s+release|is\s+\S+\s+supported|what\s+time|what\s+date|current\s+date|current\s+time|today'?s?\s+date|right\s+now|system\s+info|system\s+status)\b|(?:(?:最新|目前|現在|當前)\s*(?:版本|version|release|日期|時間|時區|系統))|(?:幾多\s*(?:號|點))/i;
+const MODE_B_EVIDENCE_PATTERNS = [
+    /\bverified\s+(?:against|from|via)\b/i,
+    /\bsource:\s*\S/i,
+    /\breference:\s*\S/i,
+    /\bhttps?:\/\//i,
+];
+const OPENCLAW_FLAGS_WITH_VALUE = new Set([
+    "--profile",
+    "--cwd",
+    "--config",
+    "--model",
+    "--session",
+    "--channel",
+    "--to",
+    "--port",
+    "-p",
+]);
+const GOV_COMMAND_TOKEN_RE = /\bgov_(setup|migrate|audit|apply|openclaw_json|brain_audit|uninstall|help)\b/i;
+const GOV_COMMAND_PAYLOAD_RE = /(?:^|[\s`"'])\/?(?:skill\s+)?gov_(setup|migrate|audit|apply|openclaw_json|brain_audit|uninstall|help)\b/i;
+function normalizeShellPrefixList(input) {
+    if (!Array.isArray(input))
+        return [];
+    const out = [];
+    for (const item of input) {
+        const text = String(item ?? "").trim().toLowerCase();
+        if (!text)
+            continue;
+        out.push(text);
+    }
+    return out;
+}
+function compileRegexList(input, logger, label) {
+    if (!Array.isArray(input))
+        return [];
+    const out = [];
+    for (const item of input) {
+        const raw = String(item ?? "").trim();
+        if (!raw)
+            continue;
+        try {
+            out.push(new RegExp(raw, "i"));
+        }
+        catch {
+            logger.warn(`[governance-gate] invalid runtimeGatePolicy ${label} regex ignored: ${raw}`);
+        }
+    }
+    return out;
+}
+function buildRuntimeGatePolicy(raw, logger) {
+    const cfg = (raw || {});
+    return {
+        allowShellPrefixes: normalizeShellPrefixList(cfg.allowShellPrefixes),
+        allowShellRegex: compileRegexList(cfg.allowShellRegex, logger, "allowShellRegex"),
+        denyShellPrefixes: normalizeShellPrefixList(cfg.denyShellPrefixes),
+        denyShellRegex: compileRegexList(cfg.denyShellRegex, logger, "denyShellRegex"),
+    };
+}
+function buildToolExposureGuard(raw, logger) {
+    const cfg = (raw || {});
+    const modeRaw = String(cfg.mode ?? "enforce").trim().toLowerCase();
+    let mode = "enforce";
+    if (modeRaw === "advisory") {
+        mode = "advisory";
+    }
+    else if (modeRaw !== "enforce" && modeRaw) {
+        logger.warn(`[governance-gate] invalid toolExposureGuard.mode ignored: ${String(cfg.mode)} (use enforce|advisory)`);
+    }
+    const permissiveContexts = normalizeShellPrefixList(cfg.permissiveContexts);
+    const normalizedContexts = permissiveContexts.length > 0 ? permissiveContexts : DEFAULT_PERMISSIVE_TOOL_POLICY_CONTEXTS;
+    return {
+        enabled: cfg.enabled !== false,
+        mode,
+        permissiveContexts: normalizedContexts,
+        allowExplicitGovCommands: cfg.allowExplicitGovCommands !== false,
+        requireExplicitGovCommandIntent: cfg.requireExplicitGovCommandIntent !== false,
+    };
+}
+function classifyGovCommandRequest(command, modeArg) {
+    const cmd = command.toLowerCase();
+    const mode = modeArg.toLowerCase();
+    if (cmd === "gov_setup") {
+        return mode === "check" ? "read" : "write";
+    }
+    if (cmd === "gov_uninstall") {
+        return mode === "check" ? "read" : "write";
+    }
+    if (cmd === "gov_audit") {
+        return "read";
+    }
+    if (cmd === "gov_help") {
+        return "read";
+    }
+    if (cmd === "gov_migrate" || cmd === "gov_apply" || cmd === "gov_openclaw_json") {
+        return "write";
+    }
+    if (cmd === "gov_brain_audit") {
+        if (mode === "apply" ||
+            mode === "rollback" ||
+            mode === "force-accept" ||
+            mode.startsWith("approve:") ||
+            mode === "approve" ||
+            mode.startsWith("rollback:")) {
+            return "write";
+        }
+        return "read";
+    }
+    return "none";
+}
+function toSessionKey(ctx) {
+    return ctx.sessionKey || DEFAULT_SESSION;
+}
+function ensureState(sessionKey) {
+    const existing = states.get(sessionKey);
+    if (existing) {
+        if (Date.now() - existing.updatedAt <= STATE_TTL_MS)
+            return existing;
+        states.delete(sessionKey);
+    }
+    const now = Date.now();
+    const created = {
+        createdAt: now,
+        planSeen: false,
+        readSeen: false,
+        uxLang: "en",
+        postUpdateReminderPending: false,
+        postUpdateReminderAt: 0,
+        govEntrypointSeen: false,
+        govBypassUntil: 0,
+        govBypassWritesLeft: 0,
+        brainAuditRequiredUntil: 0,
+        brainAuditRequiredReason: undefined,
+        brainAuditPreviewSeenAt: 0,
+        brainAuditNudgedAt: 0,
+        govCommandIntentUntil: 0,
+        toolExposureWarnedAt: 0,
+        writeSeen: false,
+        blockedWrites: 0,
+        highRiskBlockedWrites: 0,
+        forceAcceptCount: 0,
+        sameBlockCount: 0,
+        updatedAt: now,
+    };
+    states.set(sessionKey, created);
+    return created;
+}
+function flattenText(input) {
+    if (input == null)
+        return "";
+    if (typeof input === "string")
+        return input;
+    if (typeof input === "number" || typeof input === "boolean")
+        return String(input);
+    if (Array.isArray(input))
+        return input.map((v) => flattenText(v)).join(" ");
+    if (typeof input === "object") {
+        const obj = input;
+        return Object.values(obj).map((v) => flattenText(v)).join(" ");
+    }
+    return "";
+}
+function hasAnyPattern(haystack, patterns) {
+    return patterns.some((p) => p.test(haystack));
+}
+function detectUxLanguage(text) {
+    if (/[\u3400-\u9fff]/.test(text))
+        return "zh";
+    return "en";
+}
+function detectEnvLanguage() {
+    const envText = flattenText(globalThis?.process?.env || {});
+    return detectUxLanguage(envText);
+}
+function i18n(lang, en, zh) {
+    return lang === "zh" ? zh : en;
+}
+function inferWriteIntent(prompt) {
+    return WRITE_INTENT_HINT.test(prompt) || detectGovRequestKind(prompt) === "write";
+}
+function isCronIntent(text) {
+    return CRON_INTENT_HINT.test(text);
+}
+function isHostMaintenanceIntent(text) {
+    return HOST_MAINTENANCE_INTENT_HINT.test(text);
+}
+function isPlatformChangeIntent(text) {
+    return PLATFORM_CHANGE_HINT.test(text);
+}
+function isBrainAuditIntent(text) {
+    return BRAIN_AUDIT_HINT.test(text) && BRAIN_FIX_ACTION_HINT.test(text);
+}
+function isGovSetupUpgradeIntent(text) {
+    return GOV_SETUP_UPGRADE_INTENT_HINT.test(text);
+}
+function isModeBSystemSensitive(text) {
+    return MODE_B_SYSTEM_SENSITIVE_HINT.test(text);
+}
+function hasModeBEvidence(text) {
+    return MODE_B_EVIDENCE_PATTERNS.some((re) => re.test(text));
+}
+function hasPlanEvidence(text) {
+    return hasAnyPattern(text, PLAN_EVIDENCE_PATTERNS);
+}
+function hasReadEvidence(text) {
+    return hasAnyPattern(text, READ_EVIDENCE_PATTERNS);
+}
+function latestUserText(messages) {
+    if (!Array.isArray(messages))
+        return flattenText(messages);
+    const userChunks = [];
+    for (const item of messages.slice(-12)) {
+        if (!item || typeof item !== "object")
+            continue;
+        const msg = item;
+        const role = String(msg.role ?? msg.sender ?? msg.author ?? "").toLowerCase();
+        if (role !== "user")
+            continue;
+        userChunks.push(flattenText(msg.content ?? msg.text ?? msg.message ?? msg));
+    }
+    if (userChunks.length > 0)
+        return userChunks.join(" ");
+    return flattenText(messages[messages.length - 1] ?? "");
+}
+function latestUserTurnText(messages) {
+    if (!Array.isArray(messages))
+        return flattenText(messages);
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+        const item = messages[i];
+        if (!item || typeof item !== "object")
+            continue;
+        const msg = item;
+        const role = String(msg.role ?? msg.sender ?? msg.author ?? "").toLowerCase();
+        if (role !== "user")
+            continue;
+        return flattenText(msg.content ?? msg.text ?? msg.message ?? msg);
+    }
+    return "";
+}
+function detectGovRequestKind(text) {
+    if (!text.trim())
+        return "none";
+    const re = /(^|\s)\/?(?:skill\s+)?(gov_[a-z_]+)\b(?:\s+([a-z0-9_:-]+))?/gi;
+    let latest = "none";
+    let m;
+    while ((m = re.exec(text)) !== null) {
+        const cmd = String(m[2] || "");
+        const mode = String(m[3] || "");
+        const classified = classifyGovCommandRequest(cmd, mode);
+        if (classified !== "none")
+            latest = classified;
+    }
+    return latest;
+}
+function detectGovCommandKindByName(text, command) {
+    if (!text.trim())
+        return "none";
+    const escaped = command.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`(^|\\s)\\/?(?:skill\\s+)?(${escaped})\\b(?:\\s+([a-z0-9_:-]+))?`, "gi");
+    let latest = "none";
+    let m;
+    while ((m = re.exec(text)) !== null) {
+        const cmd = String(m[2] || command);
+        const mode = String(m[3] || "");
+        const classified = classifyGovCommandRequest(cmd, mode);
+        if (classified !== "none")
+            latest = classified;
+    }
+    return latest;
+}
+function detectGovCommandMode(text, command) {
+    if (!text.trim())
+        return "";
+    const escaped = command.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`(^|\\s)\\/?(?:skill\\s+)?(${escaped})\\b(?:\\s+([a-z0-9_:-]+))?`, "gi");
+    let latest = "";
+    let m;
+    while ((m = re.exec(text)) !== null) {
+        latest = String(m[3] || "").toLowerCase();
+    }
+    return latest;
+}
+function extractContextFingerprint(ctx) {
+    if (!ctx || typeof ctx !== "object")
+        return "";
+    const c = ctx;
+    const keyFields = [
+        c.channel,
+        c.profile,
+        c.profileName,
+        c.agent,
+        c.agentName,
+        c.agentId,
+        c.context,
+        c.contextName,
+        c.route,
+        c.path,
+        c.namespace,
+    ];
+    return `${flattenText(keyFields)} ${flattenText(c)}`.toLowerCase();
+}
+function matchedPermissivePolicyContexts(ctx, textHint, guard) {
+    if (!guard.enabled || guard.permissiveContexts.length === 0)
+        return [];
+    const haystack = `${extractContextFingerprint(ctx)} ${textHint}`.toLowerCase();
+    if (!haystack.trim())
+        return [];
+    const matches = guard.permissiveContexts.filter((token) => haystack.includes(token));
+    return Array.from(new Set(matches));
+}
+function hasExplicitGovCommandPayload(event) {
+    const payload = flattenText(event.params || "");
+    if (!payload.trim())
+        return false;
+    return GOV_COMMAND_PAYLOAD_RE.test(payload);
+}
+function isGovernancePluginToolCall(event) {
+    const tool = String(event.toolName || "").toLowerCase();
+    const payload = flattenText(event.params || "").toLowerCase();
+    if (!tool && !payload)
+        return false;
+    if (tool.includes("openclaw-workspace-governance"))
+        return true;
+    if (GOV_COMMAND_TOKEN_RE.test(tool))
+        return true;
+    if (GOV_COMMAND_PAYLOAD_RE.test(payload))
+        return true;
+    return false;
+}
+function toolExposureAdvisoryText(lang, contexts, explicitGate) {
+    const hasContext = contexts.length > 0;
+    const contextText = hasContext ? contexts.join(", ") : "unknown";
+    if (lang === "zh") {
+        const contextLine = hasContext
+            ? `偵測到 permissive tool policy context: ${contextText}。`
+            : "未收到可用的 policy context metadata，仍採 fail-closed。";
+        return [
+            "Governance 提示：已啟用安全入口閘。",
+            contextLine,
+            explicitGate
+                ? "為降低 untrusted input 觸發 plugin 能力的風險，governance 只接受顯式 `/gov_*` 指令入口。"
+                : "目前使用 permissive-context 策略，請在顯式 `/gov_*` 指令下執行 governance。",
+            "一般對話 agent 建議使用 restrictive profile（minimal/coding）或工具 allowlist 排除 governance plugin。",
+        ].join(" ");
+    }
+    const contextLine = hasContext
+        ? `Detected permissive tool policy context: ${contextText}.`
+        : "No policy-context metadata was provided; fail-closed is still active.";
+    return [
+        "Governance advisory: secure invocation gate is active.",
+        contextLine,
+        explicitGate
+            ? "To reduce untrusted-input tool exposure, governance accepts explicit `/gov_*` command entry only."
+            : "Permissive-context policy is active; run governance through explicit `/gov_*` commands.",
+        "Use restrictive profiles (`minimal`/`coding`) or explicit tool allowlists excluding governance plugin tools for general chat agents.",
+    ].join(" ");
+}
+function toolExposureBlockReason(lang, contexts, explicitGate) {
+    const hasContext = contexts.length > 0;
+    const contextText = hasContext ? contexts.join(", ") : "unknown";
+    if (lang === "zh") {
+        const causeLine = explicitGate
+            ? "已拒絕隱式 governance plugin 工具呼叫；只接受顯式 `/gov_*` 指令入口。"
+            : "已拒絕在 permissive context 下的隱式 governance plugin 工具呼叫。";
+        return [
+            "WORKSPACE_GOVERNANCE tool-exposure guard 已阻擋（這是治理策略閘，不是 OpenClaw 系統錯誤）。",
+            hasContext
+                ? `偵測到 permissive tool policy context: ${contextText}。`
+                : "未收到可用的 policy context metadata，採用 fail-closed。",
+            causeLine,
+            "可直接貼上下一步：",
+            "1) 由受信任操作者顯式輸入 `/gov_*` 指令（例如 `/gov_setup check`）。",
+            "2) 將一般對話 agent 改為 restrictive profile（`minimal`/`coding`）或工具 allowlist 排除 governance plugin。",
+            "3) 需要調整平台設定時，先用 `/gov_openclaw_json` 更新後重啟 gateway。",
+        ].join(" ");
+    }
+    const causeLine = explicitGate
+        ? "Implicit governance-plugin tool invocation is denied; only explicit `/gov_*` command entry is accepted."
+        : "Implicit governance-plugin tool invocation is denied in permissive contexts.";
+    return [
+        "WORKSPACE_GOVERNANCE tool-exposure guard blocked this action (governance policy gate, not an OpenClaw system error).",
+        hasContext
+            ? `Detected permissive tool policy context: ${contextText}.`
+            : "No policy-context metadata was provided; fail-closed policy is active.",
+        causeLine,
+        "Copy-paste next steps:",
+        "1) Have a trusted operator issue an explicit `/gov_*` command (for example `/gov_setup check`).",
+        "2) Move general chat agents to restrictive profiles (`minimal`/`coding`) or explicit tool allowlists excluding governance plugin tools.",
+        "3) If platform config changes are needed, run `/gov_openclaw_json`, then restart gateway.",
+    ].join(" ");
+}
+function isBrainAuditRequirementActive(state, now) {
+    return state.brainAuditRequiredUntil > now;
+}
+function markBrainAuditRequired(state, reason, now) {
+    const nextUntil = now + BRAIN_AUDIT_REQUIRE_WINDOW_MS;
+    if (state.brainAuditRequiredUntil < nextUntil) {
+        state.brainAuditRequiredUntil = nextUntil;
+        state.brainAuditRequiredReason = reason;
+    }
+}
+function isReadToolCall(event) {
+    const n = (event.toolName || "").toLowerCase();
+    if (isShellLikeTool(n)) {
+        const command = flattenText(event.params?.command || "");
+        return isReadonlyShellCommand(command);
+    }
+    return READ_TOOL_HINTS.some((hint) => n.includes(hint));
+}
+function isShellLikeTool(name) {
+    return SHELL_LIKE_TOOL_HINTS.some((hint) => name.includes(hint));
+}
+function isWriteShellCommand(command) {
+    const text = command.trim();
+    if (!text)
+        return false;
+    return WRITE_COMMAND_HINTS.some((re) => re.test(text));
+}
+function isReadonlyShellCommand(command) {
+    const text = command.trim();
+    if (!text)
+        return false;
+    if (WRITE_COMMAND_HINTS.some((re) => re.test(text)))
+        return false;
+    return READONLY_COMMAND_HINTS.some((re) => re.test(text));
+}
+function hasShellControlOperators(command) {
+    return /(?:\|\||&&|[|;&<>])/.test(command);
+}
+function splitShellCommandSegments(command) {
+    const text = command.trim();
+    if (!text)
+        return [];
+    const segments = [];
+    let current = "";
+    let quote = null;
+    for (let i = 0; i < text.length; i += 1) {
+        const ch = text[i];
+        const next = i + 1 < text.length ? text[i + 1] : "";
+        if (quote) {
+            current += ch;
+            if (ch === quote)
+                quote = null;
+            continue;
+        }
+        if (ch === '"' || ch === "'" || ch === "`") {
+            quote = ch;
+            current += ch;
+            continue;
+        }
+        const isDoubleOp = (ch === "&" && next === "&") || (ch === "|" && next === "|");
+        const isSingleOp = ch === ";" || ch === "|" || (ch === "&" && next !== "&");
+        if (isDoubleOp || isSingleOp) {
+            const trimmed = current.trim();
+            if (trimmed)
+                segments.push(trimmed);
+            current = "";
+            if (isDoubleOp)
+                i += 1;
+            continue;
+        }
+        current += ch;
+    }
+    const tail = current.trim();
+    if (tail)
+        segments.push(tail);
+    return segments;
+}
+function splitShellWords(command) {
+    const matches = command.match(/"[^"]*"|'[^']*'|`[^`]*`|[^\s]+/g) || [];
+    return matches.map((w) => w.replace(/^["'`]|["'`]$/g, ""));
+}
+function isSingleOpenClawCommand(command) {
+    const text = command.trim();
+    if (!text || hasShellControlOperators(text))
+        return false;
+    const words = splitShellWords(text);
+    if (words.length === 0)
+        return false;
+    return words[0].toLowerCase() === "openclaw";
+}
+function extractOpenClawRootCommand(command) {
+    const text = command.trim();
+    if (!isSingleOpenClawCommand(text))
+        return "";
+    const words = splitShellWords(text);
+    if (words.length === 0)
+        return "";
+    for (let i = 1; i < words.length; i += 1) {
+        const token = words[i];
+        if (!token)
+            continue;
+        const normalized = token.toLowerCase();
+        if (normalized.startsWith("--") && normalized.includes("="))
+            continue;
+        if (OPENCLAW_FLAGS_WITH_VALUE.has(normalized)) {
+            i += 1;
+            continue;
+        }
+        if (normalized.startsWith("-"))
+            continue;
+        return normalized;
+    }
+    return "";
+}
+function isOpenClawCronCommand(command) {
+    return extractOpenClawRootCommand(command) === "cron";
+}
+function isOpenClawHostMaintenanceCommand(command) {
+    const segments = splitShellCommandSegments(command);
+    if (segments.length === 0)
+        return false;
+    return segments.every((seg) => isSingleOpenClawCommand(seg));
+}
+function matchesPolicyPrefixes(command, prefixes) {
+    if (prefixes.length === 0)
+        return false;
+    const normalized = command.trim().toLowerCase();
+    if (!normalized)
+        return false;
+    return prefixes.some((p) => normalized.startsWith(p));
+}
+function matchesPolicyRegex(command, patterns) {
+    if (patterns.length === 0)
+        return false;
+    return patterns.some((re) => re.test(command));
+}
+function isRuntimePolicyAllowedCommand(command, policy) {
+    const text = command.trim();
+    if (!text || hasShellControlOperators(text))
+        return false;
+    return (matchesPolicyPrefixes(text, policy.allowShellPrefixes) ||
+        matchesPolicyRegex(text, policy.allowShellRegex));
+}
+function isRuntimePolicyDeniedCommand(command, policy) {
+    const text = command.trim();
+    if (!text)
+        return false;
+    return (matchesPolicyPrefixes(text, policy.denyShellPrefixes) ||
+        matchesPolicyRegex(text, policy.denyShellRegex));
+}
+function hasRuntimePolicyAllowIntent(text, policy) {
+    if (!text.trim())
+        return false;
+    const normalized = text.toLowerCase();
+    if (policy.allowShellPrefixes.some((p) => normalized.includes(p)))
+        return true;
+    return policy.allowShellRegex.some((re) => re.test(text));
+}
+function isUpdateCommandNeedingGovReminder(command) {
+    const segments = splitShellCommandSegments(command);
+    if (segments.length === 0)
+        return false;
+    if (!segments.every((seg) => isSingleOpenClawCommand(seg)))
+        return false;
+    for (const seg of segments) {
+        const text = seg.trim().toLowerCase();
+        if (/^openclaw\s+update\b/.test(text))
+            return true;
+        if (/^openclaw\s+(plugins|extensions)\s+update\b/.test(text)) {
+            if (text.includes("openclaw-workspace-governance"))
+                return true;
+            if (/^openclaw\s+(plugins|extensions)\s+update\s*$/.test(text))
+                return true;
+        }
+    }
+    return false;
+}
+function isUpdateIntentText(text) {
+    if (NEGATED_UPDATE_INTENT_HINT.test(text))
+        return false;
+    return OPENCLAW_UPDATE_INTENT_HINT.test(text);
+}
+function hasCliUpdateArgvIntent() {
+    const argv = flattenText(globalThis?.process?.argv || []).toLowerCase();
+    if (!argv)
+        return false;
+    if (argv.includes("openclaw plugins update"))
+        return true;
+    if (argv.includes("openclaw extensions update"))
+        return true;
+    if (argv.includes("openclaw update"))
+        return true;
+    return false;
+}
+function postUpdateReminderText(lang) {
+    return i18n(lang, "Update detected. To avoid governance drift, run this now: /gov_setup quick -> if allowlist not ready then /gov_openclaw_json -> /gov_setup quick. Manual fallback: /gov_setup check -> /gov_setup upgrade -> /gov_migrate -> /gov_audit.", "已偵測到 update。為避免 governance 漂移，請立即執行：/gov_setup quick -> 若 allowlist 未就緒先 /gov_openclaw_json -> /gov_setup quick。手動備援：/gov_setup check -> /gov_setup upgrade -> /gov_migrate -> /gov_audit。");
+}
+function govSetupUpgradeHardRuleText(lang) {
+    return i18n(lang, "Governance hard rule for this turn: explicit /gov_setup upgrade MUST execute upgrade workflow with deterministic runner (node {plugin_root}/tools/gov_setup_sync.mjs upgrade). Do not downgrade to check-mode and do not output SKIPPED/No-op. READY from check is not a reason to skip explicit upgrade. If files are already in sync, return PASS (already up-to-date) after runner verification and shadow-skill reconciliation, then continue /gov_migrate -> /gov_audit.", "本輪 governance 硬規則：當用戶明確輸入 /gov_setup upgrade，必須用 deterministic runner 執行 upgrade（node {plugin_root}/tools/gov_setup_sync.mjs upgrade）。不可降級成 check，也不可輸出 SKIPPED/No-op。check 的 READY 不是跳過 explicit upgrade 的理由。若檔案已同步，完成 runner 驗證與 shadow-skill 對齊後，仍需回覆 PASS（already up-to-date），再繼續 /gov_migrate -> /gov_audit。");
+}
+function isGovSetupAssetDeployCommand(command) {
+    const raw = command.trim().toLowerCase();
+    if (!raw)
+        return false;
+    const text = raw.replace(/\\/g, "/");
+    const hasGovPromptsTarget = text.includes("prompts/governance");
+    if (!hasGovPromptsTarget)
+        return false;
+    const hasCopyAction = /(^|[\s;|&])(cp|copy|xcopy|robocopy|rsync|copy-item|install)\b/i.test(raw) ||
+        text.includes("manual_prompt");
+    const hasMkdirAction = /(^|[\s;|&])(mkdir|md|new-item)\b/i.test(raw);
+    // During the explicit gov_setup upgrade/install window, any copy/mkdir into
+    // prompts/governance is considered authorized deployment work.
+    return hasCopyAction || hasMkdirAction;
+}
+function isGovernanceLifecycleWriteToolCall(event) {
+    const toolName = (event.toolName || "").toLowerCase();
+    const payload = flattenText(event.params || "").toLowerCase().replace(/\\/g, "/");
+    if (isShellLikeTool(toolName)) {
+        const command = flattenText(event.params?.command || "");
+        if (isGovSetupAssetDeployCommand(command))
+            return true;
+        const normalized = command.toLowerCase().replace(/\\/g, "/");
+        if (normalized.includes("prompts/governance/"))
+            return true;
+        if (normalized.includes("_control/"))
+            return true;
+        if (normalized.includes("_runs/"))
+            return true;
+        return false;
+    }
+    if (!payload)
+        return false;
+    if (payload.includes("prompts/governance/"))
+        return true;
+    if (payload.includes("_control/"))
+        return true;
+    if (payload.includes("_runs/"))
+        return true;
+    return false;
+}
+function isCronToolCall(event) {
+    const name = (event.toolName || "").toLowerCase();
+    if (name === "cron" || name.startsWith("cron.") || name.startsWith("cron_")) {
+        return true;
+    }
+    if (isShellLikeTool(name)) {
+        const command = flattenText(event.params?.command || "");
+        return isOpenClawCronCommand(command);
+    }
+    return false;
+}
+function isWriteToolCall(event) {
+    const name = (event.toolName || "").toLowerCase();
+    if (HARD_WRITE_TOOL_NAMES.has(name))
+        return true;
+    if (isShellLikeTool(name)) {
+        const command = flattenText(event.params?.command || "");
+        return isWriteShellCommand(command);
+    }
+    if (WRITE_NAME_HINTS.some((hint) => name.includes(hint)))
+        return true;
+    return false;
+}
+const HIGH_RISK_PATH_PATTERNS = [
+    /\b_control\//i,
+    /\bprompts\/governance\//i,
+    /(?:^|\/|\s)(?:AGENTS|SOUL|IDENTITY|USER|TOOLS|MEMORY|HEARTBEAT)\.md\b/i,
+    /openclaw\.json\b/i,
+];
+function extractTargetPath(event) {
+    const params = (event.params || {});
+    // File tools: file_path, path, target, destination
+    for (const key of ["file_path", "path", "target", "destination"]) {
+        const val = params[key];
+        if (typeof val === "string" && val.trim())
+            return val.trim();
+    }
+    // Shell tools: extract from command, stripping quoted content to avoid
+    // false positives from incidental mentions (e.g., echo "check AGENTS.md" >> log.txt)
+    const name = (event.toolName || "").toLowerCase();
+    if (isShellLikeTool(name)) {
+        const cmd = flattenText(params.command || "");
+        return cmd.replace(/"[^"]*"|'[^']*'/g, " ");
+    }
+    return "";
+}
+function isHighRiskTarget(event) {
+    const target = extractTargetPath(event);
+    if (!target)
+        return false;
+    return HIGH_RISK_PATH_PATTERNS.some((re) => re.test(target));
+}
+function runtimePolicyBlockReason(lang) {
+    if (lang === "zh") {
+        return [
+            "WORKSPACE_GOVERNANCE runtime policy 已阻擋（這是治理策略閘，不是 OpenClaw 系統錯誤）。",
+            "此命令命中 runtimeGatePolicy deny 規則。",
+            "官方 `openclaw ...` 系統指令預設不在 deny 封鎖範圍；此封鎖通常針對非系統自訂 shell 命令。",
+            "自助修復（可直接貼上）：",
+            "1) /gov_openclaw_json",
+            "2) 請求修改 openclaw.json 內 openclaw-workspace-governance 的 runtimeGatePolicy",
+            "3) 移除/收窄對應 deny 規則，或新增更精準 allow 規則",
+            "4) openclaw gateway restart",
+            "5) 重試原命令。",
+        ].join(" ");
+    }
+    return [
+        "WORKSPACE_GOVERNANCE runtime policy block (this is a governance policy gate, not an OpenClaw system error).",
+        "This command matched runtimeGatePolicy deny rules.",
+        "Official `openclaw ...` system commands are excluded from deny by default; this usually targets non-system custom shell commands.",
+        "Self-serve fix (copy-paste):",
+        "1) /gov_openclaw_json",
+        "2) Ask to edit openclaw.json plugin config for openclaw-workspace-governance.runtimeGatePolicy",
+        "3) Remove/adjust the matching deny rule or add a narrower allow rule",
+        "4) openclaw gateway restart",
+        "5) Retry original command.",
+    ].join(" ");
+}
+function governanceBlockReason(state, lang) {
+    const escapeHint = state.sameBlockCount >= 3
+        ? i18n(lang, " You have been blocked 3+ times by the same gate. To force-through: /gov_brain_audit force-accept", " 你已被同一閘門阻擋 3 次以上。強制通過：/gov_brain_audit force-accept")
+        : "";
+    if (lang === "zh") {
+        const missingZh = [];
+        if (!state.planSeen)
+            missingZh.push("PLAN 證據（描述你的計劃）");
+        if (!state.readSeen)
+            missingZh.push("READ 證據（列出已讀的檔案）");
+        const missingTextZh = missingZh.join(" + ");
+        return [
+            "WORKSPACE_GOVERNANCE 高風險寫入保護已啟動（這是安全阻擋，不是系統錯誤）。",
+            "此寫入針對治理基礎設施。",
+            `缺少：${missingTextZh}。`,
+            "請在你的回覆中陳述計劃並列出已讀檔案，然後重試。",
+            "若屬平台控制面修改，請用 gov_openclaw_json。",
+            "若屬 Brain Docs 變更，先 /gov_brain_audit 預覽。",
+        ].join(" ") + escapeHint;
+    }
+    const missing = [];
+    if (!state.planSeen)
+        missing.push("PLAN evidence (state your plan)");
+    if (!state.readSeen)
+        missing.push("READ evidence (list files read)");
+    const missingText = missing.join(" + ");
+    return [
+        "WORKSPACE_GOVERNANCE high-risk write protection activated (this is a safety block, not a system error).",
+        "This write targets governance infrastructure.",
+        `Missing: ${missingText}.`,
+        "Include your plan and list of files read in your response, then retry.",
+        "If this is a platform control-plane change, use gov_openclaw_json.",
+        "If this is Brain Docs changes, start with /gov_brain_audit preview.",
+    ].join(" ") + escapeHint;
+}
+function brainAuditBlockReason(state, lang) {
+    if (lang === "zh") {
+        const reason = state.brainAuditRequiredReason
+            ? ` 觸發原因：${state.brainAuditRequiredReason}。`
+            : "";
+        return [
+            "WORKSPACE_GOVERNANCE 健康檢查閘已啟動（這是安全阻擋，不是系統錯誤）。",
+            "在可寫操作前，請先執行 /gov_brain_audit（只讀預覽）。",
+            "之後再繼續原任務（或在你同意後使用 /gov_brain_audit approve ...）。",
+            "備援：/skill gov_brain_audit。",
+            "可直接貼上下一步：",
+            "1) /gov_brain_audit",
+            "2) /skill gov_brain_audit",
+            "3) 預覽完成後重試原命令。",
+        ].join(" ") + reason;
+    }
+    const reason = state.brainAuditRequiredReason
+        ? ` Trigger: ${state.brainAuditRequiredReason}.`
+        : "";
+    return [
+        "WORKSPACE_GOVERNANCE health-check gate activated (this is a safety block, not a system error).",
+        "Before write-capable actions, run /gov_brain_audit (read-only preview) first.",
+        "Then continue with your write task (or /gov_brain_audit approve ... if you approve fixes).",
+        "Fallback: /skill gov_brain_audit.",
+        "Copy-paste next steps:",
+        "1) /gov_brain_audit",
+        "2) /skill gov_brain_audit",
+        "3) After preview, retry your original command.",
+    ].join(" ") + reason;
+}
+function pickCommandLanguage(ctx) {
+    const sample = flattenText([ctx.commandBody, ctx.args, ctx.channel, ctx.config]);
+    return detectUxLanguage(sample);
+}
+function toTextList(items) {
+    if (items.length === 0)
+        return "- none";
+    return items.map((x) => `- ${x}`).join("\n");
+}
+function makeStatusSignal(status) {
+    const key = String(status || "").toUpperCase();
+    if (key === "PASS" || key === "READY" || key === "CLEAN")
+        return "✅";
+    if (key === "READY_WITH_WARNING" || key === "PASS_WITH_WARNING" || key === "PARTIAL" || key === "RESIDUAL" || key === "NOT_INSTALLED")
+        return "⚠️";
+    if (key === "BLOCKED" || key === "FAIL")
+        return "❌";
+    return "ℹ️";
+}
+function makeQcItemSummaryLines(data) {
+    const rows = Array.isArray(data.qc_items)
+        ? data.qc_items
+        : [];
+    return rows
+        .map((row) => {
+        const rec = (row && typeof row === "object") ? row : {};
+        const id = String(rec.id || "").trim();
+        const title = String(rec.title || "").trim();
+        const status = String(rec.status || "").trim();
+        if (!id && !title && !status)
+            return "";
+        return `${id}) ${title}: ${status}`;
+    })
+        .filter((x) => x.length > 0);
+}
+function parseModeArg(ctx) {
+    const raw = String(ctx.args || "").trim();
+    if (!raw)
+        return "";
+    const tokens = raw.split(/\s+/).filter(Boolean);
+    return String(tokens[0] || "").toLowerCase().replace(/:$/, "");
+}
+async function runInProcessRunner(moduleRelPath, exportName, args = []) {
+    try {
+        const specifier = `./${moduleRelPath.replace(/\\\\/g, "/")}`;
+        const mod = await import(specifier);
+        const fn = mod[exportName];
+        if (typeof fn !== "function") {
+            return { ok: false, err: `runner export not found: ${exportName} in ${moduleRelPath}` };
+        }
+        const data = fn(...args);
+        if (!data || typeof data !== "object") {
+            return { ok: false, err: `runner returned invalid payload: ${moduleRelPath}` };
+        }
+        return { ok: true, data };
+    }
+    catch (err) {
+        return { ok: false, err: `runner exception: ${String(err?.message || err)}` };
+    }
+}
+const BRAND_DIVIDER = "─────────────────────────────────";
+function formatCommandOutput(status, whyLines, nextStep, commandLines) {
+    const signal = makeStatusSignal(status);
+    return [
+        `🐾 OpenClaw Governance · v${PLUGIN_VERSION}`,
+        BRAND_DIVIDER,
+        "",
+        `${signal}  STATUS`,
+        status,
+        "",
+        ...whyLines.map((line) => (line.startsWith("  • ") ? line : `  • ${line.replace(/^- /, "")}`)),
+        "",
+        BRAND_DIVIDER,
+        `👉 ${nextStep}`,
+        "",
+        ...commandLines.map((line) => {
+            const clean = line.replace(/^- /, "");
+            return `  ${clean}`;
+        }),
+    ].join("\n");
+}
+async function makeGovHelpCommandResponse(ctx) {
+    const lang = pickCommandLanguage(ctx);
+    const latest = await fetchLatestNpmVersion();
+    const versionLine = formatVersionLine(PLUGIN_VERSION, latest, lang);
+    const divider = "─────────────────────────────────────────────────";
+    const banner = [
+        "    \u2572  \u2572  \u2572",
+        "     \u2572  \u2572  \u2572     O P E N C L A W",
+        "      \u2572  \u2572  \u2572    \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
+        "       \u2572  \u2572  \u2572   G O V E R N A N C E",
+        `                  ${versionLine}`,
+    ].join("\n");
+    const gaLabel = i18n(lang, "GA Commands", "\u6B63\u5F0F\u6307\u4EE4");
+    const expLabel = i18n(lang, "Experimental", "\u5BE6\u9A57\u6027");
+    const gaCommands = [
+        ["/gov_setup quick", i18n(lang, "One-click install, upgrade, migrate and audit", "\u4E00\u9375\u5B89\u88DD\u3001\u5347\u7D1A\u3001\u9077\u79FB\u53CA\u5BE9\u6838")],
+        ["/gov_setup check", i18n(lang, "Read-only status and sync diagnostic", "\u552F\u8B80\u72C0\u614B\u53CA\u540C\u6B65\u8A3A\u65B7")],
+        ["/gov_migrate", i18n(lang, "Align workspace to latest governance rules", "\u5C0D\u9F4A workspace \u81F3\u6700\u65B0\u6CBB\u7406\u898F\u5247")],
+        ["/gov_audit", i18n(lang, "Verify 12 integrity checks and catch drift", "\u9A57\u8B49 12 \u9805\u5B8C\u6574\u6027\u6AA2\u67E5")],
+        ["/gov_uninstall quick", i18n(lang, "Clean removal with backup and restore", "\u542B\u5099\u4EFD\u7684\u5B89\u5168\u6E05\u9664")],
+        ["/gov_openclaw_json", i18n(lang, "Platform config health check and edit", "\u5E73\u53F0\u8A2D\u5B9A\u5065\u5EB7\u6AA2\u67E5\u53CA\u7DE8\u8F2F")],
+        ["/gov_brain_audit", i18n(lang, "Brain Docs quality audit and hardening", "Brain Docs \u54C1\u8CEA\u5BE9\u6838\u53CA\u5F37\u5316")],
+        ["/gov_boot_audit", i18n(lang, "Scan recurring issues and suggest upgrades", "\u6383\u63CF\u91CD\u8907\u554F\u984C\u4E26\u5EFA\u8B70\u5347\u7D1A")],
+    ];
+    const expCommands = [
+        ["/gov_apply <NN>", i18n(lang, "Apply an approved BOOT upgrade item", "\u5957\u7528\u5DF2\u6279\u51C6\u7684 BOOT \u5347\u7D1A\u9805\u76EE")],
+    ];
+    const pad = (cmd) => cmd.padEnd(23);
+    const cmdBlock = [
+        `  ${gaLabel}`,
+        "",
+        ...gaCommands.map(([cmd, desc]) => `  ${pad(cmd)}${desc}`),
+        "",
+        `  ${expLabel}`,
+        "",
+        ...expCommands.map(([cmd, desc]) => `  ${pad(cmd)}${desc}`),
+    ].join("\n");
+    const copyHint = i18n(lang, "\uD83D\uDC49 Copy one command and run.", "\uD83D\uDC49 \u8ACB\u76F4\u63A5\u8907\u88FD\u4E00\u689D\u6307\u4EE4\u57F7\u884C\u3002");
+    const copyBlock = [
+        "  /gov_setup quick",
+        "  /gov_uninstall quick",
+        "  /gov_openclaw_json check",
+        "  /gov_brain_audit",
+        "  /gov_boot_audit",
+        "  /gov_apply 01",
+    ].join("\n");
+    return [banner, divider, "", cmdBlock, "", divider, copyHint, "", copyBlock].join("\n");
+}
+async function makeGovSetupQuickCommandResponse(lang) {
+    const checkRunner = await runInProcessRunner("tools/gov_setup_sync.mjs", "runGovSetupSync", ["check"]);
+    if (!checkRunner.ok || !checkRunner.data) {
+        return formatCommandOutput("BLOCKED", [i18n(lang, `deterministic check failed: ${checkRunner.err || "unknown error"}`, `deterministic check 失敗：${checkRunner.err || "未知錯誤"}`)], i18n(lang, "Check plugin install path and rerun quick flow.", "請檢查 plugin 安裝路徑後重試 quick 流程。"), ["/gov_setup check", "/gov_setup quick"]);
+    }
+    const checkData = checkRunner.data;
+    const checkStatus = String(checkData.status || "PARTIAL").toUpperCase();
+    const allowStatus = String(checkData.allow_status || "ALLOW_NOT_SET");
+    const shadowRequired = Boolean(checkData.shadow_reconcile_required);
+    const summary = checkData.file_sync_summary || {};
+    const flowTrace = [
+        `check: ${checkStatus} | allow=${allowStatus} | sync(M=${String(summary.MISSING ?? 0)} O=${String(summary.OUT_OF_SYNC ?? 0)} I=${String(summary.IN_SYNC ?? 0)})`,
+    ];
+    const withFlowTrace = (lines) => [
+        ...lines,
+        `flow_trace:\n${toTextList(flowTrace)}`,
+    ];
+    const why = [
+        "auto_chain: check -> (install|upgrade|skip) -> migrate -> audit",
+        `check_status: ${checkStatus}`,
+        `allow_status: ${allowStatus}`,
+        `shadow_reconcile_required: ${String(shadowRequired)}`,
+        `check_file_sync_summary: MISSING=${String(summary.MISSING ?? 0)} OUT_OF_SYNC=${String(summary.OUT_OF_SYNC ?? 0)} IN_SYNC=${String(summary.IN_SYNC ?? 0)}`,
+    ];
+    if (allowStatus !== "ALLOW_OK") {
+        const alignRunner = await runInProcessRunner("tools/gov_setup_sync.mjs", "alignAllowlistEntry", [checkData.platform_config_path || ""]);
+        if (!alignRunner.ok || !alignRunner.data?.aligned) {
+            return formatCommandOutput("READY_WITH_WARNING", withFlowTrace(why), i18n(lang, "Could not auto-align allowlist. Align manually, then rerun quick flow.", "無法自動對齊 allowlist。請手動對齊後重跑 quick 流程。"), ["/skill gov_openclaw_json", "/gov_setup quick"]);
+        }
+        flowTrace.push(`allow_auto_align: ${String(alignRunner.data.action)}`);
+        why.push(`allow_auto_aligned: ${String(alignRunner.data.action)}`);
+    }
+    let setupStep = "skip";
+    if (checkStatus === "NOT_INSTALLED")
+        setupStep = "install";
+    else if (checkStatus === "PARTIAL" || shadowRequired)
+        setupStep = "upgrade";
+    why.push(`setup_step: ${setupStep}`);
+    if (setupStep === "skip")
+        flowTrace.push("setup: skipped (already aligned)");
+    if (setupStep !== "skip") {
+        const setupRunner = await runInProcessRunner("tools/gov_setup_sync.mjs", "runGovSetupSync", [setupStep]);
+        if (!setupRunner.ok || !setupRunner.data) {
+            return formatCommandOutput("BLOCKED", withFlowTrace([...why, `setup_stage_error: ${String(setupRunner.err || "unknown error")}`]), i18n(lang, "Retry quick flow after fixing setup stage.", "修復 setup 階段後重試 quick 流程。"), ["/gov_setup quick", "fallback: /gov_setup upgrade"]);
+        }
+        const setupData = setupRunner.data;
+        const setupStatus = String(setupData.status || "BLOCKED").toUpperCase();
+        if (setupStatus !== "PASS") {
+            flowTrace.push(`setup(${setupStep}): ${setupStatus}`);
+            return formatCommandOutput("BLOCKED", withFlowTrace([...why, `setup_stage_status: ${setupStatus}`, `setup_stage_reason: ${String(setupData.reason || "unknown")}`]), i18n(lang, "Fix setup blocker and rerun quick flow.", "先修復 setup 阻擋，再重跑 quick 流程。"), ["/gov_setup check", "/gov_setup quick"]);
+        }
+        flowTrace.push(`setup(${setupStep}): PASS | detail=${String(setupData.pass_detail || "updated")}`);
+        why.push(`setup_pass_detail: ${String(setupData.pass_detail || "updated")}`);
+        if (setupData.backup_root)
+            why.push(`setup_backup_root: ${String(setupData.backup_root)}`);
+        // Allowlist already aligned in pre-install step — no secondary check needed
+    }
+    const migrateRunner = await runInProcessRunner("tools/gov_migrate_sync.mjs", "runGovMigrateSync", []);
+    if (!migrateRunner.ok || !migrateRunner.data) {
+        return formatCommandOutput("BLOCKED", withFlowTrace([...why, `migrate_stage_error: ${String(migrateRunner.err || "unknown error")}`]), i18n(lang, "Retry quick flow after fixing migrate stage.", "修復 migrate 階段後重試 quick 流程。"), ["/gov_setup quick", "/gov_migrate"]);
+    }
+    const migrateData = migrateRunner.data;
+    const migrateStatus = String(migrateData.status || "BLOCKED").toUpperCase();
+    if (migrateStatus !== "PASS") {
+        flowTrace.push(`migrate: ${migrateStatus}`);
+        return formatCommandOutput("BLOCKED", withFlowTrace([
+            ...why,
+            `migrate_stage_status: ${migrateStatus}`,
+            `migrate_stage_reason: ${String(migrateData.reason || "unknown")}`,
+            migrateData.run_report ? `migrate_run_report: ${String(migrateData.run_report)}` : "",
+        ].filter(Boolean)), i18n(lang, "Fix migrate blocker and rerun one-click flow.", "先修復 migrate 阻擋，再重跑一鍵流程。"), ["/gov_setup upgrade", "/gov_setup quick"]);
+    }
+    flowTrace.push(`migrate: PASS${migrateData.run_report ? ` | report=${String(migrateData.run_report)}` : ""}`);
+    if (migrateData.run_report)
+        why.push(`migrate_run_report: ${String(migrateData.run_report)}`);
+    const auditRunner = await runInProcessRunner("tools/gov_audit_sync.mjs", "runGovAuditSync", [configuredScannerTolerance]);
+    if (!auditRunner.ok || !auditRunner.data) {
+        return formatCommandOutput("FAIL", withFlowTrace([...why, `audit_stage_error: ${String(auditRunner.err || "unknown error")}`]), i18n(lang, "Retry audit or rerun quick flow.", "請重跑 audit 或重跑 quick 流程。"), ["/gov_audit", "/gov_setup quick"]);
+    }
+    const auditData = auditRunner.data;
+    const auditStatus = String(auditData.status || "FAIL").toUpperCase();
+    const qcSummary = (auditData.qc_summary && typeof auditData.qc_summary === "object")
+        ? auditData.qc_summary
+        : {};
+    const qcPass = Number(qcSummary.pass ?? 0);
+    const qcFail = Number(qcSummary.fail ?? 0);
+    const qcNa = Number(qcSummary.pass_na ?? 0);
+    const auditItems = makeQcItemSummaryLines(auditData);
+    if (auditStatus !== "PASS") {
+        flowTrace.push(`audit: ${auditStatus} | PASS=${String(qcPass)} FAIL=${String(qcFail)} PASS_NA=${String(qcNa)}`);
+        return formatCommandOutput("FAIL", withFlowTrace([
+            ...why,
+            `audit_stage_status: ${auditStatus}`,
+            `audit_qc_summary: PASS=${String(qcPass)} FAIL=${String(qcFail)} PASS_NA=${String(qcNa)}`,
+            auditItems.length > 0 ? `audit_12_item:\n${toTextList(auditItems)}` : "",
+            auditData.run_report ? `audit_run_report: ${String(auditData.run_report)}` : "",
+        ].filter(Boolean)), i18n(lang, "One-click flow reached audit failure. Fix findings and rerun quick flow.", "一鍵流程已跑到 audit 失敗。修復 findings 後重跑 quick 流程。"), ["/gov_migrate", "/gov_audit", "/gov_setup quick"]);
+    }
+    flowTrace.push(`audit: PASS | PASS=${String(qcPass)} FAIL=${String(qcFail)} PASS_NA=${String(qcNa)}`);
+    return formatCommandOutput("PASS", withFlowTrace([
+        ...why,
+        `audit_qc_summary: PASS=${String(qcPass)} FAIL=${String(qcFail)} PASS_NA=${String(qcNa)}`,
+        auditItems.length > 0 ? `audit_12_item:\n${toTextList(auditItems)}` : "",
+        auditData.run_report ? `audit_run_report: ${String(auditData.run_report)}` : "",
+    ].filter(Boolean)), i18n(lang, "Governance is ready. Proceed with your task.", "治理已就緒。請繼續你的任務。"), []);
+}
+async function makeGovUninstallQuickCommandResponse(lang) {
+    const checkRunner = await runInProcessRunner("tools/gov_uninstall_sync.mjs", "runGovUninstallSync", ["check"]);
+    if (!checkRunner.ok || !checkRunner.data) {
+        return formatCommandOutput("BLOCKED", [i18n(lang, `deterministic check failed: ${checkRunner.err || "unknown error"}`, `deterministic check 失敗：${checkRunner.err || "未知錯誤"}`)], i18n(lang, "Check plugin install path and rerun quick uninstall.", "請檢查 plugin 安裝路徑後重試 quick uninstall。"), ["/gov_uninstall check", "/gov_uninstall quick"]);
+    }
+    const checkData = checkRunner.data;
+    const checkStatus = String(checkData.status || "RESIDUAL").toUpperCase();
+    const residual = Array.isArray(checkData.governance_residual_paths)
+        ? checkData.governance_residual_paths
+        : [];
+    const why = [
+        "auto_chain: check -> uninstall",
+        `check_status: ${checkStatus}`,
+        `check_residual_count: ${String(residual.length)}`,
+    ];
+    if (checkStatus === "CLEAN") {
+        return formatCommandOutput("CLEAN", why, i18n(lang, "Workspace is already clean. No uninstall action was needed.", "workspace 已是乾淨狀態，無需執行 uninstall。"), ["openclaw plugins disable openclaw-workspace-governance", "optional: openclaw plugins uninstall openclaw-workspace-governance"]);
+    }
+    const uninstallRunner = await runInProcessRunner("tools/gov_uninstall_sync.mjs", "runGovUninstallSync", ["uninstall"]);
+    if (!uninstallRunner.ok || !uninstallRunner.data) {
+        return formatCommandOutput("BLOCKED", [...why, `uninstall_stage_error: ${String(uninstallRunner.err || "unknown error")}`], i18n(lang, "Fix uninstall blocker and retry quick uninstall.", "先修復 uninstall 阻擋，再重跑 quick uninstall。"), ["/gov_uninstall check", "/gov_uninstall quick"]);
+    }
+    const uninstallData = uninstallRunner.data;
+    const uninstallStatus = String(uninstallData.status || "BLOCKED").toUpperCase();
+    if (uninstallStatus !== "PASS") {
+        return formatCommandOutput("BLOCKED", [...why, `uninstall_stage_status: ${uninstallStatus}`, `uninstall_stage_reason: ${String(uninstallData.reason || "unknown")}`], i18n(lang, "Fix uninstall blocker and retry quick uninstall.", "先修復 uninstall 阻擋，再重跑 quick uninstall。"), ["/gov_uninstall check", "/gov_uninstall uninstall"]);
+    }
+    const removed = Array.isArray(uninstallData.removed_paths) ? uninstallData.removed_paths : [];
+    const restored = Array.isArray(uninstallData.restored_paths) ? uninstallData.restored_paths : [];
+    return formatCommandOutput("PASS", [
+        ...why,
+        `removed_paths: ${String(removed.length)}`,
+        `restored_paths: ${String(restored.length)}`,
+        `backup_root: ${String(uninstallData.backup_root || "none")}`,
+        `brain_backup_used: ${String(uninstallData.brain_backup_used || "none")}`,
+        `brain_backup_strategy: ${String(uninstallData.brain_backup_strategy || "none")}`,
+        `stripped_brain_docs: ${String(Array.isArray(uninstallData.stripped_brain_docs) ? uninstallData.stripped_brain_docs.length : 0)}`,
+        `post_uninstall_qc: ${uninstallData.post_uninstall_qc ? (uninstallData.post_uninstall_qc.pass ? "PASS" : "FAIL") : "none"}`,
+        uninstallData.run_report ? `run_report: ${String(uninstallData.run_report)}` : "",
+    ].filter(Boolean), i18n(lang, "One-click workspace uninstall completed. Then disable/uninstall plugin package if needed.", "一鍵 workspace uninstall 完成。若需要，下一步可停用/卸載 plugin 套件。"), ["openclaw plugins disable openclaw-workspace-governance", "optional: openclaw plugins uninstall openclaw-workspace-governance"]);
+}
+async function makeGovSetupCommandResponse(ctx) {
+    const lang = pickCommandLanguage(ctx);
+    const modeArg = parseModeArg(ctx);
+    const mode = modeArg || "quick";
+    const validModes = new Set(["check", "install", "upgrade", "quick", "auto"]);
+    if (!validModes.has(mode)) {
+        return formatCommandOutput("BLOCKED", [
+            i18n(lang, `Invalid mode: ${mode}. Allowed: check/install/upgrade/quick/auto.`, `mode 無效：${mode}。只接受 check/install/upgrade/quick/auto。`),
+        ], i18n(lang, "Retry with a valid mode.", "請用有效 mode 重試。"), ["/gov_setup quick", "/gov_setup check", "/gov_setup install", "/gov_setup upgrade"]);
+    }
+    if (mode === "quick" || mode === "auto") {
+        return makeGovSetupQuickCommandResponse(lang);
+    }
+    const runner = await runInProcessRunner("tools/gov_setup_sync.mjs", "runGovSetupSync", [mode]);
+    if (!runner.ok || !runner.data) {
+        return formatCommandOutput("BLOCKED", [i18n(lang, `deterministic runner failed: ${runner.err || "unknown error"}`, `deterministic runner 失敗：${runner.err || "未知錯誤"}`)], i18n(lang, "Check plugin install path and rerun command.", "請檢查 plugin 安裝路徑後重試。"), ["/gov_setup check", "/skill gov_setup check"]);
+    }
+    const data = runner.data;
+    if (mode === "check") {
+        const latest = await fetchLatestNpmVersion();
+        const versionLine = formatVersionLine(PLUGIN_VERSION, latest, lang);
+        const status = String(data.status || "PARTIAL").toUpperCase();
+        const allowStatus = String(data.allow_status || "ALLOW_NOT_SET");
+        const shadowRequired = Boolean(data.shadow_reconcile_required);
+        const shadowDetected = Array.isArray(data.workspace_gov_skill_dirs_detected)
+            ? data.workspace_gov_skill_dirs_detected
+            : [];
+        const summary = data.file_sync_summary || {};
+        const why = [
+            versionLine,
+            `status: ${status}`,
+            `allow_status: ${allowStatus}`,
+            `allowlist_alignment_required: ${String(Boolean(data.allowlist_alignment_required))}`,
+            `shadow_reconcile_required: ${String(shadowRequired)}`,
+            `file_sync_summary: MISSING=${String(summary.MISSING ?? 0)} OUT_OF_SYNC=${String(summary.OUT_OF_SYNC ?? 0)} IN_SYNC=${String(summary.IN_SYNC ?? 0)}`,
+        ];
+        if (shadowDetected.length > 0) {
+            why.push(`workspace_gov_skill_dirs_detected:\n${toTextList(shadowDetected)}`);
+        }
+        if (allowStatus !== "ALLOW_OK") {
+            return formatCommandOutput("READY_WITH_WARNING", why, i18n(lang, "Align allowlist first, then rerun check.", "先對齊 allowlist，再重跑 check。"), ["/skill gov_openclaw_json", "/gov_setup check"]);
+        }
+        if (shadowRequired || status === "PARTIAL") {
+            return formatCommandOutput("PARTIAL", why, i18n(lang, "Run upgrade to reconcile and sync governance files.", "請先跑 upgrade 做對齊與同步。"), ["/gov_setup upgrade"]);
+        }
+        if (status === "NOT_INSTALLED") {
+            return formatCommandOutput("NOT_INSTALLED", why, i18n(lang, "Install governance files first.", "請先安裝 governance 檔案。"), ["/gov_setup install"]);
+        }
+        return formatCommandOutput("READY", why, i18n(lang, "Proceed with migration then audit.", "可以直接進 migration + audit。"), ["/gov_migrate", "/gov_audit"]);
+    }
+    const runStatus = String(data.status || "BLOCKED").toUpperCase();
+    if (runStatus !== "PASS") {
+        return formatCommandOutput("BLOCKED", [
+            i18n(lang, `runner status: ${runStatus}`, `runner 狀態：${runStatus}`),
+            `reason: ${String(data.reason || "unknown")}`,
+        ], i18n(lang, "Fix blocker and retry setup command.", "先修復阻擋再重試 setup。"), ["/gov_setup check", "fallback: /skill gov_setup check"]);
+    }
+    const why = [
+        `mode: ${mode}`,
+        `pass_detail: ${String(data.pass_detail || "updated")}`,
+        `allow_status: ${String(data.allow_status || "ALLOW_NOT_SET")}`,
+    ];
+    const setupExecutionItems = [`runner: gov_setup_sync ${mode}`];
+    const copiedFiles = Array.isArray(data.copied_files)
+        ? data.copied_files
+        : [];
+    if (copiedFiles.length > 0) {
+        const changedCount = copiedFiles
+            .filter((row) => row && typeof row === "object" && Boolean(row.changed))
+            .length;
+        setupExecutionItems.push(`copied_files=${String(copiedFiles.length)} changed=${String(changedCount)}`);
+    }
+    const postSummary = data.file_sync_summary_after;
+    if (postSummary && typeof postSummary === "object") {
+        setupExecutionItems.push(`post_sync: MISSING=${String(postSummary.MISSING ?? 0)} OUT_OF_SYNC=${String(postSummary.OUT_OF_SYNC ?? 0)} IN_SYNC=${String(postSummary.IN_SYNC ?? 0)}`);
+    }
+    if (Array.isArray(data.workspace_gov_skill_dirs_reconciled) && data.workspace_gov_skill_dirs_reconciled.length > 0) {
+        why.push(`workspace_gov_skill_dirs_reconciled=${String(data.workspace_gov_skill_dirs_reconciled.length)}`);
+        setupExecutionItems.push(`shadow_skill_reconciled=${String(data.workspace_gov_skill_dirs_reconciled.length)}`);
+    }
+    if (data.backup_root)
+        why.push(`backup_root: ${String(data.backup_root)}`);
+    why.push(`execution_items:\n${toTextList(setupExecutionItems)}`);
+    const allowStatus = String(data.allow_status || "ALLOW_NOT_SET");
+    const nextAction = String(data.next_action || "");
+    if (allowStatus !== "ALLOW_OK" || nextAction === "ALIGN_ALLOWLIST_THEN_CHECK") {
+        return formatCommandOutput("PASS_WITH_WARNING", why, i18n(lang, "Align allowlist first, then rerun check.", "先對齊 allowlist，再重跑 check。"), ["/skill gov_openclaw_json", "/gov_setup check"]);
+    }
+    if (mode === "install") {
+        return formatCommandOutput("PASS", why, i18n(lang, "Run migration, then audit. Missing governance control files will be reconciled during migration.", "先跑 migration，再跑 audit。若缺少 governance 控制檔，migration 會自動補齊。"), ["/gov_migrate", "/gov_audit"]);
+    }
+    return formatCommandOutput("PASS", why, i18n(lang, "Run migration, then audit.", "先跑 migration，再跑 audit。"), ["/gov_migrate", "/gov_audit"]);
+}
+async function makeGovMigrateCommandResponse(ctx) {
+    const lang = pickCommandLanguage(ctx);
+    const runner = await runInProcessRunner("tools/gov_migrate_sync.mjs", "runGovMigrateSync", []);
+    if (!runner.ok || !runner.data) {
+        return formatCommandOutput("BLOCKED", [i18n(lang, `deterministic runner failed: ${runner.err || "unknown error"}`, `deterministic runner 失敗：${runner.err || "未知錯誤"}`)], i18n(lang, "Retry after gov_setup upgrade.", "請先執行 gov_setup upgrade 後重試。"), ["/gov_setup upgrade", "/gov_migrate"]);
+    }
+    const data = runner.data;
+    const status = String(data.status || "BLOCKED").toUpperCase();
+    const equality = Array.isArray(data.equality) ? data.equality : [];
+    const mismatch = equality.filter((x) => String(x.status || "") !== "MATCH");
+    if (status !== "PASS") {
+        const reason = String(data.reason || "MIGRATION_BLOCKED");
+        const missing = Array.isArray(data.missing)
+            ? data.missing
+                .map((x) => String(x || ""))
+                .filter((x) => x.trim().length > 0)
+            : [];
+        const missingText = missing.map((p) => p.replace(/\\/g, "/"));
+        const hasMissingPrompts = missingText.some((p) => p.endsWith("/prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md")) ||
+            missingText.some((p) => p.endsWith("/prompts/governance/WORKSPACE_GOVERNANCE_MIGRATION.md"));
+        const hasMissingControl = missingText.some((p) => p.endsWith("/_control/GOVERNANCE_BOOTSTRAP.md")) ||
+            missingText.some((p) => p.endsWith("/_control/REGRESSION_CHECK.md")) ||
+            missingText.some((p) => p.endsWith("/_control/WORKSPACE_INDEX.md"));
+        const why = [
+            `status: ${status}`,
+            `reason: ${reason}`,
+            mismatch.length > 0
+                ? `canonical_mismatch: ${mismatch.map((x) => String(x.id || "unknown")).join(", ")}`
+                : "canonical_mismatch: none",
+            missingText.length > 0 ? `missing_required:\n${toTextList(missingText)}` : "",
+            data.run_report ? `run_report: ${String(data.run_report)}` : "",
+        ].filter(Boolean);
+        if (reason === "MISSING_REQUIRED_FILES" && hasMissingPrompts) {
+            return formatCommandOutput("BLOCKED", why, i18n(lang, "Governance prompts are missing. Run setup upgrade first, then retry migration.", "缺少 governance prompts。先跑 setup upgrade，再重試 migration。"), ["/gov_setup upgrade", "/gov_migrate"]);
+        }
+        if (reason === "MISSING_REQUIRED_FILES" && hasMissingControl) {
+            return formatCommandOutput("BLOCKED", why, i18n(lang, "Governance control files are missing. Run setup upgrade, then retry migration.", "缺少 governance _control 檔。先跑 setup upgrade，再重試 migration。"), ["/gov_setup upgrade", "/gov_migrate"]);
+        }
+        return formatCommandOutput("BLOCKED", why, i18n(lang, "Run gov_setup upgrade, then retry migration.", "先跑 gov_setup upgrade，再重試 migration。"), ["/gov_setup upgrade", "/gov_migrate"]);
+    }
+    return formatCommandOutput("PASS", [
+        "deterministic migration completed",
+        Array.isArray(data.seeded_missing_files) &&
+            data.seeded_missing_files.length > 0
+            ? `seeded_missing_files:\n${toTextList((data.seeded_missing_files || [])
+                .map((x) => String(x))
+                .filter((x) => x.trim().length > 0))}`
+            : "",
+        Array.isArray(data.repaired_missing_marker_files) &&
+            data.repaired_missing_marker_files.length > 0
+            ? `repaired_missing_marker_files:\n${toTextList((data.repaired_missing_marker_files || [])
+                .map((x) => String(x))
+                .filter((x) => x.trim().length > 0))}`
+            : "",
+        Array.isArray(data.repaired_marker_anomaly_files) &&
+            data.repaired_marker_anomaly_files.length > 0
+            ? `repaired_marker_anomaly_files:\n${toTextList((data.repaired_marker_anomaly_files || [])
+                .map((x) => String(x))
+                .filter((x) => x.trim().length > 0))}`
+            : "",
+        `execution_items:\n${toTextList([
+            "runner: gov_migrate_sync",
+            `canonical_equality_match=${String(equality.length - mismatch.length)}/${String(equality.length)}`,
+            Array.isArray(data.seeded_missing_files)
+                ? `seeded_missing_files_count=${String(data.seeded_missing_files.length)}`
+                : "seeded_missing_files_count=0",
+            Array.isArray(data.repaired_missing_marker_files)
+                ? `repaired_missing_marker_files_count=${String(data.repaired_missing_marker_files.length)}`
+                : "repaired_missing_marker_files_count=0",
+            Array.isArray(data.repaired_marker_anomaly_files)
+                ? `repaired_marker_anomaly_files_count=${String(data.repaired_marker_anomaly_files.length)}`
+                : "repaired_marker_anomaly_files_count=0",
+        ])}`,
+        data.run_report ? `run_report: ${String(data.run_report)}` : "",
+    ].filter(Boolean), i18n(lang, "Run audit now.", "請立即執行 audit。"), ["/gov_audit"]);
+}
+async function makeGovApplyCommandResponse(ctx) {
+    const lang = pickCommandLanguage(ctx);
+    const itemId = parseModeArg(ctx);
+    if (!/^\d{2}$/.test(itemId)) {
+        return formatCommandOutput("BLOCKED", [
+            i18n(lang, `Invalid item id: ${itemId || "(empty)"}. Use two digits like 01.`, `item id 無效：${itemId || "（空白）"}。請使用兩位數，例如 01。`),
+        ], i18n(lang, "Retry with one approved BOOT item number.", "請用已批准的 BOOT 兩位數編號重試。"), ["/gov_apply 01", "fallback: /skill gov_apply 01"]);
+    }
+    const runner = await runInProcessRunner("tools/gov_apply_sync.mjs", "runGovApplySync", [itemId]);
+    if (!runner.ok || !runner.data) {
+        return formatCommandOutput("BLOCKED", [i18n(lang, `deterministic runner failed: ${runner.err || "unknown error"}`, `deterministic runner 失敗：${runner.err || "未知錯誤"}`)], i18n(lang, "Check plugin install path and retry apply.", "請檢查 plugin 安裝路徑後重試 apply。"), ["/gov_setup check", "/gov_apply 01"]);
+    }
+    const data = runner.data;
+    const status = String(data.status || "BLOCKED").toUpperCase();
+    if (status !== "PASS") {
+        const reason = String(data.reason || "APPLY_BLOCKED");
+        const missing = Array.isArray(data.missing_files)
+            ? data.missing_files.map((x) => String(x)).filter((x) => x.trim().length > 0)
+            : [];
+        const availableItems = Array.isArray(data.available_items)
+            ? data.available_items.map((x) => String(x)).filter((x) => x.trim().length > 0)
+            : [];
+        const why = [
+            `status: ${status}`,
+            `reason: ${reason}`,
+            `item_id: ${itemId}`,
+            missing.length > 0 ? `missing_files:\n${toTextList(missing)}` : "",
+            availableItems.length > 0 ? `available_items: ${availableItems.join(", ")}` : "",
+            data.run_report ? `run_report: ${String(data.run_report)}` : "",
+        ].filter(Boolean);
+        if (reason === "BOOT_MENU_MISSING" || reason === "MENU_ITEM_NOT_FOUND") {
+            return formatCommandOutput("BLOCKED", why, i18n(lang, "Refresh BOOT menu context first, then retry one approved item.", "先刷新 BOOT menu 上下文，再重試已批准項目。"), [
+                "prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md",
+                `/gov_apply ${itemId}`,
+            ]);
+        }
+        if (reason === "MISSING_REQUIRED_FILES") {
+            return formatCommandOutput("BLOCKED", why, i18n(lang, "Required governance files are missing. Run setup upgrade, then rerun apply.", "缺少必要 governance 檔案。先跑 setup upgrade，再重試 apply。"), ["/gov_setup upgrade", `/gov_apply ${itemId}`]);
+        }
+        return formatCommandOutput("BLOCKED", why, i18n(lang, "Fix blocker, then rerun one approved BOOT item.", "先修復阻擋，再重試已批准 BOOT 項目。"), [`/gov_apply ${itemId}`, "/gov_migrate", "/gov_audit"]);
+    }
+    const maturity = (data.governance_maturity && typeof data.governance_maturity === "object")
+        ? data.governance_maturity
+        : null;
+    const maturityLine = maturity
+        ? `governance_maturity: guards=${String(maturity.guards_before ?? "?")}→${String(maturity.guards_after ?? "?")}, lessons=${String(maturity.lessons_before ?? "?")}→${String(maturity.lessons_after ?? "?")}`
+        : "";
+    return formatCommandOutput("PASS", [
+        `item_id: ${String(data.item_id || itemId)}`,
+        `item_title: ${String(data.item_title || "n/a")}`,
+        `apply_type: ${String(data.apply_type || "n/a")}`,
+        `menu_source: ${String(data.menu_source || "n/a")}`,
+        `backup_root: ${String(data.backup_root || "n/a")}`,
+        maturityLine,
+        data.run_report ? `run_report: ${String(data.run_report)}` : "",
+    ].filter(Boolean), i18n(lang, "Run migration, then audit.", "先跑 migration，再跑 audit。"), ["/gov_migrate", "/gov_audit"]);
+}
+async function makeGovUninstallCommandResponse(ctx) {
+    const lang = pickCommandLanguage(ctx);
+    const modeArg = parseModeArg(ctx);
+    const mode = modeArg || "check";
+    const validModes = new Set(["check", "uninstall", "quick", "auto"]);
+    if (!validModes.has(mode)) {
+        return formatCommandOutput("BLOCKED", [
+            i18n(lang, `Invalid mode: ${mode}. Allowed: check/uninstall/quick/auto.`, `mode 無效：${mode}。只接受 check/uninstall/quick/auto。`),
+        ], i18n(lang, "Retry with a valid mode.", "請用有效 mode 重試。"), ["/gov_uninstall quick", "/gov_uninstall check", "/gov_uninstall uninstall"]);
+    }
+    if (mode === "quick" || mode === "auto") {
+        return makeGovUninstallQuickCommandResponse(lang);
+    }
+    const runner = await runInProcessRunner("tools/gov_uninstall_sync.mjs", "runGovUninstallSync", [mode]);
+    if (!runner.ok || !runner.data) {
+        return formatCommandOutput("BLOCKED", [
+            i18n(lang, `deterministic runner failed: ${runner.err || "unknown error"}`, `deterministic runner 失敗：${runner.err || "未知錯誤"}`),
+        ], i18n(lang, "Check plugin install path and rerun command.", "請檢查 plugin 安裝路徑後重試。"), ["/gov_uninstall check", "/skill gov_uninstall check"]);
+    }
+    const data = runner.data;
+    if (mode === "check") {
+        const status = String(data.status || "RESIDUAL").toUpperCase();
+        const residual = Array.isArray(data.governance_residual_paths)
+            ? data.governance_residual_paths
+            : [];
+        const restore = Array.isArray(data.restore_candidates)
+            ? data.restore_candidates
+            : [];
+        const brainBackupRoots = Array.isArray(data.brain_docs_backup_roots_found)
+            ? data.brain_docs_backup_roots_found
+            : [];
+        const brainRestoreCandidates = Array.isArray(data.brain_docs_restore_candidates)
+            ? data.brain_docs_restore_candidates
+            : [];
+        const why = [
+            `status: ${status}`,
+            `residual_count: ${String(residual.length)}`,
+            `restore_candidate_count: ${String(restore.length)}`,
+            `brain_docs_backup_roots_found: ${String(brainBackupRoots.length)}`,
+            `brain_docs_restore_candidate_count: ${String(brainRestoreCandidates.length)}`,
+            `brain_docs_restore_strategy: ${String(data.brain_docs_restore_strategy || "none")}`,
+            `latest_bootstrap_backup: ${String(data.latest_bootstrap_backup || "none")}`,
+            `governance_agents_detected: ${String(Boolean(data.governance_agents_detected))}`,
+        ];
+        if (residual.length > 0) {
+            why.push(`governance_residual_paths:\n${toTextList(residual.map((x) => String(x)))}`);
+        }
+        if (Array.isArray(data.warnings) && data.warnings.length > 0) {
+            why.push(`warnings:\n${toTextList(data.warnings.map((x) => String(x)))}`);
+        }
+        if (status === "CLEAN") {
+            return formatCommandOutput("CLEAN", why, i18n(lang, "Workspace has no governance residuals to uninstall.", "workspace 內沒有 governance 殘留要卸載。"), ["/gov_setup check"]);
+        }
+        return formatCommandOutput("RESIDUAL", why, i18n(lang, "Run uninstall to clear residual governance artifacts with backup.", "請執行 uninstall（含備份）清理 governance 殘留。"), ["/gov_uninstall uninstall", "fallback: /skill gov_uninstall uninstall"]);
+    }
+    const runStatus = String(data.status || "BLOCKED").toUpperCase();
+    if (runStatus !== "PASS") {
+        return formatCommandOutput("BLOCKED", [
+            i18n(lang, `runner status: ${runStatus}`, `runner 狀態：${runStatus}`),
+            `reason: ${String(data.reason || "unknown")}`,
+        ], i18n(lang, "Fix blocker and retry uninstall.", "先修復阻擋再重試 uninstall。"), ["/gov_uninstall check", "/gov_uninstall uninstall"]);
+    }
+    const removed = Array.isArray(data.removed_paths) ? data.removed_paths : [];
+    const restored = Array.isArray(data.restored_paths) ? data.restored_paths : [];
+    const strippedBrainDocs = Array.isArray(data.stripped_brain_docs) ? data.stripped_brain_docs : [];
+    const postQC = data.post_uninstall_qc;
+    const why = [
+        `mode: ${mode}`,
+        `removed_paths: ${String(removed.length)}`,
+        `restored_paths: ${String(restored.length)}`,
+        `stripped_brain_docs: ${String(strippedBrainDocs.length)}`,
+        `backup_root: ${String(data.backup_root || "none")}`,
+        `brain_backup_used: ${String(data.brain_backup_used || "none")}`,
+        `latest_brain_backup_detected: ${String(data.latest_brain_backup_detected || "none")}`,
+        `brain_backup_strategy: ${String(data.brain_backup_strategy || "none")}`,
+        `run_report: ${String(data.run_report || "none")}`,
+        `post_uninstall_qc: ${postQC ? (postQC.pass ? "PASS" : "FAIL") : "none"}`,
+    ];
+    if (Array.isArray(data.warnings) && data.warnings.length > 0) {
+        why.push(`warnings:\n${toTextList(data.warnings.map((x) => String(x)))}`);
+    }
+    return formatCommandOutput("PASS", why, i18n(lang, "Workspace governance uninstall is complete. Then disable/uninstall plugin package if needed.", "workspace governance 卸載完成。若需要，下一步可停用/卸載 plugin 套件。"), [
+        "openclaw plugins disable openclaw-workspace-governance",
+        "optional: openclaw plugins uninstall openclaw-workspace-governance",
+    ]);
+}
+async function makeGovAuditCommandResponse(ctx) {
+    const lang = pickCommandLanguage(ctx);
+    const runner = await runInProcessRunner("tools/gov_audit_sync.mjs", "runGovAuditSync", [configuredScannerTolerance]);
+    if (!runner.ok || !runner.data) {
+        return formatCommandOutput("FAIL", [i18n(lang, `deterministic runner failed: ${runner.err || "unknown error"}`, `deterministic runner 失敗：${runner.err || "未知錯誤"}`)], i18n(lang, "Rerun migration and then audit.", "請先重跑 migration，再跑 audit。"), ["/gov_migrate", "/gov_audit"]);
+    }
+    const data = runner.data;
+    const status = String(data.status || "FAIL").toUpperCase();
+    const equality = Array.isArray(data.equality) ? data.equality : [];
+    const mismatch = equality.filter((x) => String(x.status || "") !== "MATCH");
+    const qcSummary = (data.qc_summary && typeof data.qc_summary === "object")
+        ? data.qc_summary
+        : {};
+    const qcPass = Number(qcSummary.pass ?? 0);
+    const qcFail = Number(qcSummary.fail ?? 0);
+    const qcNa = Number(qcSummary.pass_na ?? 0);
+    const qcFailedItems = Array.isArray(data.qc_failed_items)
+        ? data.qc_failed_items.map((x) => String(x)).filter((x) => x.trim().length > 0)
+        : [];
+    const qcItemSummaries = makeQcItemSummaryLines(data);
+    if (status !== "PASS") {
+        return formatCommandOutput("FAIL", [
+            `status: ${status}`,
+            `qc_summary: PASS=${String(qcPass)} FAIL=${String(qcFail)} PASS_NA=${String(qcNa)}`,
+            qcItemSummaries.length > 0
+                ? `qc_12_item:\n${toTextList(qcItemSummaries)}`
+                : "",
+            qcFailedItems.length > 0
+                ? `qc_failed_items:\n${toTextList(qcFailedItems)}`
+                : "",
+            mismatch.length > 0
+                ? `canonical_mismatch: ${mismatch.map((x) => String(x.id || "unknown")).join(", ")}`
+                : "canonical_mismatch: none",
+            data.run_report ? `run_report: ${String(data.run_report)}` : "",
+        ].filter(Boolean), i18n(lang, "Fix migration state, then rerun audit.", "先修復 migration 狀態，再重跑 audit。"), ["/gov_migrate", "/gov_audit"]);
+    }
+    return formatCommandOutput("PASS", [
+        "audit passed with deterministic 12-item execution",
+        `qc_summary: PASS=${String(qcPass)} FAIL=${String(qcFail)} PASS_NA=${String(qcNa)}`,
+        qcItemSummaries.length > 0
+            ? `qc_12_item:\n${toTextList(qcItemSummaries)}`
+            : "",
+        data.run_report ? `run_report: ${String(data.run_report)}` : "",
+    ].filter(Boolean), i18n(lang, "Governance lifecycle is aligned.", "governance 流程已對齊。"), ["/gov_setup check"]);
+}
+async function makeGovBootAuditCommandResponse(ctx) {
+    const lang = pickCommandLanguage(ctx);
+    const mode = parseModeArg(ctx);
+    if (mode && mode !== "scan") {
+        return formatCommandOutput("BLOCKED", [
+            i18n(lang, `Invalid mode: ${mode}. Use scan (or no args).`, `無效模式：${mode}。請使用 scan（或不帶參數）。`),
+        ], i18n(lang, "Retry with valid mode.", "請使用有效模式重試。"), ["/gov_boot_audit", "/gov_boot_audit scan"]);
+    }
+    const runner = await runInProcessRunner("tools/gov_boot_audit_sync.mjs", "runGovBootAuditSync", ["scan", configuredScannerTolerance]);
+    if (!runner.ok || !runner.data) {
+        return formatCommandOutput("BLOCKED", [i18n(lang, `deterministic runner failed: ${runner.err || "unknown error"}`, `deterministic runner 失敗：${runner.err || "未知錯誤"}`)], i18n(lang, "Check plugin install path and retry.", "請檢查 plugin 安裝路徑後重試。"), ["/gov_setup check", "/gov_boot_audit"]);
+    }
+    const data = runner.data;
+    const status = String(data.status || "PASS").toUpperCase();
+    const reportsScanned = Number(data.reports_scanned ?? 0);
+    const qcRecurrences = Array.isArray(data.qc_recurrences) ? data.qc_recurrences : [];
+    const guardRecurrences = Array.isArray(data.guard_recurrences) ? data.guard_recurrences : [];
+    const menuItems = Array.isArray(data.menu_items) ? data.menu_items : [];
+    const activeGuards = (data.active_guards && typeof data.active_guards === "object")
+        ? data.active_guards
+        : { exists: false, count: 0 };
+    const whyLines = [
+        `reports_scanned: ${reportsScanned}`,
+        `active_guards: ${String(activeGuards.count ?? 0)}`,
+        `qc_recurrences: ${qcRecurrences.length}`,
+        `guard_recurrences: ${guardRecurrences.length}`,
+        ...qcRecurrences.map((r) => `${String(r.item || "?")}: ${String(r.count || 0)} recurrences`),
+        ...guardRecurrences.map((r) => `${String(r.item || "?")}: ${String(r.count || 0)} recurrences`),
+        data.run_report ? `run_report: ${String(data.run_report)}` : "",
+    ].filter(Boolean);
+    if (status === "PASS") {
+        return formatCommandOutput("PASS", whyLines, i18n(lang, "No recurrence patterns detected. Governance is stable.", "未偵測到重複模式。治理狀態穩定。"), ["/gov_audit"]);
+    }
+    const menuLines = menuItems.length > 0
+        ? menuItems.map((m) => `${String(m.id || "??")}  ${String(m.title || "?")}`)
+        : [];
+    return formatCommandOutput("READY_WITH_WARNING", [
+        ...whyLines,
+        menuLines.length > 0 ? `upgrade_menu:\n${menuLines.map((l) => `- ${l}`).join("\n")}` : "",
+    ].filter(Boolean), i18n(lang, "Recurrences detected. Apply an upgrade item to harden governance.", "偵測到重複模式。套用升級項目以強化治理。"), menuItems.length > 0
+        ? [`/gov_apply ${String(menuItems[0].id || "01")}`, "/gov_boot_audit"]
+        : ["/gov_boot_audit"]);
+}
+async function makeGovBrainAuditCommandResponse(ctx) {
+    const lang = pickCommandLanguage(ctx);
+    const mode = parseModeArg(ctx);
+    const validModes = ["preview", "approve", "rollback", "force-accept", ""];
+    if (mode && !validModes.includes(mode)) {
+        return formatCommandOutput("BLOCKED", [
+            i18n(lang, `Invalid mode: ${mode}. Use preview, approve, rollback, or force-accept.`, `無效模式：${mode}。請使用 preview、approve、rollback 或 force-accept。`),
+        ], i18n(lang, "Retry with a valid mode.", "請使用有效模式重試。"), ["/gov_brain_audit", "/skill gov_brain_audit"]);
+    }
+    if (mode === "force-accept") {
+        // Clear all gates and set module-level force-accept bypass
+        forceAcceptUntil = Date.now() + STATE_TTL_MS;
+        // Clear gates in all active session states
+        let clearedSessions = 0;
+        for (const [, st] of states) {
+            st.planSeen = true;
+            st.readSeen = true;
+            st.brainAuditRequiredUntil = 0;
+            st.brainAuditRequiredReason = undefined;
+            st.blockedWrites = 0;
+            st.highRiskBlockedWrites = 0;
+            st.sameBlockCount = 0;
+            st.forceAcceptCount += 1;
+            clearedSessions += 1;
+        }
+        return formatCommandOutput("READY_WITH_WARNING", [
+            i18n(lang, "Force-accept activated. All governance gates cleared for this session. Governance protection is reduced — proceed with caution.", "強制通過已啟動。本 session 所有 governance 閘門已清除。Governance 保護已降低，請謹慎操作。"),
+            i18n(lang, `Sessions cleared: ${clearedSessions}`, `已清除 session 數：${clearedSessions}`),
+        ], i18n(lang, "Governance gates cleared. You may proceed with writes.", "Governance 閘門已清除，你可以繼續寫入。"), ["/gov_brain_audit", "/gov_audit"]);
+    }
+    if (mode === "approve" || mode === "rollback") {
+        return formatCommandOutput("INFO", [
+            i18n(lang, `Mode "${mode}" delegates to LLM SKILL for interactive approval/rollback workflow.`, `模式「${mode}」委派給 LLM SKILL 進行互動式審批/回滾流程。`),
+        ], i18n(lang, "Use preview for deterministic health score, or invoke SKILL for interactive workflow.", "使用 preview 取得確定性健康分數，或使用 SKILL 進行互動式流程。"), ["/gov_brain_audit", `/skill gov_brain_audit ${mode}`]);
+    }
+    const runner = await runInProcessRunner("tools/gov_brain_audit_sync.mjs", "runGovBrainAuditSync", ["preview", configuredScannerTolerance]);
+    if (!runner.ok || !runner.data) {
+        return formatCommandOutput("BLOCKED", [i18n(lang, `deterministic runner failed: ${runner.err || "unknown error"}`, `deterministic runner 失敗：${runner.err || "未知錯誤"}`)], i18n(lang, "Check plugin install path and retry.", "請檢查 plugin 安裝路徑後重試。"), ["/gov_setup check", "/gov_brain_audit"]);
+    }
+    const data = runner.data;
+    const status = String(data.status || "BLOCKED").toUpperCase();
+    const healthScore = Number(data.health_score ?? 0);
+    const filesScanned = Number(data.files_scanned ?? 0);
+    const summary = (data.findings_summary && typeof data.findings_summary === "object")
+        ? data.findings_summary
+        : { high: 0, medium: 0, low: 0, total: 0 };
+    const findings = Array.isArray(data.findings)
+        ? data.findings
+        : [];
+    const whyLines = [
+        `health_score: ${healthScore}/100`,
+        `files_scanned: ${filesScanned}`,
+        `findings: ${String(summary.high ?? 0)} HIGH, ${String(summary.medium ?? 0)} MEDIUM, ${String(summary.low ?? 0)} LOW`,
+        ...findings.slice(0, 5).map((f) => `${String(f.id || "?")} | ${String(f.severity || "?").toUpperCase()} | ${String(f.rule || "?")} | ${String(f.file || "?")}:${String(f.line || 0)}`),
+        findings.length > 5 ? `... and ${findings.length - 5} more` : "",
+        data.run_report ? `run_report: ${String(data.run_report)}` : "",
+    ].filter(Boolean);
+    if (status === "PASS") {
+        return formatCommandOutput("PASS", whyLines, i18n(lang, "Brain docs are healthy. No findings detected.", "Brain docs 健康。未偵測到問題。"), ["/gov_audit"]);
+    }
+    const findingIds = findings.slice(0, 5).map((f) => String(f.id || "")).filter(Boolean).join(",");
+    if (status === "WARN") {
+        return formatCommandOutput("READY_WITH_WARNING", whyLines, i18n(lang, "Review findings above, then approve or use SKILL to review.", "請檢視上方問題，然後審批或使用 SKILL 檢視。"), findingIds
+            ? [`/gov_brain_audit approve ${findingIds}`, "/skill gov_brain_audit"]
+            : ["/skill gov_brain_audit", "/gov_brain_audit"]);
+    }
+    return formatCommandOutput("BLOCKED", whyLines, i18n(lang, "Brain docs have critical findings. Approve fixes or use SKILL to review.", "Brain docs 有嚴重問題。批准修正或使用 SKILL 檢視。"), findingIds
+        ? [`/gov_brain_audit approve ${findingIds}`, "/skill gov_brain_audit"]
+        : ["/skill gov_brain_audit", "/gov_brain_audit"]);
+}
+async function makeGovOpenclawJsonCommandResponse(ctx) {
+    const lang = pickCommandLanguage(ctx);
+    const mode = parseModeArg(ctx);
+    const validModes = ["check", "apply", ""];
+    if (mode && !validModes.includes(mode)) {
+        return formatCommandOutput("BLOCKED", [
+            i18n(lang, `Invalid mode: ${mode}. Use check or apply.`, `無效模式：${mode}。請使用 check 或 apply。`),
+        ], i18n(lang, "Retry with a valid mode.", "請使用有效模式重試。"), ["/gov_openclaw_json check", "/skill gov_openclaw_json"]);
+    }
+    if (mode === "apply" || mode === "") {
+        return formatCommandOutput("INFO", [
+            i18n(lang, `Mode "${mode || "default"}" delegates to LLM SKILL for interactive platform config editing.`, `模式「${mode || "default"}」委派給 LLM SKILL 進行互動式平台設定。`),
+        ], i18n(lang, "Use check for deterministic health score, or invoke SKILL for interactive config.", "使用 check 取得確定性健康分數，或使用 SKILL 進行互動式設定。"), ["/gov_openclaw_json check", "/skill gov_openclaw_json"]);
+    }
+    const runner = await runInProcessRunner("tools/gov_openclaw_json_sync.mjs", "runGovOpenclawJsonSync", ["check"]);
+    if (!runner.ok || !runner.data) {
+        return formatCommandOutput("BLOCKED", [i18n(lang, `deterministic runner failed: ${runner.err || "unknown error"}`, `deterministic runner 失敗：${runner.err || "未知錯誤"}`)], i18n(lang, "Check plugin install path and retry.", "請檢查 plugin 安裝路徑後重試。"), ["/gov_setup check", "/gov_openclaw_json check"]);
+    }
+    const data = runner.data;
+    const status = String(data.status || "BLOCKED").toUpperCase();
+    const healthScore = Number(data.health_score ?? 0);
+    const dimensions = Array.isArray(data.dimensions)
+        ? data.dimensions
+        : [];
+    const configRefScan = data.configRefScan;
+    const whyLines = [
+        `health_score: ${healthScore}/10`,
+        ...dimensions.map((d) => `${String(d.name || "unknown")}: ${String(d.score ?? 0)}/${String(d.max ?? 0)}`),
+        data.run_report ? `run_report: ${String(data.run_report)}` : "",
+        configRefScan ? `config_ref_scan: local_doc_found=${String(configRefScan.local_doc_found ?? false)}, skills_dir=${String(configRefScan.skills_dir_exists ?? false)}` : "",
+        ...(configRefScan?.local_doc_paths?.length ? configRefScan.local_doc_paths.map((p) => `config_ref_docs: ${p}`) : []),
+    ].filter(Boolean);
+    if (status === "PASS") {
+        return formatCommandOutput("PASS", whyLines, i18n(lang, "Platform health is optimal. Proceed with setup or audit.", "平台健康狀態最佳。請繼續 setup 或 audit。"), ["/gov_setup check", "/gov_audit"]);
+    }
+    if (status === "READY_WITH_WARNING") {
+        return formatCommandOutput("READY_WITH_WARNING", whyLines, i18n(lang, "Platform config needs attention. Use SKILL to fix, then recheck.", "平台設定需要修正。使用 SKILL 修正後重新檢查。"), ["/skill gov_openclaw_json", "/gov_openclaw_json check"]);
+    }
+    return formatCommandOutput("BLOCKED", whyLines, i18n(lang, "Platform config is critically incomplete. Use SKILL to configure.", "平台設定嚴重不完整。請使用 SKILL 進行設定。"), ["/skill gov_openclaw_json", "/gov_openclaw_json check"]);
+}
+function registerDeterministicGovCommands(api) {
+    if (typeof api.registerCommand !== "function") {
+        api.logger.warn("[governance-command] registerCommand API unavailable; falling back to skill-only mode.");
+        return;
+    }
+    api.registerCommand({
+        name: "gov_help",
+        description: "Governance command catalog and one-click entrypoints.",
+        acceptsArgs: false,
+        requireAuth: true,
+        handler: async (ctx) => ({ text: await makeGovHelpCommandResponse(ctx) }),
+    });
+    api.registerCommand({
+        name: "gov_setup",
+        description: "Deterministic governance setup/check/upgrade runner.",
+        acceptsArgs: true,
+        requireAuth: true,
+        handler: async (ctx) => ({ text: await makeGovSetupCommandResponse(ctx) }),
+    });
+    api.registerCommand({
+        name: "gov_migrate",
+        description: "Deterministic governance migration runner.",
+        acceptsArgs: false,
+        requireAuth: true,
+        handler: async (ctx) => ({ text: await makeGovMigrateCommandResponse(ctx) }),
+    });
+    api.registerCommand({
+        name: "gov_audit",
+        description: "Deterministic governance audit runner.",
+        acceptsArgs: false,
+        requireAuth: true,
+        handler: async (ctx) => ({ text: await makeGovAuditCommandResponse(ctx) }),
+    });
+    api.registerCommand({
+        name: "gov_uninstall",
+        description: "Deterministic governance uninstall/check runner.",
+        acceptsArgs: true,
+        requireAuth: true,
+        handler: async (ctx) => ({ text: await makeGovUninstallCommandResponse(ctx) }),
+    });
+    api.registerCommand({
+        name: "gov_openclaw_json",
+        description: "Hybrid platform config: check=deterministic health score, apply/default=SKILL.",
+        acceptsArgs: true,
+        requireAuth: true,
+        handler: async (ctx) => ({ text: await makeGovOpenclawJsonCommandResponse(ctx) }),
+    });
+    api.registerCommand({
+        name: "gov_brain_audit",
+        description: "Hybrid brain docs audit: preview=deterministic health score, approve/rollback=SKILL.",
+        acceptsArgs: true,
+        requireAuth: true,
+        handler: async (ctx) => ({ text: await makeGovBrainAuditCommandResponse(ctx) }),
+    });
+    api.registerCommand({
+        name: "gov_boot_audit",
+        description: "Deterministic BOOT recurrence scanner with upgrade menu generation.",
+        acceptsArgs: true,
+        requireAuth: true,
+        handler: async (ctx) => ({ text: await makeGovBootAuditCommandResponse(ctx) }),
+    });
+    api.registerCommand({
+        name: "gov_apply",
+        description: "Deterministic BOOT-approved governance apply runner.",
+        acceptsArgs: true,
+        requireAuth: true,
+        handler: async (ctx) => ({ text: await makeGovApplyCommandResponse(ctx) }),
+    });
+    api.logger.info("[governance-command] registered deterministic commands: gov_help, gov_setup, gov_migrate, gov_audit, gov_uninstall, gov_openclaw_json, gov_brain_audit, gov_boot_audit, gov_apply");
+}
+function maybePruneExpiredStates() {
+    const now = Date.now();
+    if (now - lastPruneAt < PRUNE_INTERVAL_MS)
+        return;
+    lastPruneAt = now;
+    for (const [key, state] of states.entries()) {
+        if (now - state.updatedAt > STATE_TTL_MS)
+            states.delete(key);
+    }
+}
+export default function registerWorkspaceGovernancePlugin(api) {
+    // Reset module-level globals on re-registration (fresh plugin instance)
+    globalGovBypassUntil = 0;
+    globalGovBypassWritesLeft = 0;
+    globalGovSetupFlowUntil = 0;
+    forceAcceptUntil = 0;
+    states.clear();
+    const cfg = (api.pluginConfig || {});
+    registerDeterministicGovCommands(api);
+    const runtimeGateEnabled = cfg.runtimeGateEnabled !== false;
+    const runtimeGatePolicy = buildRuntimeGatePolicy(cfg.runtimeGatePolicy, api.logger);
+    const toolExposureGuard = buildToolExposureGuard(cfg.toolExposureGuard, api.logger);
+    const toleranceRaw = String(cfg.scannerTolerance || "tolerant").trim().toLowerCase();
+    configuredScannerTolerance = (toleranceRaw === "strict" || toleranceRaw === "lenient") ? toleranceRaw : "tolerant";
+    if (!runtimeGateEnabled) {
+        api.logger.warn("[governance-gate] runtime hard gate is disabled by plugin config.");
+        return;
+    }
+    api.logger.info("[governance-gate] registering hooks: before_prompt_build, before_tool_call, agent_end");
+    if (hasCliUpdateArgvIntent()) {
+        const lang = detectEnvLanguage();
+        api.logger.warn(i18n(lang, "[governance-gate] Update detected. Next step: /gov_setup quick -> (if allowlist not ready) /gov_openclaw_json -> /gov_setup quick. Manual fallback: /gov_setup check -> /gov_setup upgrade -> /gov_migrate -> /gov_audit", "[governance-gate] 偵測到 update。下一步：/gov_setup quick ->（若 allowlist 未就緒）/gov_openclaw_json -> /gov_setup quick。手動備援：/gov_setup check -> /gov_setup upgrade -> /gov_migrate -> /gov_audit"));
+    }
+    api.on("before_prompt_build", (event, ctx) => {
+        maybePruneExpiredStates();
+        const sessionKey = toSessionKey(ctx);
+        const state = ensureState(sessionKey);
+        const tailMessages = Array.isArray(event.messages) ? event.messages.slice(-10) : [];
+        const tailText = flattenText(tailMessages).toLowerCase();
+        const userText = latestUserText(event.messages);
+        const latestUserTurn = latestUserTurnText(event.messages);
+        state.uxLang = detectUxLanguage(`${latestUserTurn}\n${userText}`);
+        const govRequestKindUser = detectGovRequestKind(userText);
+        const govRequestKindTail = detectGovRequestKind(tailText);
+        const govRequestKind = govRequestKindUser !== "none" ? govRequestKindUser : govRequestKindTail;
+        const setupRequestKindUser = detectGovCommandKindByName(latestUserTurn, "gov_setup");
+        const setupRequestKindTail = detectGovCommandKindByName(tailText, "gov_setup");
+        const setupModeUser = detectGovCommandMode(latestUserTurn, "gov_setup");
+        const setupUpgradeIntentUser = isGovSetupUpgradeIntent(latestUserTurn);
+        const updateIntentUser = isUpdateIntentText(latestUserTurn) || isUpdateIntentText(userText);
+        const migrateKindUser = detectGovCommandKindByName(latestUserTurn, "gov_migrate");
+        const auditKindUser = detectGovCommandKindByName(latestUserTurn, "gov_audit");
+        const brainAuditKindUser = detectGovCommandKindByName(latestUserTurn, "gov_brain_audit");
+        const cronIntentUser = isCronIntent(latestUserTurn) || isCronIntent(userText);
+        const hostMaintenanceIntentUser = isHostMaintenanceIntent(latestUserTurn) || isHostMaintenanceIntent(userText);
+        const runtimePolicyAllowIntentUser = hasRuntimePolicyAllowIntent(latestUserTurn, runtimeGatePolicy) ||
+            hasRuntimePolicyAllowIntent(userText, runtimeGatePolicy);
+        const modeCRequired = !cronIntentUser &&
+            !hostMaintenanceIntentUser &&
+            !runtimePolicyAllowIntentUser &&
+            (inferWriteIntent(userText) || govRequestKindTail === "write");
+        const explicitGovCommandRequested = govRequestKindUser !== "none" || govRequestKindTail !== "none";
+        const explicitGovEntrypoint = govRequestKind === "write" || govRequestKindTail === "write";
+        const now = Date.now();
+        const permissiveContextMatches = matchedPermissivePolicyContexts(ctx, `${latestUserTurn}\n${tailText}`, toolExposureGuard);
+        // A3: Reset stale blocked-writes counter when a new user turn starts (>30s gap)
+        if (state.blockedWrites > 0 && now - state.updatedAt > 30_000) {
+            state.blockedWrites = 0;
+            state.highRiskBlockedWrites = 0;
+            state.sameBlockCount = 0;
+        }
+        state.planSeen = state.planSeen || hasPlanEvidence(tailText);
+        state.readSeen = state.readSeen || hasReadEvidence(tailText);
+        if (brainAuditKindUser === "none") {
+            const setupUpgradeRequested = setupModeUser === "upgrade";
+            const migrateRequested = migrateKindUser === "write";
+            const auditRequested = auditKindUser === "read";
+            // A7: Post-gov-command triggers advisory nudge (not hard block)
+            if (setupUpgradeRequested || migrateRequested || auditRequested) {
+                state.brainAuditNudgedAt = 0; // Reset cooldown so nudge fires immediately on next write
+            }
+            // Only repeated high-risk blocked writes triggers hard requirement (safety net)
+            if (state.highRiskBlockedWrites >= BRAIN_AUDIT_BLOCK_THRESHOLD) {
+                markBrainAuditRequired(state, "repeated blocked writes", now);
+            }
+        }
+        else {
+            state.brainAuditNudgedAt = now;
+            if (brainAuditKindUser === "read") {
+                state.brainAuditPreviewSeenAt = now;
+                state.brainAuditRequiredUntil = 0;
+                state.brainAuditRequiredReason = undefined;
+                state.blockedWrites = 0;
+                state.highRiskBlockedWrites = 0;
+            }
+        }
+        if (explicitGovCommandRequested) {
+            state.govCommandIntentUntil = now + GOV_COMMAND_INTENT_WINDOW_MS;
+        }
+        if (explicitGovEntrypoint) {
+            // gov_* entrypoints are dedicated governance workflows; allow them to execute
+            // their own PLAN/READ/CHANGE/QC/PERSIST steps without deadlocking at tool gate.
+            state.govEntrypointSeen = true;
+            state.govBypassUntil = now + GOV_BYPASS_WINDOW_MS;
+            state.govBypassWritesLeft = GOV_BYPASS_MAX_WRITES;
+            globalGovBypassUntil = now + GOV_BYPASS_WINDOW_MS;
+            globalGovBypassWritesLeft = GOV_BYPASS_MAX_WRITES;
+        }
+        if (setupRequestKindUser === "write" ||
+            setupRequestKindTail === "write" ||
+            setupUpgradeIntentUser) {
+            globalGovSetupFlowUntil = now + GOV_SETUP_FLOW_WINDOW_MS;
+        }
+        if (updateIntentUser) {
+            state.postUpdateReminderPending = true;
+            state.postUpdateReminderAt = now;
+        }
+        state.updatedAt = now;
+        states.set(sessionKey, state);
+        const enforceUpgradeRule = setupModeUser === "upgrade" || setupUpgradeIntentUser;
+        const upgradeDirectiveText = enforceUpgradeRule
+            ? govSetupUpgradeHardRuleText(state.uxLang)
+            : "";
+        if (state.postUpdateReminderPending) {
+            if (now - state.postUpdateReminderAt <= POST_UPDATE_REMINDER_WINDOW_MS) {
+                state.postUpdateReminderPending = false;
+                state.updatedAt = now;
+                states.set(sessionKey, state);
+                return {
+                    prependContext: postUpdateReminderText(state.uxLang) +
+                        (upgradeDirectiveText ? ` ${upgradeDirectiveText}` : ""),
+                };
+            }
+            state.postUpdateReminderPending = false;
+            state.postUpdateReminderAt = 0;
+        }
+        if (upgradeDirectiveText) {
+            return {
+                prependContext: upgradeDirectiveText,
+            };
+        }
+        const modeBDetected = isModeBSystemSensitive(latestUserTurn) && !modeCRequired;
+        if (modeBDetected) {
+            const modeBDirective = i18n(state.uxLang, "Mode B enforcement: system/version/time-sensitive question detected. You MUST verify your answer against authoritative sources (official docs, release pages, runtime context) before responding. Include a source reference (URL or file path) in your answer. Do not guess or rely on training data for version-sensitive claims.", "Mode B 強制：偵測到系統/版本/時間敏感問題。回答前你必須先向權威來源（官方文件、release 頁面、runtime context）驗證。在回答中附上來源參考（URL 或檔案路徑）。勿猜測或依賴訓練資料回答版本敏感聲明。");
+            return {
+                prependContext: modeBDirective,
+            };
+        }
+        const brainAuditRequired = isBrainAuditRequirementActive(state, now);
+        if (brainAuditRequired && modeCRequired && !explicitGovEntrypoint && !setupUpgradeIntentUser) {
+            const ctx = i18n(state.uxLang, "Automatic governance health-check is active for this session. First action in this turn MUST be /gov_brain_audit (read-only preview). Do not run any write-capable step before it. After preview, continue your requested task (or use /gov_brain_audit approve ... if you approve fixes). ", "此 session 已啟用自動 governance 健康檢查。本輪第一步必須先 /gov_brain_audit（只讀預覽）。在此之前不要執行任何可寫步驟。預覽後再繼續你的任務（或在你同意後使用 /gov_brain_audit approve ...）。");
+            return {
+                prependContext: ctx +
+                    (state.brainAuditRequiredReason
+                        ? i18n(state.uxLang, `Trigger: ${state.brainAuditRequiredReason}. `, `觸發原因：${state.brainAuditRequiredReason}。`)
+                        : "") +
+                    i18n(state.uxLang, "Fallback: /skill gov_brain_audit.", "備援：/skill gov_brain_audit。"),
+            };
+        }
+        if (!brainAuditRequired &&
+            state.brainAuditPreviewSeenAt === 0 &&
+            modeCRequired &&
+            now - state.brainAuditNudgedAt > BRAIN_AUDIT_NUDGE_COOLDOWN_MS) {
+            state.brainAuditNudgedAt = now;
+            state.updatedAt = now;
+            states.set(sessionKey, state);
+            return {
+                prependContext: i18n(state.uxLang, "For Brain Docs changes, consider /gov_brain_audit preview for a health check. Then proceed directly with your task.", "如涉及 Brain Docs 變更，可考慮先 /gov_brain_audit 預覽健康檢查。然後直接繼續你的任務。"),
+            };
+        }
+        if (modeCRequired &&
+            !explicitGovEntrypoint &&
+            !setupUpgradeIntentUser &&
+            (!state.planSeen || !state.readSeen)) {
+            const routeHints = [];
+            if (isPlatformChangeIntent(userText)) {
+                routeHints.push(i18n(state.uxLang, "For platform control-plane changes, consider routing via /gov_openclaw_json.", "如涉及平台控制面變更，可考慮走 /gov_openclaw_json。"));
+            }
+            if (isBrainAuditIntent(userText)) {
+                routeHints.push(i18n(state.uxLang, "For Brain Docs changes, consider /gov_brain_audit preview first.", "如涉及 Brain Docs 變更，可先 /gov_brain_audit 預覽。"));
+            }
+            const routeHintText = routeHints.length > 0 ? ` ${routeHints.join(" ")}` : "";
+            return {
+                prependContext: i18n(state.uxLang, "Write intent detected. Best practice: follow PLAN→READ→CHANGE→QC→PERSIST internally. (1) Plan your approach, (2) read relevant files, (3) make changes, (4) verify quality, (5) persist with run report if appropriate. Proceed directly with the user's task. Do NOT ask the user for gate tokens or to run /gov_* commands — these are internal governance mechanisms, not user-facing requirements.", "偵測到寫入意圖。最佳實踐：內部遵循 PLAN→READ→CHANGE→QC→PERSIST。(1) 規劃你的方法，(2) 讀取相關檔案，(3) 執行變更，(4) 驗證品質，(5) 適時以 run report 持久化。直接處理使用者的任務。不要要求使用者輸入 gate token 或執行 /gov_* 指令 — 這些是內部治理機制，不是使用者需求。") +
+                    routeHintText,
+            };
+        }
+        if (toolExposureGuard.enabled &&
+            permissiveContextMatches.length > 0 &&
+            !explicitGovCommandRequested &&
+            now - state.toolExposureWarnedAt > TOOL_EXPOSURE_ADVISORY_COOLDOWN_MS) {
+            state.toolExposureWarnedAt = now;
+            state.updatedAt = now;
+            states.set(sessionKey, state);
+            return {
+                prependContext: toolExposureAdvisoryText(state.uxLang, permissiveContextMatches, toolExposureGuard.requireExplicitGovCommandIntent),
+            };
+        }
+        return;
+    }, { priority: 200 });
+    api.on("before_tool_call", (event, ctx) => {
+        maybePruneExpiredStates();
+        const sessionKey = toSessionKey(ctx);
+        const state = ensureState(sessionKey);
+        const now = Date.now();
+        const toolName = (event.toolName || "").toLowerCase();
+        const shellLike = isShellLikeTool(toolName);
+        const shellCommand = shellLike
+            ? flattenText(event.params?.command || "")
+            : "";
+        if (shellLike && isUpdateCommandNeedingGovReminder(shellCommand)) {
+            state.postUpdateReminderPending = true;
+            state.postUpdateReminderAt = now;
+            state.updatedAt = now;
+            states.set(sessionKey, state);
+        }
+        if (isReadToolCall(event)) {
+            state.readSeen = true;
+            state.updatedAt = now;
+            states.set(sessionKey, state);
+        }
+        const permissiveContextMatches = matchedPermissivePolicyContexts(ctx, "", toolExposureGuard);
+        const isImplicitGovernanceToolCall = isGovernancePluginToolCall(event) &&
+            !(toolExposureGuard.allowExplicitGovCommands &&
+                (now <= state.govCommandIntentUntil || hasExplicitGovCommandPayload(event)));
+        const shouldBlockImplicitGovernanceToolCall = isImplicitGovernanceToolCall &&
+            (toolExposureGuard.requireExplicitGovCommandIntent ||
+                permissiveContextMatches.length > 0);
+        if (toolExposureGuard.enabled &&
+            shouldBlockImplicitGovernanceToolCall) {
+            if (toolExposureGuard.mode === "advisory") {
+                api.logger.warn(`[governance-gate] tool-exposure advisory only: ${toolExposureAdvisoryText(state.uxLang, permissiveContextMatches, toolExposureGuard.requireExplicitGovCommandIntent)}`);
+            }
+            else {
+                state.blockedWrites += 1;
+                state.lastWriteTool = event.toolName;
+                state.updatedAt = now;
+                states.set(sessionKey, state);
+                return {
+                    block: true,
+                    blockReason: toolExposureBlockReason(state.uxLang, permissiveContextMatches, toolExposureGuard.requireExplicitGovCommandIntent),
+                };
+            }
+        }
+        if (!isWriteToolCall(event))
+            return;
+        const isOpenClawSystemChannel = shellLike && isOpenClawHostMaintenanceCommand(shellCommand);
+        const runtimePolicyDenied = shellLike && isRuntimePolicyDeniedCommand(shellCommand, runtimeGatePolicy);
+        if (runtimePolicyDenied && isOpenClawSystemChannel) {
+            api.logger.warn(`[governance-gate] runtimeGatePolicy deny matched but ignored for openclaw system channel command: ${shellCommand}`);
+        }
+        if (runtimePolicyDenied && !isOpenClawSystemChannel) {
+            state.blockedWrites += 1;
+            state.lastWriteTool = event.toolName;
+            state.updatedAt = now;
+            states.set(sessionKey, state);
+            return {
+                block: true,
+                blockReason: runtimePolicyBlockReason(state.uxLang),
+            };
+        }
+        const canBypassGovEntrypoint = state.govEntrypointSeen &&
+            now <= state.govBypassUntil &&
+            state.govBypassWritesLeft > 0;
+        const canBypassGlobalGovEntrypoint = now <= globalGovBypassUntil && globalGovBypassWritesLeft > 0;
+        const canBypassGovSetupDeploy = now <= globalGovSetupFlowUntil &&
+            isGovSetupAssetDeployCommand(shellCommand);
+        const canBypassGovernanceLifecycleWrite = isGovernanceLifecycleWriteToolCall(event);
+        const canBypassCron = isCronToolCall(event);
+        const canBypassHostMaintenance = shellLike &&
+            isOpenClawSystemChannel;
+        const canBypassRuntimePolicyAllow = shellLike &&
+            isRuntimePolicyAllowedCommand(shellCommand, runtimeGatePolicy);
+        const canBypassAny = canBypassGovEntrypoint ||
+            canBypassGlobalGovEntrypoint ||
+            canBypassGovSetupDeploy ||
+            canBypassGovernanceLifecycleWrite ||
+            canBypassCron ||
+            canBypassHostMaintenance ||
+            canBypassRuntimePolicyAllow;
+        // B: force-accept bypass
+        const canBypassForceAccept = now <= forceAcceptUntil;
+        if (canBypassForceAccept) {
+            state.writeSeen = true;
+            state.lastWriteTool = event.toolName;
+            state.updatedAt = now;
+            states.set(sessionKey, state);
+            return;
+        }
+        // A4: Brain audit requirement — advisory only (prompt-build already guided user)
+        if (isBrainAuditRequirementActive(state, now) && !canBypassAny) {
+            api.logger.warn(`[governance-gate] brain audit suggested but not blocking write`);
+            state.brainAuditRequiredUntil = 0;
+            state.brainAuditRequiredReason = undefined;
+            // Fall through — allow the write
+        }
+        const compliant = state.planSeen && state.readSeen;
+        if (!compliant) {
+            if (canBypassGovEntrypoint) {
+                state.govBypassWritesLeft -= 1;
+                state.writeSeen = true;
+                state.lastWriteTool = event.toolName;
+                state.updatedAt = now;
+                states.set(sessionKey, state);
+                return;
+            }
+            if (canBypassGlobalGovEntrypoint ||
+                canBypassGovSetupDeploy ||
+                canBypassGovernanceLifecycleWrite ||
+                canBypassCron ||
+                canBypassHostMaintenance ||
+                canBypassRuntimePolicyAllow) {
+                if (canBypassGlobalGovEntrypoint && globalGovBypassWritesLeft > 0) {
+                    globalGovBypassWritesLeft -= 1;
+                }
+                state.writeSeen = true;
+                state.lastWriteTool = event.toolName;
+                state.updatedAt = now;
+                states.set(sessionKey, state);
+                return;
+            }
+            // Risk-tiered write gate: normal writes are ALWAYS advisory, high-risk writes block after 2 advisories
+            state.blockedWrites += 1;
+            const highRisk = isHighRiskTarget(event);
+            if (!highRisk) {
+                // Normal writes (skills/, projects/, _runs/, code): ALWAYS advisory, never hard block
+                api.logger.warn(`[governance-gate] write without PLAN/READ evidence — advisory only (normal target, attempt ${state.blockedWrites})`);
+                state.writeSeen = true;
+                state.lastWriteTool = event.toolName;
+                state.updatedAt = now;
+                states.set(sessionKey, state);
+                return;
+            }
+            // High-risk writes (_control/, Brain Docs, governance prompts, openclaw.json)
+            // Use separate counter so normal writes don't inflate the high-risk advisory window
+            state.highRiskBlockedWrites += 1;
+            // A5: First 2 high-risk attempts are advisory
+            if (state.highRiskBlockedWrites <= 2) {
+                api.logger.warn(`[governance-gate] high-risk write without PLAN/READ evidence (advisory ${state.highRiskBlockedWrites}/2)`);
+                state.writeSeen = true;
+                state.lastWriteTool = event.toolName;
+                state.updatedAt = now;
+                states.set(sessionKey, state);
+                return;
+            }
+            // B2: Track consecutive same-block for escape hint
+            const blockKey = "MODE_C_GATE";
+            if (state.lastBlockReason === blockKey) {
+                state.sameBlockCount += 1;
+            }
+            else {
+                state.lastBlockReason = blockKey;
+                state.sameBlockCount = 1;
+            }
+            state.lastWriteTool = event.toolName;
+            state.updatedAt = now;
+            states.set(sessionKey, state);
+            return {
+                block: true,
+                blockReason: governanceBlockReason(state, state.uxLang),
+            };
+        }
+        state.writeSeen = true;
+        state.lastWriteTool = event.toolName;
+        state.updatedAt = now;
+        states.set(sessionKey, state);
+        return;
+    }, { priority: 250 });
+    api.on("agent_end", (event, ctx) => {
+        maybePruneExpiredStates();
+        const sessionKey = toSessionKey(ctx);
+        const state = ensureState(sessionKey);
+        const messageText = flattenText(event.messages).toLowerCase();
+        const hasFilesRead = messageText.includes("files_read") || messageText.includes("files read");
+        const hasTargets = messageText.includes("target_files_to_change") ||
+            messageText.includes("target files to change");
+        const hasRunReport = messageText.includes("_runs/");
+        if (state.writeSeen && (!hasFilesRead || !hasTargets || !hasRunReport)) {
+            api.logger.warn(`[governance-gate] session=${sessionKey} write completed with incomplete evidence (FILES_READ/TARGET_FILES_TO_CHANGE/_runs).`);
+        }
+        if (state.blockedWrites > 0) {
+            api.logger.info(`[governance-gate] session=${sessionKey} blocked_writes=${state.blockedWrites} last_write_tool=${state.lastWriteTool || "unknown"}`);
+        }
+        // Task-level carryover: keep PLAN/READ evidence for short follow-up turns.
+        // Reset after an explicit completion-like summary appears.
+        if (messageText.includes("_runs/") &&
+            (messageText.includes("12/12") || messageText.includes("qc"))) {
+            state.planSeen = false;
+            state.readSeen = false;
+            state.writeSeen = false;
+            state.blockedWrites = 0;
+            state.highRiskBlockedWrites = 0;
+        }
+        // gov_* bypass is single-turn scoped.
+        state.govEntrypointSeen = false;
+        state.govBypassUntil = 0;
+        state.govBypassWritesLeft = 0;
+        state.govCommandIntentUntil = 0;
+        if (Date.now() > globalGovBypassUntil) {
+            globalGovBypassWritesLeft = 0;
+        }
+        if (Date.now() > globalGovSetupFlowUntil) {
+            globalGovSetupFlowUntil = 0;
+        }
+        state.updatedAt = Date.now();
+        states.set(sessionKey, state);
+    }, { priority: 50 });
+}

@@ -204,13 +204,16 @@ function parseBulletList(sectionText) {
     .filter(Boolean);
 }
 
-function parseRunReportMeta(text) {
+function parseRunReportMeta(text, tolerance) {
   const meta = {};
   for (const raw of String(text || "").split(/\r?\n/)) {
     const line = raw.trim();
     if (!line) continue;
-    if (line.startsWith("## ")) break;
-    const m = line.match(/^-\s+([A-Za-z0-9_]+):\s*(.*)$/);
+    if (/^#{1,6}\s+/.test(line)) break;
+    const re = tolerance === "strict"
+      ? /^-\s+([A-Za-z0-9_]+):\s*(.*)$/
+      : /^(?:[-*•]\s+)?([A-Za-z0-9_]+):\s*(.*)$/;
+    const m = line.match(re);
     if (!m) continue;
     meta[String(m[1]).toLowerCase()] = String(m[2] || "").trim();
   }
@@ -321,7 +324,8 @@ function writeRunReport(params) {
   fs.writeFileSync(runReportPath, `${lines.join("\n")}\n`, "utf8");
 }
 
-function executeGovAuditSync() {
+function executeGovAuditSync(toleranceInput) {
+  const tolerance = String(toleranceInput || "tolerant").trim().toLowerCase();
   const ts = nowStamp();
   const openclawJsonPath = detectOpenclawJsonPath();
   const workspaceRoot = detectWorkspaceRoot(openclawJsonPath);
@@ -367,7 +371,7 @@ function executeGovAuditSync() {
 
   const latestWrite = findLatestWriteRunReport(workspaceRoot, runRelPath);
   const latestWriteText = latestWrite?.text || "";
-  const latestWriteMeta = parseRunReportMeta(latestWriteText);
+  const latestWriteMeta = parseRunReportMeta(latestWriteText, tolerance);
   const latestWriteStatus = String(latestWriteMeta.status || "").toUpperCase();
   const latestWriteTargets = parseBulletList(
     extractMarkdownSection(latestWriteText, "TARGET_FILES_TO_CHANGE"),
@@ -662,8 +666,8 @@ function executeGovAuditSync() {
   };
 }
 
-export function runGovAuditSync() {
-  return executeGovAuditSync().result;
+export function runGovAuditSync(toleranceInput = "tolerant") {
+  return executeGovAuditSync(toleranceInput).result;
 }
 
 function isDirectRun() {
@@ -673,7 +677,7 @@ function isDirectRun() {
 
 if (isDirectRun()) {
   try {
-    const { exitCode, result } = executeGovAuditSync();
+    const { exitCode, result } = executeGovAuditSync(process.argv[2] || "tolerant");
     console.log(JSON.stringify(result, null, 2));
     if (exitCode !== 0) process.exit(exitCode);
   } catch (err) {

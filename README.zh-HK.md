@@ -16,9 +16,10 @@ ClawHub 安裝頁：
 
 | 版本 | 發佈時間（UTC） | 關鍵變更 | 對使用者的直接影響 |
 | --- | --- | --- | --- |
+| `v0.1.56` | 2026-02-25 | 建議優先 UX 改革：一般寫入永遠建議性（不硬封鎖）；硬封鎖僅針對高風險治理目標；自然語言證據偵測；prependContext 引導 AI 直接執行；封鎖訊息人性化（無機器 token）；AGENTS.md payload 從指令式改為最佳實踐 | AI 不再在一般 coding 任務中自我封鎖；使用者不再看到機器 token；治理保護高風險目標同時讓日常工作順暢 |
+| `v0.1.55` | 2026-02-25 | 預修改設定參考驗證（`configRefScan`）；嚴格度合理化（首 2 次寫入封鎖為建議性、第 3 次起硬封鎖；brain audit 視窗 30min→60s；封鎖門檻 3→5）；逃生艙（`/gov_brain_audit force-accept` 3+ 次循環後清除所有閘門）；`scannerTolerance` 設定（`strict`/`tolerant`/`lenient`）支援 LLM 格式自由度；回歸測試 108→124/124 | 寫入封鎖不再讓新用戶措手不及（首 2 次為建議性）；卡住的用戶有明確逃生路線；LLM 生成的 run reports 無論格式均可接受 |
 | `v0.1.54` | 2026-02-25 | 修正 `gov_brain_audit` 誤報：唯讀 audit run reports（audit/preview/scan）不再觸發 `COMPLETION_WITHOUT_EVIDENCE`；WARN/BLOCKED 下一步指引現在顯示實際 finding IDs；回歸測試 104/104 | 從 v0.1.53 升級的其他 runtime 不再看到來自 audit 報告的虛假 HIGH findings；操作者可直接複製正確的 APPROVE 指令 |
 | `v0.1.53` | 2026-02-25 | `/gov_help` 重新設計：ASCII art 品牌橫幅 + 完整 9 指令目錄；README 指令排序對齊；章節標題加入 emoji；ROOT SPRAWL 回歸修正（temp workspace chain tests）；回歸測試 103/103 | 用戶一眼看到全部指令目錄與品牌橫幅；emoji 標題加速 README 導覽；所有產品介面顯示一致的指令排序 |
-| `v0.1.52` | 2026-02-24 | 偵測邏輯強化：`gov_uninstall` 現在偵測全部 8 個 `_control/` 檔案引用（舊版只查 3 個）；發佈管道新增 `PLUGIN_VERSION` 常數對齊閘門；重構 brain-doc 掃描邏輯；回歸測試擴展至 100/100 | 卸載檢查/清理現在能捕捉到之前遺漏的治理殘留（如 `_control/ACTIVE_GUARDS.md` 引用）；機器閘門防止未來版本號不對齊 |
 
 來源：GitHub Releases（`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`）
 
@@ -229,6 +230,59 @@ openclaw gateway restart
 3. 改動檔案（完整治理保護）
    你要求寫入、更新或保存檔案。AI 會走完整安全流程：先規劃、讀取證據、做最小改動、驗證品質，最後留存 run report。需要時以 `/gov_migrate` 與 `/gov_audit` 收尾。
 
+## ⚡ Runtime Gate 行為（透明公開）
+
+當你要求 AI 寫入或修改檔案時，治理 runtime gate 會自動啟動。以下是完整運作方式：
+
+### 寫入保護流程
+
+| 步驟 | 發生什麼 | 用戶動作 |
+|------|----------|---------|
+| 一般寫入（skills/、projects/、代碼） | **永遠建議性** — 寫入放行並記錄警告 | 無需操作；可繼續工作 |
+| 高風險寫入（治理基礎設施、Brain Docs）第 1-2 次 | **建議性** — 寫入放行並記錄警告 | 無需操作 |
+| 高風險寫入第 3 次以上無證據 | **硬封鎖** — 寫入被攔截 | 在回覆中包含你的計劃和已讀檔案，然後重試 |
+| 同一閘門連續封鎖 3 次以上 | **逃生提示**出現在封鎖訊息中 | 使用 `/gov_brain_audit force-accept` 清除所有閘門（含稽核記錄） |
+| 執行 `/gov_setup`、`/gov_migrate`、`/gov_audit` 之後 | **建議性提示**（非硬封鎖） | 可選擇性執行 `/gov_brain_audit` 做健康檢查預覽 |
+
+### 風險分類
+
+| 風險層級 | 目標 | Runtime 行為 |
+|---------|------|-------------|
+| **高風險** | Brain Docs（`AGENTS.md`、`SOUL.md`、`USER.md`、`IDENTITY.md`、`TOOLS.md`、`MEMORY.md`、`HEARTBEAT.md`）、`openclaw.json`、`_control/*`、`prompts/governance/*` | 第 1-2 次建議性，**第 3 次起硬封鎖** |
+| **一般** | 其他所有檔案（`skills/`、`projects/`、`_runs/`、原始碼、設定、文檔等） | **永遠建議性**（不會硬封鎖） |
+
+所有寫入（無論風險層級）在內部都遵循完整的 Mode C 治理流程：PLAN→READ→CHANGE→QC→PERSIST。風險層級只決定 runtime gate 是否能硬封鎖寫入嘗試。
+
+### 逃生艙
+
+如果你在同一治理閘門被封鎖 3 次以上且無法繼續：
+```text
+/gov_brain_audit force-accept
+```
+此指令會清除當前 session 的所有治理閘門。稽核記錄會寫入 `_runs/`。治理保護降低——請謹慎操作。
+
+### 治理指令自動繞過
+
+所有治理寫入指令（`/gov_setup install`、`/gov_migrate`、`/gov_apply` 等）會自動繞過寫入閘門 8 分鐘。執行治理指令時不需要提供 PLAN/READ 證據。
+
+### Brain Audit 時序
+
+- Brain audit 要求視窗：**60 秒**（60 秒後自動清除）
+- 封鎖門檻：連續 **5** 次被封鎖的寫入才會啟動硬要求
+- 每輪重置：當提示間隔超過 30 秒時，blockedWrites 計數器重置
+
+### Scanner 容錯度
+
+如果治理掃描器因格式差異而拒絕 LLM 生成的 run reports，可在 `openclaw.json` 中設定 `scannerTolerance`：
+
+| 設定值 | 行為 |
+|--------|------|
+| `strict` | 僅接受精確機器格式（如 `files_read:`） |
+| `tolerant`（預設） | 接受 markdown 標題、項目符號、格式變體 |
+| `lenient` | 模糊關鍵字匹配，適用於較低能力的 LLM |
+
+影響範圍：`/gov_audit`、`/gov_brain_audit preview`、`/gov_boot_audit scan`。
+
 ## 🔒 安全預設
 
 1. 治理工具只在你明確請求時才啟動（透過 `/gov_*` 或 `/skill gov_*`）。它們不會自行執行。
@@ -282,9 +336,13 @@ openclaw gateway restart
 ```
 
 5. 出現 `Blocked by WORKSPACE_GOVERNANCE runtime gate...`，是不是故障？
-通常不是。先要求 AI 補齊證據再重試：
+通常不是。一般檔案寫入（skills、projects、代碼）永遠是建議性的，不會硬封鎖。硬封鎖只針對高風險治理目標（Brain Docs、`_control/`、治理 prompts、`openclaw.json`）。請要求 AI 包含計劃和已讀檔案：
 ```text
-請先輸出此寫入任務的 PLAN 與 READ 證據，包含 WG_PLAN_GATE_OK 與 WG_READ_GATE_OK，然後再繼續。
+請包含你的計劃和已讀檔案，然後繼續。
+```
+如果你被封鎖 3 次以上且無法繼續，使用逃生艙：
+```text
+/gov_brain_audit force-accept
 ```
 官方 `openclaw ...` 系統指令預設允許，不應被此 runtime gate 誤擋。
 
@@ -310,9 +368,9 @@ openclaw gateway restart
 ```
 
 8. 我以自然語言下 coding 任務時，如何減少 governance block？
-在任務開頭加上：
+直接用自然語言描述你的任務即可。AI 會在內部遵循治理最佳實踐。例如：
 ```text
-改檔前先給我 PLAN 與 READ 證據，再做最小改動，最後附 QC 證據。
+請按需要建立/更新檔案。
 ```
 
 9. 我想優化 Brain Docs，不只是改字面，應該怎樣下指令？

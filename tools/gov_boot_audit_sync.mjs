@@ -127,24 +127,26 @@ function listRunReports(runsRoot, limit) {
   return rows.slice(0, limit);
 }
 
-function parseRunReportStatus(text) {
-  const statusRe = /^\s*-?\s*status\s*:\s*(\S+)/im;
-  const m = text.match(statusRe);
+function parseRunReportStatus(text, tolerance) {
+  const re = tolerance === "strict"
+    ? /^\s*-?\s*status\s*:\s*(\S+)/im
+    : /^\s*(?:[-*•]\s+)?(?:#{1,6}\s+)?(?:\*{1,2})?status(?:\*{1,2})?\s*:\s*(\S+)/im;
+  const m = text.match(re);
   return m ? m[1].toUpperCase() : "UNKNOWN";
 }
 
 function extractQcFailedItems(text) {
   const items = [];
-  // Pattern: qc_failed_items or QC#N FAIL
-  const blockRe = /qc_failed_items\s*:/i;
+  // Pattern: qc_failed_items or QC#N FAIL — tolerant of LLM format variations
+  const blockRe = /(?:#{1,6}\s+)?qc_failed_items\b/i;
   const lines = text.split(/\r?\n/);
   let inBlock = false;
   for (const line of lines) {
     if (blockRe.test(line)) { inBlock = true; continue; }
     if (inBlock) {
-      if (!line.trim() || /^\s*[A-Z]/.test(line.replace(/^\s*-/, ""))) {
-        // Check if this is a list item or a new section
-        const itemMatch = line.match(/^\s*-\s*(.+)/);
+      if (!line.trim() || /^\s*[A-Z]/.test(line.replace(/^\s*[-*•]/, ""))) {
+        // Check if this is a list item or a new section — accept -, *, • bullets
+        const itemMatch = line.match(/^\s*[-*•]\s*(.+)/);
         if (itemMatch) {
           const val = itemMatch[1].trim();
           if (val && val !== "none") items.push(val);
@@ -170,7 +172,7 @@ function extractGuardReferences(text) {
   return [...new Set(refs)];
 }
 
-function detectRecurrencePatterns(runsRoot) {
+function detectRecurrencePatterns(runsRoot, tolerance) {
   const reports = listRunReports(runsRoot, 20);
   const qcFailCounts = new Map();
   const guardRefCounts = new Map();
@@ -179,7 +181,7 @@ function detectRecurrencePatterns(runsRoot) {
   for (const report of reports) {
     try {
       const text = fs.readFileSync(report.fullPath, "utf8");
-      const status = parseRunReportStatus(text);
+      const status = parseRunReportStatus(text, tolerance);
 
       if (status === "FAIL" || status === "BLOCKED") {
         failedReports.push(report.name);
@@ -253,8 +255,9 @@ function buildUpgradeMenu(recurrences) {
 
 // --- Main ---
 
-function executeGovBootAuditSync(modeInput) {
+function executeGovBootAuditSync(modeInput, toleranceInput) {
   const mode = String(modeInput || "").trim().toLowerCase();
+  const tolerance = String(toleranceInput || "tolerant").trim().toLowerCase();
   if (mode !== "scan" && mode !== "") {
     return {
       exitCode: 2,
@@ -308,7 +311,7 @@ function executeGovBootAuditSync(modeInput) {
     };
   }
 
-  const recurrences = detectRecurrencePatterns(runsRoot);
+  const recurrences = detectRecurrencePatterns(runsRoot, tolerance);
   const guards = parseActiveGuards(guardsPath);
   const menuItems = buildUpgradeMenu(recurrences);
   const totalRecurrences = recurrences.qc_recurrences.length + recurrences.guard_recurrences.length;
@@ -362,8 +365,8 @@ function executeGovBootAuditSync(modeInput) {
   };
 }
 
-export function runGovBootAuditSync(modeInput = "scan") {
-  return executeGovBootAuditSync(modeInput).result;
+export function runGovBootAuditSync(modeInput = "scan", toleranceInput = "tolerant") {
+  return executeGovBootAuditSync(modeInput, toleranceInput).result;
 }
 
 function isDirectRun() {

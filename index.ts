@@ -30,7 +30,11 @@ type GateState = {
   toolExposureWarnedAt: number;
   writeSeen: boolean;
   blockedWrites: number;
+  highRiskBlockedWrites: number;
   lastWriteTool?: string;
+  forceAcceptCount: number;
+  lastBlockReason?: string;
+  sameBlockCount: number;
   updatedAt: number;
 };
 
@@ -73,32 +77,46 @@ const GOV_BYPASS_WINDOW_MS = 8 * 60 * 1000;
 const GOV_BYPASS_MAX_WRITES = 64;
 const GOV_SETUP_FLOW_WINDOW_MS = 12 * 60 * 1000;
 const GOV_COMMAND_INTENT_WINDOW_MS = 15 * 60 * 1000;
-const BRAIN_AUDIT_REQUIRE_WINDOW_MS = 30 * 60 * 1000;
+const BRAIN_AUDIT_REQUIRE_WINDOW_MS = 60 * 1000;
 const BRAIN_AUDIT_NUDGE_COOLDOWN_MS = 5 * 60 * 1000;
-const BRAIN_AUDIT_BLOCK_THRESHOLD = 3;
+const BRAIN_AUDIT_BLOCK_THRESHOLD = 5;
 const TOOL_EXPOSURE_ADVISORY_COOLDOWN_MS = 3 * 60 * 1000;
 const POST_UPDATE_REMINDER_WINDOW_MS = 45 * 60 * 1000;
 const PRUNE_INTERVAL_MS = 60 * 1000;
 const DEFAULT_PERMISSIVE_TOOL_POLICY_CONTEXTS = ["default", "agents.list.main"];
 let lastPruneAt = 0;
+let forceAcceptUntil = 0;
+let configuredScannerTolerance: "strict" | "tolerant" | "lenient" = "tolerant";
 let globalGovBypassUntil = 0;
 let globalGovBypassWritesLeft = 0;
 let globalGovSetupFlowUntil = 0;
 
 const PLAN_EVIDENCE_PATTERNS = [
+  // Legacy machine-token patterns (backward compat)
   /\bplan\s*gate\b/i,
   /\bplan[-_\s]*first\b/i,
   /\bwg[-_: ]*plan[-_: ]*gate[-_: ]*ok\b/i,
+  // Natural-language plan evidence
+  /\b(?:plan|objective|approach|strategy)\s*[:：]/i,
+  /\bwill\s+(?:create|write|build|update|modify|implement|fix|add|remove|refactor|generate|scaffold)\b/i,
+  /\b(?:計劃|目標|方案|步驟|策略)\s*[:：]/i,
+  /\bsteps?\s*[:：]/i,
 ];
 
 const READ_EVIDENCE_PATTERNS = [
+  // Legacy machine-token patterns (backward compat)
   /\bread\s*gate\b/i,
   /\bfiles[-_\s]*read\b/i,
   /\btarget[-_\s]*files[-_\s]*to[-_\s]*change\b/i,
   /\bwg[-_: ]*read[-_: ]*gate[-_: ]*ok\b/i,
+  // Natural-language read evidence
+  /\b(?:read|reviewed|checked|examined)\s+(?:the\s+)?(?:files?|sources?|code|content|config)\b/i,
+  /\bfiles?\s+(?:read|reviewed|checked|examined)\b/i,
+  /\b(?:已讀|已檢查|檔案內容|現有內容)\b/i,
+  /\bexisting\s+(?:content|files?|code)\b/i,
 ];
 
-const PLUGIN_VERSION = "0.1.54";
+const PLUGIN_VERSION = "0.1.56";
 const PLUGIN_NPM_PACKAGE = "@adamchanadam/openclaw-workspace-governance";
 
 async function fetchLatestNpmVersion(): Promise<string | null> {
@@ -328,6 +346,7 @@ function classifyGovCommandRequest(
     if (
       mode === "apply" ||
       mode === "rollback" ||
+      mode === "force-accept" ||
       mode.startsWith("approve:") ||
       mode === "approve" ||
       mode.startsWith("rollback:")
@@ -368,6 +387,9 @@ function ensureState(sessionKey: string): GateState {
     toolExposureWarnedAt: 0,
     writeSeen: false,
     blockedWrites: 0,
+    highRiskBlockedWrites: 0,
+    forceAcceptCount: 0,
+    sameBlockCount: 0,
     updatedAt: now,
   };
   states.set(sessionKey, created);
@@ -916,6 +938,36 @@ function isWriteToolCall(event: PluginHookBeforeToolCallEvent): boolean {
   return false;
 }
 
+const HIGH_RISK_PATH_PATTERNS = [
+  /\b_control\//i,
+  /\bprompts\/governance\//i,
+  /(?:^|\/|\s)(?:AGENTS|SOUL|IDENTITY|USER|TOOLS|MEMORY|HEARTBEAT)\.md\b/i,
+  /openclaw\.json\b/i,
+];
+
+function extractTargetPath(event: PluginHookBeforeToolCallEvent): string {
+  const params = (event.params || {}) as Record<string, unknown>;
+  // File tools: file_path, path, target, destination
+  for (const key of ["file_path", "path", "target", "destination"]) {
+    const val = params[key];
+    if (typeof val === "string" && val.trim()) return val.trim();
+  }
+  // Shell tools: extract from command, stripping quoted content to avoid
+  // false positives from incidental mentions (e.g., echo "check AGENTS.md" >> log.txt)
+  const name = (event.toolName || "").toLowerCase();
+  if (isShellLikeTool(name)) {
+    const cmd = flattenText(params.command || "");
+    return cmd.replace(/"[^"]*"|'[^']*'/g, " ");
+  }
+  return "";
+}
+
+function isHighRiskTarget(event: PluginHookBeforeToolCallEvent): boolean {
+  const target = extractTargetPath(event);
+  if (!target) return false;
+  return HIGH_RISK_PATH_PATTERNS.some((re) => re.test(target));
+}
+
 function runtimePolicyBlockReason(lang: "en" | "zh"): string {
   if (lang === "zh") {
     return [
@@ -944,47 +996,37 @@ function runtimePolicyBlockReason(lang: "en" | "zh"): string {
 }
 
 function governanceBlockReason(state: GateState, lang: "en" | "zh"): string {
+  const escapeHint = state.sameBlockCount >= 3
+    ? i18n(lang,
+        " You have been blocked 3+ times by the same gate. To force-through: /gov_brain_audit force-accept",
+        " 你已被同一閘門阻擋 3 次以上。強制通過：/gov_brain_audit force-accept")
+    : "";
   if (lang === "zh") {
     const missingZh: string[] = [];
-    if (!state.planSeen) missingZh.push("PLAN GATE 證據");
-    if (!state.readSeen) missingZh.push("READ GATE 證據");
+    if (!state.planSeen) missingZh.push("PLAN 證據（描述你的計劃）");
+    if (!state.readSeen) missingZh.push("READ 證據（列出已讀的檔案）");
     const missingTextZh = missingZh.join(" + ");
     return [
-      "WORKSPACE_GOVERNANCE 已啟動保護（這是安全阻擋，不是系統錯誤）。",
-      `缺少證據：${missingTextZh}。`,
-      "若你是只讀診斷/測試，請只用只讀命令重跑。",
-      "若你要寫入/更新檔案，先完成 PLAN -> READ，並提供 WG_PLAN_GATE_OK + WG_READ_GATE_OK，再重試 CHANGE。",
+      "WORKSPACE_GOVERNANCE 高風險寫入保護已啟動（這是安全阻擋，不是系統錯誤）。",
+      "此寫入針對治理基礎設施。",
+      `缺少：${missingTextZh}。`,
+      "請在你的回覆中陳述計劃並列出已讀檔案，然後重試。",
       "若屬平台控制面修改，請用 gov_openclaw_json。",
-      "若屬 Brain Docs 強化，先 /gov_brain_audit，確認後才 /gov_brain_audit APPROVE: ...",
-      "可直接貼上下一步：",
-      "1) /gov_brain_audit",
-      "2) /skill gov_brain_audit",
-      "3) /gov_setup check",
-      "4) /skill gov_setup check",
-      "5) 完成 PLAN/READ 並帶 WG_PLAN_GATE_OK + WG_READ_GATE_OK 後重試原任務。",
-      "6) 官方 `openclaw ...` 系統指令預設允許；如需放行非系統自訂 shell 命令，再於 openclaw.json 調整 runtimeGatePolicy（allow/deny）後重啟 gateway。",
-    ].join(" ");
+      "若屬 Brain Docs 變更，先 /gov_brain_audit 預覽。",
+    ].join(" ") + escapeHint;
   }
   const missing: string[] = [];
-  if (!state.planSeen) missing.push("PLAN GATE evidence");
-  if (!state.readSeen) missing.push("READ GATE evidence");
+  if (!state.planSeen) missing.push("PLAN evidence (state your plan)");
+  if (!state.readSeen) missing.push("READ evidence (list files read)");
   const missingText = missing.join(" + ");
   return [
-    "WORKSPACE_GOVERNANCE guard activated (this is a safety block, not a system error).",
-    `Missing evidence: ${missingText}.`,
-    "If your task is read-only diagnostics/testing, rerun with read-only commands only.",
-    "If your task writes/updates files, complete PLAN -> READ first, include WG_PLAN_GATE_OK + WG_READ_GATE_OK, then retry CHANGE.",
+    "WORKSPACE_GOVERNANCE high-risk write protection activated (this is a safety block, not a system error).",
+    "This write targets governance infrastructure.",
+    `Missing: ${missingText}.`,
+    "Include your plan and list of files read in your response, then retry.",
     "If this is a platform control-plane change, use gov_openclaw_json.",
-    "If this is Brain Docs hardening, start with /gov_brain_audit and continue with /gov_brain_audit APPROVE: ... only after preview.",
-    "Copy-paste next steps:",
-    "1) /gov_brain_audit",
-    "2) /skill gov_brain_audit",
-    "3) /gov_setup check",
-    "4) /skill gov_setup check",
-    "5) Retry original write task after PLAN/READ with WG_PLAN_GATE_OK + WG_READ_GATE_OK.",
-    "6) Official `openclaw ...` system commands are allowed by default. For non-system custom shell commands, manage runtimeGatePolicy in openclaw.json:",
-    "   allow: allowShellPrefixes/allowShellRegex, deny: denyShellPrefixes/denyShellRegex, then restart gateway.",
-  ].join(" ");
+    "If this is Brain Docs changes, start with /gov_brain_audit preview.",
+  ].join(" ") + escapeHint;
 }
 
 function brainAuditBlockReason(state: GateState, lang: "en" | "zh"): string {
@@ -995,7 +1037,7 @@ function brainAuditBlockReason(state: GateState, lang: "en" | "zh"): string {
     return [
       "WORKSPACE_GOVERNANCE 健康檢查閘已啟動（這是安全阻擋，不是系統錯誤）。",
       "在可寫操作前，請先執行 /gov_brain_audit（只讀預覽）。",
-      "之後再繼續原任務（或在你同意後使用 /gov_brain_audit APPROVE: ...）。",
+      "之後再繼續原任務（或在你同意後使用 /gov_brain_audit approve ...）。",
       "備援：/skill gov_brain_audit。",
       "可直接貼上下一步：",
       "1) /gov_brain_audit",
@@ -1009,7 +1051,7 @@ function brainAuditBlockReason(state: GateState, lang: "en" | "zh"): string {
   return [
     "WORKSPACE_GOVERNANCE health-check gate activated (this is a safety block, not a system error).",
     "Before write-capable actions, run /gov_brain_audit (read-only preview) first.",
-    "Then continue with your write task (or /gov_brain_audit APPROVE: ... if you approve fixes).",
+    "Then continue with your write task (or /gov_brain_audit approve ... if you approve fixes).",
     "Fallback: /skill gov_brain_audit.",
     "Copy-paste next steps:",
     "1) /gov_brain_audit",
@@ -1044,6 +1086,12 @@ type RunnerResult = {
   apply_type?: string;
   menu_source?: string;
   followup?: string[];
+  configRefScan?: {
+    skills_dir_exists?: boolean;
+    local_doc_found?: boolean;
+    local_doc_paths?: string[];
+    scan_source?: string;
+  };
   [key: string]: unknown;
 };
 
@@ -1085,7 +1133,7 @@ function parseModeArg(ctx: PluginCommandContext): string {
   const raw = String(ctx.args || "").trim();
   if (!raw) return "";
   const tokens = raw.split(/\s+/).filter(Boolean);
-  return String(tokens[0] || "").toLowerCase();
+  return String(tokens[0] || "").toLowerCase().replace(/:$/, "");
 }
 
 async function runInProcessRunner(
@@ -1293,7 +1341,7 @@ async function makeGovSetupQuickCommandResponse(lang: "en" | "zh"): Promise<stri
   flowTrace.push(`migrate: PASS${migrateData.run_report ? ` | report=${String(migrateData.run_report)}` : ""}`);
   if (migrateData.run_report) why.push(`migrate_run_report: ${String(migrateData.run_report)}`);
 
-  const auditRunner = await runInProcessRunner("tools/gov_audit_sync.mjs", "runGovAuditSync", []);
+  const auditRunner = await runInProcessRunner("tools/gov_audit_sync.mjs", "runGovAuditSync", [configuredScannerTolerance]);
   if (!auditRunner.ok || !auditRunner.data) {
     return formatCommandOutput(
       "FAIL",
@@ -1336,8 +1384,8 @@ async function makeGovSetupQuickCommandResponse(lang: "en" | "zh"): Promise<stri
       auditItems.length > 0 ? `audit_12_item:\n${toTextList(auditItems)}` : "",
       auditData.run_report ? `audit_run_report: ${String(auditData.run_report)}` : "",
     ].filter(Boolean)),
-    i18n(lang, "One-click governance flow completed (install/upgrade + migrate + audit).", "一鍵治理流程完成（install/upgrade + migrate + audit）。"),
-    ["/gov_setup check"],
+    i18n(lang, "Governance is ready. Proceed with your task.", "治理已就緒。請繼續你的任務。"),
+    [],
   );
 }
 
@@ -1928,7 +1976,7 @@ async function makeGovUninstallCommandResponse(ctx: PluginCommandContext): Promi
 
 async function makeGovAuditCommandResponse(ctx: PluginCommandContext): Promise<string> {
   const lang = pickCommandLanguage(ctx);
-  const runner = await runInProcessRunner("tools/gov_audit_sync.mjs", "runGovAuditSync", []);
+  const runner = await runInProcessRunner("tools/gov_audit_sync.mjs", "runGovAuditSync", [configuredScannerTolerance]);
   if (!runner.ok || !runner.data) {
     return formatCommandOutput(
       "FAIL",
@@ -2006,7 +2054,7 @@ async function makeGovBootAuditCommandResponse(ctx: PluginCommandContext): Promi
     );
   }
 
-  const runner = await runInProcessRunner("tools/gov_boot_audit_sync.mjs", "runGovBootAuditSync", ["scan"]);
+  const runner = await runInProcessRunner("tools/gov_boot_audit_sync.mjs", "runGovBootAuditSync", ["scan", configuredScannerTolerance]);
   if (!runner.ok || !runner.data) {
     return formatCommandOutput(
       "BLOCKED",
@@ -2065,7 +2113,7 @@ async function makeGovBootAuditCommandResponse(ctx: PluginCommandContext): Promi
 async function makeGovBrainAuditCommandResponse(ctx: PluginCommandContext): Promise<string> {
   const lang = pickCommandLanguage(ctx);
   const mode = parseModeArg(ctx);
-  const validModes = ["preview", "approve", "rollback", ""];
+  const validModes = ["preview", "approve", "rollback", "force-accept", ""];
 
   if (mode && !validModes.includes(mode)) {
     return formatCommandOutput(
@@ -2073,12 +2121,43 @@ async function makeGovBrainAuditCommandResponse(ctx: PluginCommandContext): Prom
       [
         i18n(
           lang,
-          `Invalid mode: ${mode}. Use preview, approve, or rollback.`,
-          `無效模式：${mode}。請使用 preview、approve 或 rollback。`,
+          `Invalid mode: ${mode}. Use preview, approve, rollback, or force-accept.`,
+          `無效模式：${mode}。請使用 preview、approve、rollback 或 force-accept。`,
         ),
       ],
       i18n(lang, "Retry with a valid mode.", "請使用有效模式重試。"),
       ["/gov_brain_audit", "/skill gov_brain_audit"],
+    );
+  }
+
+  if (mode === "force-accept") {
+    // Clear all gates and set module-level force-accept bypass
+    forceAcceptUntil = Date.now() + STATE_TTL_MS;
+    // Clear gates in all active session states
+    let clearedSessions = 0;
+    for (const [, st] of states) {
+      st.planSeen = true;
+      st.readSeen = true;
+      st.brainAuditRequiredUntil = 0;
+      st.brainAuditRequiredReason = undefined;
+      st.blockedWrites = 0;
+      st.highRiskBlockedWrites = 0;
+      st.sameBlockCount = 0;
+      st.forceAcceptCount += 1;
+      clearedSessions += 1;
+    }
+    return formatCommandOutput(
+      "READY_WITH_WARNING",
+      [
+        i18n(lang,
+          "Force-accept activated. All governance gates cleared for this session. Governance protection is reduced — proceed with caution.",
+          "強制通過已啟動。本 session 所有 governance 閘門已清除。Governance 保護已降低，請謹慎操作。"),
+        i18n(lang,
+          `Sessions cleared: ${clearedSessions}`,
+          `已清除 session 數：${clearedSessions}`),
+      ],
+      i18n(lang, "Governance gates cleared. You may proceed with writes.", "Governance 閘門已清除，你可以繼續寫入。"),
+      ["/gov_brain_audit", "/gov_audit"],
     );
   }
 
@@ -2097,7 +2176,7 @@ async function makeGovBrainAuditCommandResponse(ctx: PluginCommandContext): Prom
     );
   }
 
-  const runner = await runInProcessRunner("tools/gov_brain_audit_sync.mjs", "runGovBrainAuditSync", ["preview"]);
+  const runner = await runInProcessRunner("tools/gov_brain_audit_sync.mjs", "runGovBrainAuditSync", ["preview", configuredScannerTolerance]);
   if (!runner.ok || !runner.data) {
     return formatCommandOutput(
       "BLOCKED",
@@ -2142,7 +2221,7 @@ async function makeGovBrainAuditCommandResponse(ctx: PluginCommandContext): Prom
       whyLines,
       i18n(lang, "Review findings above, then approve or use SKILL to review.", "請檢視上方問題，然後審批或使用 SKILL 檢視。"),
       findingIds
-        ? [`/gov_brain_audit APPROVE: ${findingIds}`, "/skill gov_brain_audit"]
+        ? [`/gov_brain_audit approve ${findingIds}`, "/skill gov_brain_audit"]
         : ["/skill gov_brain_audit", "/gov_brain_audit"],
     );
   }
@@ -2151,7 +2230,7 @@ async function makeGovBrainAuditCommandResponse(ctx: PluginCommandContext): Prom
     whyLines,
     i18n(lang, "Brain docs have critical findings. Approve fixes or use SKILL to review.", "Brain docs 有嚴重問題。批准修正或使用 SKILL 檢視。"),
     findingIds
-      ? [`/gov_brain_audit APPROVE: ${findingIds}`, "/skill gov_brain_audit"]
+      ? [`/gov_brain_audit approve ${findingIds}`, "/skill gov_brain_audit"]
       : ["/skill gov_brain_audit", "/gov_brain_audit"],
   );
 }
@@ -2207,10 +2286,14 @@ async function makeGovOpenclawJsonCommandResponse(ctx: PluginCommandContext): Pr
     ? (data.dimensions as Array<{ name?: string; score?: number; max?: number }>)
     : [];
 
+  const configRefScan = data.configRefScan;
+
   const whyLines = [
     `health_score: ${healthScore}/10`,
     ...dimensions.map((d) => `${String(d.name || "unknown")}: ${String(d.score ?? 0)}/${String(d.max ?? 0)}`),
     data.run_report ? `run_report: ${String(data.run_report)}` : "",
+    configRefScan ? `config_ref_scan: local_doc_found=${String(configRefScan.local_doc_found ?? false)}, skills_dir=${String(configRefScan.skills_dir_exists ?? false)}` : "",
+    ...(configRefScan?.local_doc_paths?.length ? configRefScan.local_doc_paths.map((p: string) => `config_ref_docs: ${p}`) : []),
   ].filter(Boolean);
 
   if (status === "PASS") {
@@ -2318,15 +2401,25 @@ function maybePruneExpiredStates(): void {
 }
 
 export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi): void {
+  // Reset module-level globals on re-registration (fresh plugin instance)
+  globalGovBypassUntil = 0;
+  globalGovBypassWritesLeft = 0;
+  globalGovSetupFlowUntil = 0;
+  forceAcceptUntil = 0;
+  states.clear();
+
   const cfg = (api.pluginConfig || {}) as {
     runtimeGateEnabled?: boolean;
     runtimeGatePolicy?: RuntimeGatePolicyConfig;
     toolExposureGuard?: ToolExposureGuardConfig;
+    scannerTolerance?: string;
   };
   registerDeterministicGovCommands(api);
   const runtimeGateEnabled = cfg.runtimeGateEnabled !== false;
   const runtimeGatePolicy = buildRuntimeGatePolicy(cfg.runtimeGatePolicy, api.logger);
   const toolExposureGuard = buildToolExposureGuard(cfg.toolExposureGuard, api.logger);
+  const toleranceRaw = String(cfg.scannerTolerance || "tolerant").trim().toLowerCase();
+  configuredScannerTolerance = (toleranceRaw === "strict" || toleranceRaw === "lenient") ? toleranceRaw : "tolerant";
   if (!runtimeGateEnabled) {
     api.logger.warn("[governance-gate] runtime hard gate is disabled by plugin config.");
     return;
@@ -2391,22 +2484,25 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
         toolExposureGuard,
       );
 
+      // A3: Reset stale blocked-writes counter when a new user turn starts (>30s gap)
+      if (state.blockedWrites > 0 && now - state.updatedAt > 30_000) {
+        state.blockedWrites = 0;
+        state.highRiskBlockedWrites = 0;
+        state.sameBlockCount = 0;
+      }
+
       state.planSeen = state.planSeen || hasPlanEvidence(tailText);
       state.readSeen = state.readSeen || hasReadEvidence(tailText);
       if (brainAuditKindUser === "none") {
         const setupUpgradeRequested = setupModeUser === "upgrade";
         const migrateRequested = migrateKindUser === "write";
         const auditRequested = auditKindUser === "read";
-        if (setupUpgradeRequested) {
-          markBrainAuditRequired(state, "post gov_setup upgrade", now);
+        // A7: Post-gov-command triggers advisory nudge (not hard block)
+        if (setupUpgradeRequested || migrateRequested || auditRequested) {
+          state.brainAuditNudgedAt = 0; // Reset cooldown so nudge fires immediately on next write
         }
-        if (migrateRequested) {
-          markBrainAuditRequired(state, "post gov_migrate", now);
-        }
-        if (auditRequested) {
-          markBrainAuditRequired(state, "post gov_audit", now);
-        }
-        if (state.blockedWrites >= BRAIN_AUDIT_BLOCK_THRESHOLD) {
+        // Only repeated high-risk blocked writes triggers hard requirement (safety net)
+        if (state.highRiskBlockedWrites >= BRAIN_AUDIT_BLOCK_THRESHOLD) {
           markBrainAuditRequired(state, "repeated blocked writes", now);
         }
       } else {
@@ -2416,6 +2512,7 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
           state.brainAuditRequiredUntil = 0;
           state.brainAuditRequiredReason = undefined;
           state.blockedWrites = 0;
+          state.highRiskBlockedWrites = 0;
         }
       }
       if (explicitGovCommandRequested) {
@@ -2488,8 +2585,8 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
       if (brainAuditRequired && modeCRequired && !explicitGovEntrypoint && !setupUpgradeIntentUser) {
         const ctx = i18n(
           state.uxLang,
-          "Automatic governance health-check is active for this session. First action in this turn MUST be /gov_brain_audit (read-only preview). Do not run any write-capable step before it. After preview, continue your requested task (or use /gov_brain_audit APPROVE: ... if you approve fixes). ",
-          "此 session 已啟用自動 governance 健康檢查。本輪第一步必須先 /gov_brain_audit（只讀預覽）。在此之前不要執行任何可寫步驟。預覽後再繼續你的任務（或在你同意後使用 /gov_brain_audit APPROVE: ...）。",
+          "Automatic governance health-check is active for this session. First action in this turn MUST be /gov_brain_audit (read-only preview). Do not run any write-capable step before it. After preview, continue your requested task (or use /gov_brain_audit approve ... if you approve fixes). ",
+          "此 session 已啟用自動 governance 健康檢查。本輪第一步必須先 /gov_brain_audit（只讀預覽）。在此之前不要執行任何可寫步驟。預覽後再繼續你的任務（或在你同意後使用 /gov_brain_audit approve ...）。",
         );
         return {
           prependContext:
@@ -2517,8 +2614,8 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
           prependContext:
             i18n(
               state.uxLang,
-              "Governance health-check suggestion: run /gov_brain_audit first (read-only preview) before high-risk write tasks. Then proceed with PLAN/READ/CHANGE/QC/PERSIST.",
-              "Governance 健康檢查建議：高風險寫入前先執行 /gov_brain_audit（只讀預覽），再執行 PLAN/READ/CHANGE/QC/PERSIST。",
+              "For Brain Docs changes, consider /gov_brain_audit preview for a health check. Then proceed directly with your task.",
+              "如涉及 Brain Docs 變更，可考慮先 /gov_brain_audit 預覽健康檢查。然後直接繼續你的任務。",
             ),
         };
       }
@@ -2534,8 +2631,8 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
           routeHints.push(
             i18n(
               state.uxLang,
-              "Route platform control-plane changes via /gov_openclaw_json (fallback: /skill gov_openclaw_json).",
-              "平台控制面變更請走 /gov_openclaw_json（備援：/skill gov_openclaw_json）。",
+              "For platform control-plane changes, consider routing via /gov_openclaw_json.",
+              "如涉及平台控制面變更，可考慮走 /gov_openclaw_json。",
             ),
           );
         }
@@ -2543,8 +2640,8 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
           routeHints.push(
             i18n(
               state.uxLang,
-              "Route Brain Docs risk reviews via /gov_brain_audit (then /gov_brain_audit APPROVE: ... only when approved).",
-              "Brain Docs 風險檢查請走 /gov_brain_audit（確認後才 /gov_brain_audit APPROVE: ...）。",
+              "For Brain Docs changes, consider /gov_brain_audit preview first.",
+              "如涉及 Brain Docs 變更，可先 /gov_brain_audit 預覽。",
             ),
           );
         }
@@ -2553,8 +2650,8 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
           prependContext:
             i18n(
               state.uxLang,
-              "Runtime governance guard preflight: write intent detected. This is a safety check, not a system failure. Before any write-capable tool call, complete PLAN GATE and READ GATE evidence first. Include WG_PLAN_GATE_OK and WG_READ_GATE_OK in your governance response. If this task is read-only diagnostics/testing, keep it read-only and rerun. If write intent is uncertain, treat as Mode C (fail-closed).",
-              "Runtime governance 預檢：已偵測寫入意圖。這是安全檢查，不是系統故障。任何可寫工具呼叫前，先完成 PLAN GATE 與 READ GATE 證據，並在回覆內包含 WG_PLAN_GATE_OK 及 WG_READ_GATE_OK。若本任務為只讀診斷/測試，請以只讀方式重跑。若寫入意圖不確定，請按 Mode C（fail-closed）處理。",
+              "Write intent detected. Best practice: follow PLAN→READ→CHANGE→QC→PERSIST internally. (1) Plan your approach, (2) read relevant files, (3) make changes, (4) verify quality, (5) persist with run report if appropriate. Proceed directly with the user's task. Do NOT ask the user for gate tokens or to run /gov_* commands — these are internal governance mechanisms, not user-facing requirements.",
+              "偵測到寫入意圖。最佳實踐：內部遵循 PLAN→READ→CHANGE→QC→PERSIST。(1) 規劃你的方法，(2) 讀取相關檔案，(3) 執行變更，(4) 驗證品質，(5) 適時以 run report 持久化。直接處理使用者的任務。不要要求使用者輸入 gate token 或執行 /gov_* 指令 — 這些是內部治理機制，不是使用者需求。",
             ) +
             routeHintText,
         };
@@ -2703,15 +2800,22 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
         canBypassHostMaintenance ||
         canBypassRuntimePolicyAllow;
 
-      if (isBrainAuditRequirementActive(state, now) && !canBypassAny) {
-        state.blockedWrites += 1;
+      // B: force-accept bypass
+      const canBypassForceAccept = now <= forceAcceptUntil;
+      if (canBypassForceAccept) {
+        state.writeSeen = true;
         state.lastWriteTool = event.toolName;
         state.updatedAt = now;
         states.set(sessionKey, state);
-        return {
-          block: true,
-          blockReason: brainAuditBlockReason(state, state.uxLang),
-        };
+        return;
+      }
+
+      // A4: Brain audit requirement — advisory only (prompt-build already guided user)
+      if (isBrainAuditRequirementActive(state, now) && !canBypassAny) {
+        api.logger.warn(`[governance-gate] brain audit suggested but not blocking write`);
+        state.brainAuditRequiredUntil = 0;
+        state.brainAuditRequiredReason = undefined;
+        // Fall through — allow the write
       }
 
       const compliant = state.planSeen && state.readSeen;
@@ -2742,7 +2846,42 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
           return;
         }
 
+        // Risk-tiered write gate: normal writes are ALWAYS advisory, high-risk writes block after 2 advisories
         state.blockedWrites += 1;
+        const highRisk = isHighRiskTarget(event);
+
+        if (!highRisk) {
+          // Normal writes (skills/, projects/, _runs/, code): ALWAYS advisory, never hard block
+          api.logger.warn(`[governance-gate] write without PLAN/READ evidence — advisory only (normal target, attempt ${state.blockedWrites})`);
+          state.writeSeen = true;
+          state.lastWriteTool = event.toolName;
+          state.updatedAt = now;
+          states.set(sessionKey, state);
+          return;
+        }
+
+        // High-risk writes (_control/, Brain Docs, governance prompts, openclaw.json)
+        // Use separate counter so normal writes don't inflate the high-risk advisory window
+        state.highRiskBlockedWrites += 1;
+        // A5: First 2 high-risk attempts are advisory
+        if (state.highRiskBlockedWrites <= 2) {
+          api.logger.warn(`[governance-gate] high-risk write without PLAN/READ evidence (advisory ${state.highRiskBlockedWrites}/2)`);
+          state.writeSeen = true;
+          state.lastWriteTool = event.toolName;
+          state.updatedAt = now;
+          states.set(sessionKey, state);
+          return;
+        }
+
+        // B2: Track consecutive same-block for escape hint
+        const blockKey = "MODE_C_GATE";
+        if (state.lastBlockReason === blockKey) {
+          state.sameBlockCount += 1;
+        } else {
+          state.lastBlockReason = blockKey;
+          state.sameBlockCount = 1;
+        }
+
         state.lastWriteTool = event.toolName;
         state.updatedAt = now;
         states.set(sessionKey, state);
@@ -2796,6 +2935,7 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
         state.readSeen = false;
         state.writeSeen = false;
         state.blockedWrites = 0;
+        state.highRiskBlockedWrites = 0;
       }
       // gov_* bypass is single-turn scoped.
       state.govEntrypointSeen = false;

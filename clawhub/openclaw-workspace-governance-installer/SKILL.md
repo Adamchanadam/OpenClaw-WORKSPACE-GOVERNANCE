@@ -72,7 +72,7 @@ Then in OpenClaw chat:
 3. `gov_migrate` — align workspace behavior to the latest governance rules after install or upgrade.
 4. `gov_audit` — verify 12 integrity checks and catch drift before declaring completion.
 5. `gov_uninstall quick|check|uninstall` — clean removal with backup and restore evidence.
-6. `gov_openclaw_json` — safely edit platform config (`openclaw.json`) with backup, validation, and rollback.
+6. `gov_openclaw_json` — safely edit platform config (`openclaw.json`) with backup, validation, and rollback. Includes pre-modification config reference verification: scans local workspace docs before changes, falls back to official web docs, and degrades gracefully when neither is available.
 7. `gov_brain_audit` — review and harden Brain Docs quality with preview-first approval and rollback.
 8. `gov_boot_audit` — scan for recurring issues and generate upgrade proposals (read-only diagnostic).
 9. `gov_apply <NN>` — apply a single BOOT upgrade proposal with explicit human approval (**Experimental**, controlled UAT only).

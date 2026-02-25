@@ -165,7 +165,8 @@ function makeFinding(seed) {
 }
 
 function isSectionBoundary(line) {
-  return /^\s*[A-Z][A-Z0-9_\s-]{2,}\s*:/.test(line) || /^\s*#{1,6}\s+/.test(line);
+  // Tolerant: accepts bullet-prefixed labels (- FILES_READ:), bare labels, and markdown headers
+  return /^\s*(?:[-*•]\s+)?[A-Z][A-Z0-9_\s-]{2,}\s*:/.test(line) || /^\s*#{1,6}\s+/.test(line);
 }
 
 function extractSectionEntries(lines, headerRe) {
@@ -190,6 +191,28 @@ function extractSectionEntries(lines, headerRe) {
     entries.push({ text: raw.trim(), line: i + 1 });
   }
   return { found: true, startLine: start + 1, entries };
+}
+
+function getEvidenceRegexes(tolerance) {
+  if (tolerance === "strict") {
+    return {
+      filesReadRe: /^\s*files[_\s-]*read\s*:/i,
+      targetRe: /^\s*target[_\s-]*files[_\s-]*to[_\s-]*change\s*:/i,
+      completionRe: /^\s*(status|result|outcome)\s*:\s*(pass|passed|done|completed)\b/i,
+    };
+  }
+  if (tolerance === "lenient") {
+    return {
+      filesReadRe: /files[_\s-]*read/i,
+      targetRe: /target[_\s-]*files[_\s-]*to[_\s-]*change/i,
+      completionRe: /(status|result|outcome)\s*[:=]\s*(pass|passed|done|completed)/i,
+    };
+  }
+  return {
+    filesReadRe: /^\s*(?:[-*•]\s+)?(?:#{1,6}\s+)?files[_\s-]*read\b/i,
+    targetRe: /^\s*(?:[-*•]\s+)?(?:#{1,6}\s+)?target[_\s-]*files[_\s-]*to[_\s-]*change\b/i,
+    completionRe: /^\s*[-*•]?\s*(status|result|outcome)\s*:\s*(pass|passed|done|completed)\b/i,
+  };
 }
 
 function scanFileForRules(workspace, fullPath, findings, opts) {
@@ -249,18 +272,24 @@ function scanFileForRules(workspace, fullPath, findings, opts) {
   }
 
   if (isRunReport) {
+    // Layer 2 — governance report whitelist: only apply evidence rules to governance-owned reports
+    const GOVERNANCE_REPORT_RE = /^(gov_|migrate_governance_|.*_apply_upgrade_from_boot_)/i;
+    const isGovernanceReport = GOVERNANCE_REPORT_RE.test(path.basename(fullPath));
+    const readOnlyReportRe = /^(audit_|gov_audit_|gov_brain_audit_preview_|gov_boot_audit_|gov_openclaw_json_check_)/i;
+    const isReadOnlyReport = readOnlyReportRe.test(path.basename(fullPath));
+    if (!isGovernanceReport && !isReadOnlyReport) return;
+
+    const tolerance = opts.tolerance || "tolerant";
+    const regexes = getEvidenceRegexes(tolerance);
     const allText = lines.join("\n");
-    const completionClaimRe = /^\s*(status|result|outcome)\s*:\s*(pass|passed|done|completed)\b/i;
+    const completionClaimRe = regexes.completionRe;
     const scoreCompletionRe = /\b(12\/12|100%\s*(pass|complete)?)\b/i;
     const hasCompletionClaim =
       lines.some((line) => completionClaimRe.test(line)) || scoreCompletionRe.test(allText);
-    const filesReadSection = extractSectionEntries(lines, /^\s*files[_\s-]*read\s*:/i);
-    const targetSection = extractSectionEntries(
-      lines,
-      /^\s*target[_\s-]*files[_\s-]*to[_\s-]*change\s*:/i,
-    );
-    const hasFilesRead = filesReadSection.found;
-    const hasTargets = targetSection.found;
+    const filesReadSection = extractSectionEntries(lines, regexes.filesReadRe);
+    const targetSection = extractSectionEntries(lines, regexes.targetRe);
+    const hasFilesRead = filesReadSection.found || (tolerance === "lenient" && regexes.filesReadRe.test(allText));
+    const hasTargets = targetSection.found || (tolerance === "lenient" && regexes.targetRe.test(allText));
     if (hasCompletionClaim && (!hasFilesRead || !hasTargets)) {
       const lineNo = Math.max(1, lines.findIndex((line) => completionClaimRe.test(line)) + 1);
       findings.push(
@@ -371,6 +400,7 @@ export function runBrainAuditScan(workspace, options = {}) {
     enableLexicalHints: Boolean(options.enableLexicalHints),
     failOnHigh: Boolean(options.failOnHigh),
     failOnAny: Boolean(options.failOnAny),
+    tolerance: String(options.tolerance || "tolerant").trim().toLowerCase(),
   };
 
   if (!fileExists(workspace)) {

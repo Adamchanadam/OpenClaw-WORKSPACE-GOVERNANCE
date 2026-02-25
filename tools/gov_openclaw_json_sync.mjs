@@ -184,6 +184,45 @@ function computePlatformHealthScore(openclawJsonPath) {
   };
 }
 
+function scanLocalConfigReference(workspaceRoot) {
+  const skillsDir = path.join(workspaceRoot, "skills");
+  const skillsDirExists = exists(skillsDir);
+  const localDocPaths = [];
+
+  if (skillsDirExists) {
+    try {
+      const entries = fs.readdirSync(skillsDir, { withFileTypes: true });
+      for (const entry of entries) {
+        const lower = entry.name.toLowerCase();
+        if (
+          lower.startsWith("openclaw-doc") ||
+          lower.startsWith("openclaw_doc") ||
+          lower.startsWith("openclaw_config_ref")
+        ) {
+          const entryPath = path.join(skillsDir, entry.name);
+          if (entry.isDirectory()) {
+            try {
+              const children = fs.readdirSync(entryPath);
+              for (const child of children) {
+                localDocPaths.push(`skills/${entry.name}/${child}`);
+              }
+            } catch { /* permission denied or similar */ }
+          } else {
+            localDocPaths.push(`skills/${entry.name}`);
+          }
+        }
+      }
+    } catch { /* skills dir unreadable */ }
+  }
+
+  return {
+    skills_dir_exists: skillsDirExists,
+    local_doc_found: localDocPaths.length > 0,
+    local_doc_paths: localDocPaths,
+    scan_source: "local_fs",
+  };
+}
+
 function executeGovOpenclawJsonSync(modeInput) {
   const mode = String(modeInput || "").trim().toLowerCase();
   if (mode !== "check") {
@@ -207,6 +246,7 @@ function executeGovOpenclawJsonSync(modeInput) {
 
   const healthResult = computePlatformHealthScore(openclawJsonPath);
   const healthScore = healthResult.health_score;
+  const configRefScan = scanLocalConfigReference(workspaceRoot);
 
   let status;
   if (healthScore === 10) status = "PASS";
@@ -230,6 +270,16 @@ function executeGovOpenclawJsonSync(modeInput) {
     lines.push(`- ${dim.name}: ${dim.score}/${dim.max}`);
   }
   lines.push("");
+  lines.push("## CONFIG_REF_SCAN");
+  lines.push(`- skills_dir_exists: ${configRefScan.skills_dir_exists}`);
+  lines.push(`- local_doc_found: ${configRefScan.local_doc_found}`);
+  lines.push(`- scan_source: ${configRefScan.scan_source}`);
+  if (configRefScan.local_doc_paths.length > 0) {
+    for (const docPath of configRefScan.local_doc_paths) {
+      lines.push(`- local_doc_path: ${docPath}`);
+    }
+  }
+  lines.push("");
   fs.writeFileSync(runReportPath, `${lines.join("\n")}\n`, "utf8");
 
   // Update workspace index
@@ -247,6 +297,7 @@ function executeGovOpenclawJsonSync(modeInput) {
       dimensions: healthResult.dimensions,
       run_report: runRelPath,
       workspace_index_updated: workspaceIndexUpdated,
+      configRefScan,
     },
   };
 }

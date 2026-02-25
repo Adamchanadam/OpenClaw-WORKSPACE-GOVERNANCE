@@ -2,7 +2,7 @@
   "id": "openclaw-workspace-governance",
   "name": "OpenClaw Workspace Governance",
   "description": "Workspace governance lifecycle for OpenClaw: bootstrap, migrate, audit, and controlled BOOT apply.",
-  "version": "0.1.54",
+  "version": "0.1.56",
   "skills": [
     "./skills"
   ],
@@ -49,6 +49,16 @@
             "description": "Case-insensitive regex rules that are always blocked by governance runtime policy."
           }
         }
+      },
+      "scannerTolerance": {
+        "type": "string",
+        "enum": [
+          "strict",
+          "tolerant",
+          "lenient"
+        ],
+        "default": "tolerant",
+        "description": "Scanner regex tolerance for LLM-generated run reports. 'strict': exact machine format only. 'tolerant' (default): accepts markdown headers, bullets, format variations. 'lenient': fuzzy keyword matching for lower-capability LLMs."
       },
       "toolExposureGuard": {
         "type": "object",

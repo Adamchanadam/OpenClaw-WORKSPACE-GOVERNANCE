@@ -16,9 +16,10 @@ ClawHub installer page:
 
 | Version | Published (UTC) | Key Changes | Practical Impact |
 | --- | --- | --- | --- |
+| `v0.1.56` | 2026-02-25 | Advisory-first UX reform: normal writes always advisory (never hard block); hard blocks only for high-risk governance targets; natural-language evidence detection; prependContext guides AI to proceed directly; block messages human-readable (no machine tokens); AGENTS.md payload reformed from directive to best-practice | AI stops self-blocking on normal coding tasks; users never see machine tokens; governance protects high-risk targets while letting daily work flow freely |
+| `v0.1.55` | 2026-02-25 | Pre-modification config reference verification (`configRefScan`); strictness rationalization (first 2 write blocks advisory, hard block on 3rd+; brain audit window 30min→60s; block threshold 3→5); escape hatch (`/gov_brain_audit force-accept` clears all gates after 3+ loops); `scannerTolerance` config (`strict`/`tolerant`/`lenient`) for LLM format freedom; regression 108→124/124 | Write blocks no longer surprise new users (first 2 are advisory); stuck users get a clear escape route; LLM-generated run reports accepted regardless of formatting style |
 | `v0.1.54` | 2026-02-25 | Fixed `gov_brain_audit` false positives: read-only audit run reports (audit/preview/scan) no longer trigger `COMPLETION_WITHOUT_EVIDENCE`; WARN/BLOCKED next-step guidance now shows actual finding IDs; regression 104/104 | Other runtimes upgrading from v0.1.53 no longer see spurious HIGH findings from audit reports; operators can copy-paste correct APPROVE command directly |
 | `v0.1.53` | 2026-02-25 | `/gov_help` redesigned with ASCII art banner and complete 9-command catalog; README command ordering aligned; section heading emojis; ROOT SPRAWL regression fix (temp workspace chain tests); regression 103/103 | Users see full command menu at a glance with branded banner; README navigation faster with emoji headings; all product surfaces show consistent command ordering |
-| `v0.1.52` | 2026-02-24 | Detection logic hardening: `gov_uninstall` now detects all 8 `_control/` file references in brain docs (previously only 3); release pipeline adds `PLUGIN_VERSION` constant alignment gate; refactored brain-doc scanning; regression expanded to 100/100 | Uninstall check/cleanup now catches previously-missed governance residue (e.g. `_control/ACTIVE_GUARDS.md` references); future version misalignment prevented by machine gate |
 
 Source: GitHub Releases (`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`)
 
@@ -229,6 +230,59 @@ Governance automatically adapts to what you are asking for:
 3. File changes (full governance protection)
    You ask to write, update, or save files. The AI follows the full safety flow: plan first, read evidence, make the minimum change, verify quality, then persist with a run report. Close with `/gov_migrate` and `/gov_audit` when needed.
 
+## ⚡ Runtime Gate Behavior (Transparent)
+
+When you ask AI to write or modify files, the governance runtime gate activates automatically. Here is exactly how it works:
+
+### Write Protection Flow
+
+| Step | What Happens | User Action |
+|------|-------------|-------------|
+| Normal writes (skills/, projects/, code) | **Always advisory** — write proceeds with a logged warning | None needed; you can continue working |
+| High-risk writes (governance infra, Brain Docs) 1st-2nd | **Advisory** — write is allowed through with a logged warning | None needed |
+| High-risk writes 3rd+ without evidence | **Hard block** — write is stopped | Include your plan and files read in your response, then retry |
+| 3+ consecutive blocks on same gate | **Escape hint** appears in block message | Use `/gov_brain_audit force-accept` to clear all gates (with audit trail) |
+| After running `/gov_setup`, `/gov_migrate`, `/gov_audit` | **Advisory nudge** only (not a hard block) | Optionally run `/gov_brain_audit` for a health-check preview |
+
+### Risk Classification
+
+| Risk Level | Targets | Runtime Behavior |
+|-----------|---------|-----------------|
+| **High-risk** | Brain Docs (`AGENTS.md`, `SOUL.md`, `USER.md`, `IDENTITY.md`, `TOOLS.md`, `MEMORY.md`, `HEARTBEAT.md`), `openclaw.json`, `_control/*`, `prompts/governance/*` | Advisory 1st-2nd write, **hard block** on 3rd+ |
+| **Normal** | Everything else (`skills/`, `projects/`, `_runs/`, source code, configs, docs, etc.) | **Always advisory** (never hard-blocked) |
+
+All writes (both risk levels) follow the full Mode C governance flow internally: PLAN→READ→CHANGE→QC→PERSIST. The risk level only determines whether the runtime gate can hard-block a write attempt.
+
+### Escape Hatch
+
+If you are blocked 3+ times by the same governance gate and cannot proceed:
+```text
+/gov_brain_audit force-accept
+```
+This clears all governance gates for the current session. An audit trail is written to `_runs/`. Governance protection is reduced — proceed with caution.
+
+### Governance Command Bypass
+
+All governance write commands (`/gov_setup install`, `/gov_migrate`, `/gov_apply`, etc.) automatically bypass the write gate for 8 minutes. You do not need to provide PLAN/READ evidence when running governance commands.
+
+### Brain Audit Timing
+
+- Brain audit requirement window: **60 seconds** (auto-clears after 60s)
+- Block threshold: **5** consecutive blocked writes before hard requirement activates
+- Per-turn reset: blocked-writes counter resets when prompt gap exceeds 30 seconds
+
+### Scanner Tolerance
+
+If governance scanners reject LLM-generated run reports due to format differences, configure `scannerTolerance` in `openclaw.json`:
+
+| Setting | Behavior |
+|---------|----------|
+| `strict` | Exact machine format only (e.g., `files_read:`) |
+| `tolerant` (default) | Accepts markdown headers, bullets, format variations |
+| `lenient` | Fuzzy keyword matching for lower-capability LLMs |
+
+Affects: `/gov_audit`, `/gov_brain_audit preview`, `/gov_boot_audit scan`.
+
 ## 🔒 Security Default
 
 1. Governance tools only activate when you explicitly request them (via `/gov_*` or `/skill gov_*`). They never run on their own.
@@ -282,9 +336,13 @@ If slash fallback is needed:
 ```
 
 5. I got `Blocked by WORKSPACE_GOVERNANCE runtime gate...`. Is this a crash?
-Usually no. Ask AI to provide missing evidence first:
+Usually no. Normal file writes (skills, projects, code) are always advisory and never hard-blocked. Hard blocks only apply to high-risk governance targets (Brain Docs, `_control/`, governance prompts, `openclaw.json`). Ask AI to include its plan and list of files read:
 ```text
-Please output PLAN and READ evidence for this write task, include WG_PLAN_GATE_OK and WG_READ_GATE_OK, then continue.
+Please include your plan and files read, then proceed.
+```
+If you are blocked 3+ times and cannot proceed, use the escape hatch:
+```text
+/gov_brain_audit force-accept
 ```
 Official `openclaw ...` system commands are allow-by-default and should not be blocked by this runtime gate.
 
@@ -310,9 +368,9 @@ Run full governance upgrade flow for this workspace and show each step result.
 ```
 
 8. I am giving a coding task in natural language. How do I avoid governance blocks?
-Start the task with:
+Just describe your task naturally. The AI follows governance best practices internally. For example:
 ```text
-Before changing files, show PLAN and READ evidence, then perform minimal change and finish with QC evidence.
+Please create/update the file as needed.
 ```
 
 9. How do I ask AI to optimize Brain Docs quality, not just rewrite text?
