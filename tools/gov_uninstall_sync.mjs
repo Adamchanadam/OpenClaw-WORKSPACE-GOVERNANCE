@@ -457,7 +457,7 @@ function collectFootprint(workspaceRoot) {
   return Array.from(new Set(items.map((p) => path.resolve(p))));
 }
 
-function runPostUninstallQC(workspaceRoot) {
+function runFinalUninstallQC(workspaceRoot) {
   const checks = [];
   const warnings = [];
 
@@ -466,7 +466,7 @@ function runPostUninstallQC(workspaceRoot) {
   const agentsExists = exists(agentsPath);
   checks.push({ name: "agents_md_exists", pass: agentsExists });
   if (!agentsExists) {
-    warnings.push("POST_QC_FAIL: AGENTS.md does not exist after uninstall — brain doc core was lost.");
+    warnings.push("UNINSTALL_QC_FAIL: AGENTS.md does not exist after uninstall — brain doc core was lost.");
   }
 
   // 2. No AUTOGEN markers remain in AGENTS.md
@@ -476,11 +476,11 @@ function runPostUninstallQC(workspaceRoot) {
       const text = fs.readFileSync(agentsPath, "utf8");
       if (text.includes("AUTOGEN:BEGIN AGENTS_CORE_v1")) {
         noAutogenMarkers = false;
-        warnings.push("POST_QC_FAIL: AGENTS.md still contains AUTOGEN:BEGIN AGENTS_CORE_v1 marker after uninstall.");
+        warnings.push("UNINSTALL_QC_FAIL: AGENTS.md still contains AUTOGEN:BEGIN AGENTS_CORE_v1 marker after uninstall.");
       }
     } catch {
       // unreadable — treat as warning
-      warnings.push("POST_QC_WARN: AGENTS.md exists but could not be read for marker scan.");
+      warnings.push("UNINSTALL_QC_WARN: AGENTS.md exists but could not be read for marker scan.");
     }
   }
   checks.push({ name: "agents_md_no_autogen_markers", pass: noAutogenMarkers });
@@ -491,7 +491,7 @@ function runPostUninstallQC(workspaceRoot) {
   const controlsCleaned = !exists(govBootstrapPath) && !exists(regressionCheckPath);
   checks.push({ name: "governance_control_files_cleaned", pass: controlsCleaned });
   if (!controlsCleaned) {
-    warnings.push("POST_QC_FAIL: governance control files (GOVERNANCE_BOOTSTRAP.md or REGRESSION_CHECK.md) still exist.");
+    warnings.push("UNINSTALL_QC_FAIL: governance control files (GOVERNANCE_BOOTSTRAP.md or REGRESSION_CHECK.md) still exist.");
   }
 
   // 4. Governance prompts cleaned
@@ -500,7 +500,7 @@ function runPostUninstallQC(workspaceRoot) {
   const promptsCleaned = !exists(govPromptPath) && !exists(migPromptPath);
   checks.push({ name: "governance_prompts_cleaned", pass: promptsCleaned });
   if (!promptsCleaned) {
-    warnings.push("POST_QC_FAIL: governance prompt files still exist after uninstall.");
+    warnings.push("UNINSTALL_QC_FAIL: governance prompt files still exist after uninstall.");
   }
 
   // 5. _runs/ logs intact
@@ -508,7 +508,7 @@ function runPostUninstallQC(workspaceRoot) {
   const runsIntact = exists(runsDir);
   checks.push({ name: "runs_logs_intact", pass: runsIntact });
   if (!runsIntact) {
-    warnings.push("POST_QC_WARN: _runs/ directory does not exist (no historical logs).");
+    warnings.push("UNINSTALL_QC_WARN: _runs/ directory does not exist (no historical logs).");
   }
 
   // 6. No governance enforcement residue in ANY brain doc
@@ -518,7 +518,7 @@ function runPostUninstallQC(workspaceRoot) {
   checks.push({ name: "brain_docs_no_governance_residue", pass: brainDocsClean });
   if (!brainDocsClean) {
     warnings.push(
-      `POST_QC_FAIL: governance enforcement residue in brain docs: ${brainDocsWithResidue.join(", ")}. These files still reference deleted _control/ infrastructure.`,
+      `UNINSTALL_QC_FAIL: governance enforcement residue in brain docs: ${brainDocsWithResidue.join(", ")}. These files still reference deleted _control/ infrastructure.`,
     );
   }
 
@@ -541,7 +541,7 @@ function writeRunReport(params) {
     removed,
     restored,
     strippedBrainDocs,
-    postUninstallQC,
+    finalQC,
     warnings,
     status,
     reason,
@@ -588,10 +588,10 @@ function writeRunReport(params) {
     for (const doc of strippedBrainDocs) lines.push(`- ${doc}`);
     lines.push("");
   }
-  if (postUninstallQC) {
-    lines.push("## POST_UNINSTALL_QC");
-    lines.push(`- overall: ${postUninstallQC.pass ? "PASS" : "FAIL"}`);
-    for (const c of postUninstallQC.checks) {
+  if (finalQC) {
+    lines.push("## FINAL_UNINSTALL_QC");
+    lines.push(`- overall: ${finalQC.pass ? "PASS" : "FAIL"}`);
+    for (const c of finalQC.checks) {
       lines.push(`- ${c.name}: ${c.pass ? "PASS" : "FAIL"}`);
     }
     lines.push("");
@@ -841,9 +841,9 @@ function executeGovUninstallSync(modeInput) {
   ensureDir(runsRoot);
 
   // Post-uninstall QC verification (after ensureDir so _runs/ check is accurate)
-  const postUninstallQC = runPostUninstallQC(workspaceRoot);
-  if (postUninstallQC.warnings.length > 0) {
-    warnings.push(...postUninstallQC.warnings);
+  const finalQC = runFinalUninstallQC(workspaceRoot);
+  if (finalQC.warnings.length > 0) {
+    warnings.push(...finalQC.warnings);
   }
   const runRelPath = normalizeRel(path.join("_runs", `gov_uninstall_${ts}.md`));
   const runReportPath = path.join(workspaceRoot, runRelPath);
@@ -865,7 +865,7 @@ function executeGovUninstallSync(modeInput) {
     removed,
     restored,
     strippedBrainDocs,
-    postUninstallQC,
+    finalQC,
     warnings,
     status: "PASS",
     reason: "",
@@ -893,7 +893,7 @@ function executeGovUninstallSync(modeInput) {
       removed_paths: removed,
       restored_paths: restored,
       stripped_brain_docs: strippedBrainDocs,
-      post_uninstall_qc: postUninstallQC,
+      final_uninstall_qc: finalQC,
       warnings,
       run_report: runRelPath,
       next_action: "DISABLE_OR_UNINSTALL_PLUGIN",

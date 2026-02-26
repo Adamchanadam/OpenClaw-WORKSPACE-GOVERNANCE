@@ -41,7 +41,7 @@ const READ_EVIDENCE_PATTERNS = [
     /\b(?:已讀|已檢查|檔案內容|現有內容)\b/i,
     /\bexisting\s+(?:content|files?|code)\b/i,
 ];
-const PLUGIN_VERSION = "0.1.57";
+const PLUGIN_VERSION = "0.1.58";
 const PLUGIN_NPM_PACKAGE = "@adamchanadam/openclaw-workspace-governance";
 async function fetchLatestNpmVersion() {
     try {
@@ -1182,7 +1182,7 @@ async function makeGovUninstallQuickCommandResponse(lang) {
         `brain_backup_used: ${String(uninstallData.brain_backup_used || "none")}`,
         `brain_backup_strategy: ${String(uninstallData.brain_backup_strategy || "none")}`,
         `stripped_brain_docs: ${String(Array.isArray(uninstallData.stripped_brain_docs) ? uninstallData.stripped_brain_docs.length : 0)}`,
-        `post_uninstall_qc: ${uninstallData.post_uninstall_qc ? (uninstallData.post_uninstall_qc.pass ? "PASS" : "FAIL") : "none"}`,
+        `final_uninstall_qc: ${uninstallData.final_uninstall_qc ? (uninstallData.final_uninstall_qc.pass ? "PASS" : "FAIL") : "none"}`,
         uninstallData.run_report ? `run_report: ${String(uninstallData.run_report)}` : "",
     ].filter(Boolean), i18n(lang, "One-click workspace uninstall completed. Then disable/uninstall plugin package if needed.", "一鍵 workspace uninstall 完成。若需要，下一步可停用/卸載 plugin 套件。"), ["openclaw plugins disable openclaw-workspace-governance", "optional: openclaw plugins uninstall openclaw-workspace-governance"]);
 }
@@ -1477,7 +1477,7 @@ async function makeGovUninstallCommandResponse(ctx) {
     const removed = Array.isArray(data.removed_paths) ? data.removed_paths : [];
     const restored = Array.isArray(data.restored_paths) ? data.restored_paths : [];
     const strippedBrainDocs = Array.isArray(data.stripped_brain_docs) ? data.stripped_brain_docs : [];
-    const postQC = data.post_uninstall_qc;
+    const postQC = data.final_uninstall_qc;
     const why = [
         `mode: ${mode}`,
         `removed_paths: ${String(removed.length)}`,
@@ -1488,7 +1488,7 @@ async function makeGovUninstallCommandResponse(ctx) {
         `latest_brain_backup_detected: ${String(data.latest_brain_backup_detected || "none")}`,
         `brain_backup_strategy: ${String(data.brain_backup_strategy || "none")}`,
         `run_report: ${String(data.run_report || "none")}`,
-        `post_uninstall_qc: ${postQC ? (postQC.pass ? "PASS" : "FAIL") : "none"}`,
+        `final_uninstall_qc: ${postQC ? (postQC.pass ? "PASS" : "FAIL") : "none"}`,
     ];
     if (Array.isArray(data.warnings) && data.warnings.length > 0) {
         why.push(`warnings:\n${toTextList(data.warnings.map((x) => String(x)))}`);
