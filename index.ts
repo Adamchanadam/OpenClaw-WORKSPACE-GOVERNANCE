@@ -117,7 +117,7 @@ const READ_EVIDENCE_PATTERNS = [
   /\bexisting\s+(?:content|files?|code)\b/i,
 ];
 
-const PLUGIN_VERSION = "0.1.60";
+const PLUGIN_VERSION = "0.1.61";
 const PLUGIN_NPM_PACKAGE = "@adamchanadam/openclaw-workspace-governance";
 
 async function fetchLatestNpmVersion(): Promise<string | null> {
@@ -1004,30 +1004,18 @@ function governanceBlockReason(state: GateState, lang: "en" | "zh"): string {
         " 你已被同一閘門阻擋 3 次以上。強制通過：/gov_brain_audit force-accept")
     : "";
   if (lang === "zh") {
-    const missingZh: string[] = [];
-    if (!state.planSeen) missingZh.push("PLAN 證據（描述你的計劃）");
-    if (!state.readSeen) missingZh.push("READ 證據（列出已讀的檔案）");
-    const missingTextZh = missingZh.join(" + ");
     return [
       "WORKSPACE_GOVERNANCE 高風險寫入保護已啟動（這是安全阻擋，不是系統錯誤）。",
-      "此寫入針對治理基礎設施。",
-      `缺少：${missingTextZh}。`,
-      "請在你的回覆中陳述計劃並列出已讀檔案，然後重試。",
+      "必要動作：修改 Brain Docs 前先執行 /gov_brain_audit preview ——此命令會解除寫入閘門。",
+      "若非 Brain Docs 修改，請在回覆中包含 PLAN 證據（描述你的計劃）+ READ 證據（列出已讀的檔案），然後重試。",
       "若屬平台控制面修改，請用 gov_openclaw_json。",
-      "若屬 Brain Docs 變更，先 /gov_brain_audit 預覽。",
     ].join(" ") + escapeHint;
   }
-  const missing: string[] = [];
-  if (!state.planSeen) missing.push("PLAN evidence (state your plan)");
-  if (!state.readSeen) missing.push("READ evidence (list files read)");
-  const missingText = missing.join(" + ");
   return [
     "WORKSPACE_GOVERNANCE high-risk write protection activated (this is a safety block, not a system error).",
-    "This write targets governance infrastructure.",
-    `Missing: ${missingText}.`,
-    "Include your plan and list of files read in your response, then retry.",
-    "If this is a platform control-plane change, use gov_openclaw_json.",
-    "If this is Brain Docs changes, start with /gov_brain_audit preview.",
+    "ACTION REQUIRED: Run /gov_brain_audit preview before modifying Brain Docs — this clears the write gate.",
+    "If this is NOT Brain Docs, include PLAN evidence (state your plan) + READ evidence (list files read) in your response, then retry.",
+    "For platform control-plane changes, use gov_openclaw_json.",
   ].join(" ") + escapeHint;
 }
 
@@ -2634,8 +2622,8 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
 
         const highRiskNote = state.highRiskBlockedWrites > 0
           ? i18n(state.uxLang,
-              ` ${state.highRiskBlockedWrites} of these targeted high-risk governance files — hard block activates on the 3rd high-risk attempt without evidence.`,
-              ` 其中 ${state.highRiskBlockedWrites} 次針對高風險治理檔案——第 3 次無證據時將硬封鎖。`)
+              ` ${state.highRiskBlockedWrites} of these targeted high-risk governance files (likely Brain Docs) — hard block activates on the 3rd attempt. To avoid the block: run /gov_brain_audit preview before your next Brain Docs write.`,
+              ` 其中 ${state.highRiskBlockedWrites} 次針對高風險治理檔案（可能是 Brain Docs）——第 3 次將硬封鎖。避免封鎖方法：下次寫入 Brain Docs 前先執行 /gov_brain_audit preview。`)
           : "";
 
         return {

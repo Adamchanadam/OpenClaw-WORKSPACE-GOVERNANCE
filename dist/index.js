@@ -41,7 +41,7 @@ const READ_EVIDENCE_PATTERNS = [
     /\b(?:已讀|已檢查|檔案內容|現有內容)\b/i,
     /\bexisting\s+(?:content|files?|code)\b/i,
 ];
-const PLUGIN_VERSION = "0.1.60";
+const PLUGIN_VERSION = "0.1.61";
 const PLUGIN_NPM_PACKAGE = "@adamchanadam/openclaw-workspace-governance";
 async function fetchLatestNpmVersion() {
     try {
@@ -850,34 +850,18 @@ function governanceBlockReason(state, lang) {
         ? i18n(lang, " You have been blocked 3+ times by the same gate. To force-through: /gov_brain_audit force-accept", " 你已被同一閘門阻擋 3 次以上。強制通過：/gov_brain_audit force-accept")
         : "";
     if (lang === "zh") {
-        const missingZh = [];
-        if (!state.planSeen)
-            missingZh.push("PLAN 證據（描述你的計劃）");
-        if (!state.readSeen)
-            missingZh.push("READ 證據（列出已讀的檔案）");
-        const missingTextZh = missingZh.join(" + ");
         return [
             "WORKSPACE_GOVERNANCE 高風險寫入保護已啟動（這是安全阻擋，不是系統錯誤）。",
-            "此寫入針對治理基礎設施。",
-            `缺少：${missingTextZh}。`,
-            "請在你的回覆中陳述計劃並列出已讀檔案，然後重試。",
+            "必要動作：修改 Brain Docs 前先執行 /gov_brain_audit preview ——此命令會解除寫入閘門。",
+            "若非 Brain Docs 修改，請在回覆中包含 PLAN 證據（描述你的計劃）+ READ 證據（列出已讀的檔案），然後重試。",
             "若屬平台控制面修改，請用 gov_openclaw_json。",
-            "若屬 Brain Docs 變更，先 /gov_brain_audit 預覽。",
         ].join(" ") + escapeHint;
     }
-    const missing = [];
-    if (!state.planSeen)
-        missing.push("PLAN evidence (state your plan)");
-    if (!state.readSeen)
-        missing.push("READ evidence (list files read)");
-    const missingText = missing.join(" + ");
     return [
         "WORKSPACE_GOVERNANCE high-risk write protection activated (this is a safety block, not a system error).",
-        "This write targets governance infrastructure.",
-        `Missing: ${missingText}.`,
-        "Include your plan and list of files read in your response, then retry.",
-        "If this is a platform control-plane change, use gov_openclaw_json.",
-        "If this is Brain Docs changes, start with /gov_brain_audit preview.",
+        "ACTION REQUIRED: Run /gov_brain_audit preview before modifying Brain Docs — this clears the write gate.",
+        "If this is NOT Brain Docs, include PLAN evidence (state your plan) + READ evidence (list files read) in your response, then retry.",
+        "For platform control-plane changes, use gov_openclaw_json.",
     ].join(" ") + escapeHint;
 }
 function brainAuditBlockReason(state, lang) {
@@ -1946,7 +1930,7 @@ export default function registerWorkspaceGovernancePlugin(api) {
             state.updatedAt = now;
             states.set(sessionKey, state);
             const highRiskNote = state.highRiskBlockedWrites > 0
-                ? i18n(state.uxLang, ` ${state.highRiskBlockedWrites} of these targeted high-risk governance files — hard block activates on the 3rd high-risk attempt without evidence.`, ` 其中 ${state.highRiskBlockedWrites} 次針對高風險治理檔案——第 3 次無證據時將硬封鎖。`)
+                ? i18n(state.uxLang, ` ${state.highRiskBlockedWrites} of these targeted high-risk governance files (likely Brain Docs) — hard block activates on the 3rd attempt. To avoid the block: run /gov_brain_audit preview before your next Brain Docs write.`, ` 其中 ${state.highRiskBlockedWrites} 次針對高風險治理檔案（可能是 Brain Docs）——第 3 次將硬封鎖。避免封鎖方法：下次寫入 Brain Docs 前先執行 /gov_brain_audit preview。`)
                 : "";
             return {
                 prependContext: i18n(state.uxLang, `Notice: your last ${count} write(s) proceeded without PLAN/READ evidence.${highRiskNote} Best practice: (1) state your plan before writing, (2) list the files you have read. This helps governance verify your work and avoids hard blocks on high-risk targets. Proceed with the user's task — include plan and read evidence naturally in your response.`, `注意：你上一輪有 ${count} 次寫入未包含 PLAN/READ 證據。${highRiskNote} 最佳實踐：(1) 寫入前陳述你的計劃，(2) 列出你已讀的檔案。這有助治理驗證你的工作並避免高風險目標被硬封鎖。繼續處理使用者的任務——在回覆中自然包含計劃和讀取證據。`),
