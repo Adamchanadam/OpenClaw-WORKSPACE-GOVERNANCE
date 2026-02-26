@@ -199,8 +199,8 @@ function parseBulletList(sectionText) {
   return String(sectionText || "")
     .split(/\r?\n/)
     .map((line) => line.trim())
-    .filter((line) => /^-\s+/.test(line))
-    .map((line) => line.replace(/^-\s+/, "").trim())
+    .filter((line) => /^[-*•]\s+/.test(line))
+    .map((line) => line.replace(/^[-*•]\s+/, "").trim())
     .filter(Boolean);
 }
 
@@ -209,7 +209,7 @@ function parseRunReportMeta(text, tolerance) {
   for (const raw of String(text || "").split(/\r?\n/)) {
     const line = raw.trim();
     if (!line) continue;
-    if (/^#{1,6}\s+/.test(line)) break;
+    if (/^#{2,6}\s+/.test(line)) break;
     const re = tolerance === "strict"
       ? /^-\s+([A-Za-z0-9_]+):\s*(.*)$/
       : /^(?:[-*•]\s+)?([A-Za-z0-9_]+):\s*(.*)$/;
@@ -540,7 +540,7 @@ function executeGovAuditSync(toleranceInput) {
           proofSummaries.push(`${targetRaw}:seeded_new_file`);
           continue;
         }
-        if (!latestWriteBackupRoot) {
+        if (!latestWriteBackupRoot || latestWriteBackupRoot.toLowerCase() === "none") {
           proofFailures.push(`${targetRaw}:missing_backup_root`);
           continue;
         }

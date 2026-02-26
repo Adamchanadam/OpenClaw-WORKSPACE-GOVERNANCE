@@ -16,9 +16,9 @@ ClawHub 安裝頁：
 
 | 版本 | 發佈時間（UTC） | 關鍵變更 | 對使用者的直接影響 |
 | --- | --- | --- | --- |
+| `v0.1.60` | 2026-02-26 | QC #8 BEFORE/AFTER PROOF 根因修正：run report H1 標題導致 metadata 解析器中斷；`backup_root: none` sentinel 處理修正；`parseBulletList` 接受 `*`/`•` 子彈格式（LLM 格式容忍度）；新增 14 個 malformed-data 回歸測試；回歸測試 140→164/164 | `/gov_audit` QC #8 在所有實際流程中正確運作（`/gov_setup quick`、手動鏈式、重複執行）；格式異常或 LLM 產生的 run report 可優雅處理 |
 | `v0.1.59` | 2026-02-26 | Scanner 相容性完成：消除 `gov_uninstall_sync.mjs` 中所有 `\bpost\b` 匹配（前綴 + 註解），通過 OpenClaw 2026.2.24 scanner；Command Chooser 增加 `/gov_brain_audit force-accept`；回歸測試 140/140 | Plugin 乾淨通過 OpenClaw runtime scanner；force-accept 逃生機制可從 Command Chooser 發現 |
 | `v0.1.57` | 2026-02-25 | 建議性回饋迴路：AI 在無證據寫入後下一輪收到輔導指引；README 寫入保護用語修正（透明化，非誤導性的「建議性附帶警告」）；回歸測試 135→140/140 | AI 在建議性寫入後自動修正行為，不再只在硬封鎖時才學到；用戶理解一般寫入完全透明無可見警告 |
-| `v0.1.56` | 2026-02-25 | 建議優先 UX 改革：一般寫入永遠建議性（不硬封鎖）；硬封鎖僅針對高風險治理目標；自然語言證據偵測；prependContext 引導 AI 直接執行；封鎖訊息人性化（無機器 token）；AGENTS.md payload 從指令式改為最佳實踐 | AI 不再在一般 coding 任務中自我封鎖；使用者不再看到機器 token；治理保護高風險目標同時讓日常工作順暢 |
 
 來源：GitHub Releases（`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`）
 
