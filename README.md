@@ -16,9 +16,9 @@ ClawHub installer page:
 
 | Version | Published (UTC) | Key Changes | Practical Impact |
 | --- | --- | --- | --- |
+| `v0.1.58` | 2026-02-26 | Scanner compatibility: renamed internal QC prefixes to avoid OpenClaw 2026.2.24 scanner false positive; added `/gov_brain_audit force-accept` to Command Chooser; regression 140/140 | Plugin passes OpenClaw runtime scanner without warnings; force-accept escape hatch discoverable from Command Chooser |
 | `v0.1.57` | 2026-02-25 | Advisory feedback loop: AI receives coaching guidance after writes without evidence; README write-protection wording clarified (transparent, not misleading "advisory with warning"); regression 135→140/140 | AI self-corrects after advisory writes instead of only learning at hard-block; users understand that normal writes are fully transparent with no visible warning |
 | `v0.1.56` | 2026-02-25 | Advisory-first UX reform: normal writes always advisory (never hard block); hard blocks only for high-risk governance targets; natural-language evidence detection; prependContext guides AI to proceed directly; block messages human-readable (no machine tokens); AGENTS.md payload reformed from directive to best-practice | AI stops self-blocking on normal coding tasks; users never see machine tokens; governance protects high-risk targets while letting daily work flow freely |
-| `v0.1.55` | 2026-02-25 | Pre-modification config reference verification (`configRefScan`); strictness rationalization (first 2 write blocks advisory, hard block on 3rd+; brain audit window 30min→60s; block threshold 3→5); escape hatch (`/gov_brain_audit force-accept` clears all gates after 3+ loops); `scannerTolerance` config (`strict`/`tolerant`/`lenient`) for LLM format freedom; regression 108→124/124 | Write blocks no longer surprise new users (first 2 are advisory); stuck users get a clear escape route; LLM-generated run reports accepted regardless of formatting style |
 
 Source: GitHub Releases (`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`)
 
@@ -193,6 +193,7 @@ If you already uninstalled plugin package first:
 | Clear platform trust warning before governance deployment | `/gov_openclaw_json` | `/gov_setup check` | Prevents setup from failing later due to trust misalignment and gives operators one deterministic trust-fix route |
 | Safely change OpenClaw control-plane config | `/gov_openclaw_json` | `/gov_audit` | Replaces risky direct editing with backup/validate/rollback evidence for recoverable platform operations |
 | Improve Brain Docs quality with minimal risk | `/gov_brain_audit` | approve findings -> `/gov_audit` | Detects high-risk wording, preserves persona intent, and only applies approved patches with rollback support |
+| Clear all governance gates when repeatedly blocked | `/gov_brain_audit force-accept` | continue your task | Escape hatch: clears all gates with audit trail when legitimate work is blocked by governance gates |
 | Scan for recurring issues and get upgrade proposals | `/gov_boot_audit` | review proposals -> `/gov_apply <NN>` (Experimental) | Read-only scan identifies repeat problems and generates numbered proposals you can review before deciding to apply |
 | Apply one BOOT proposal item (Experimental) | `/gov_apply <NN>` | `/gov_migrate` -> `/gov_audit` | Executes only one human-approved item in controlled UAT; do not treat as unattended GA automation |
 

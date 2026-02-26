@@ -53,9 +53,9 @@ Fail-Closed:
 1. Missing evidence/path ambiguity -> stop
 2. Any QC fail -> do not claim completion
 
-Operator UX output format (v0.1.51 branded):
+Operator UX output format (v0.1.58 branded):
 ```
-🐾 OpenClaw Governance · v0.1.51
+🐾 OpenClaw Governance · v0.1.58
 ─────────────────────────────────
 
 ✅  STATUS

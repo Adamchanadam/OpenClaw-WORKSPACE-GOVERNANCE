@@ -16,9 +16,9 @@ ClawHub 安裝頁：
 
 | 版本 | 發佈時間（UTC） | 關鍵變更 | 對使用者的直接影響 |
 | --- | --- | --- | --- |
+| `v0.1.58` | 2026-02-26 | Scanner 相容性：重命名內部 QC 前綴以避免 OpenClaw 2026.2.24 scanner 誤報；Command Chooser 增加 `/gov_brain_audit force-accept`；回歸測試 140/140 | Plugin 通過 OpenClaw runtime scanner 無警告；force-accept 逃生機制可從 Command Chooser 發現 |
 | `v0.1.57` | 2026-02-25 | 建議性回饋迴路：AI 在無證據寫入後下一輪收到輔導指引；README 寫入保護用語修正（透明化，非誤導性的「建議性附帶警告」）；回歸測試 135→140/140 | AI 在建議性寫入後自動修正行為，不再只在硬封鎖時才學到；用戶理解一般寫入完全透明無可見警告 |
 | `v0.1.56` | 2026-02-25 | 建議優先 UX 改革：一般寫入永遠建議性（不硬封鎖）；硬封鎖僅針對高風險治理目標；自然語言證據偵測；prependContext 引導 AI 直接執行；封鎖訊息人性化（無機器 token）；AGENTS.md payload 從指令式改為最佳實踐 | AI 不再在一般 coding 任務中自我封鎖；使用者不再看到機器 token；治理保護高風險目標同時讓日常工作順暢 |
-| `v0.1.55` | 2026-02-25 | 預修改設定參考驗證（`configRefScan`）；嚴格度合理化（首 2 次寫入封鎖為建議性、第 3 次起硬封鎖；brain audit 視窗 30min→60s；封鎖門檻 3→5）；逃生艙（`/gov_brain_audit force-accept` 3+ 次循環後清除所有閘門）；`scannerTolerance` 設定（`strict`/`tolerant`/`lenient`）支援 LLM 格式自由度；回歸測試 108→124/124 | 寫入封鎖不再讓新用戶措手不及（首 2 次為建議性）；卡住的用戶有明確逃生路線；LLM 生成的 run reports 無論格式均可接受 |
 
 來源：GitHub Releases（`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`）
 
@@ -193,6 +193,7 @@ openclaw gateway restart
 | 先清除平台信任警告再進治理流程 | `/gov_openclaw_json` | `/gov_setup check` | 避免後續因信任未對齊而失敗，提供單一路徑完成信任對齊 |
 | 安全修改 OpenClaw 平台控制面 | `/gov_openclaw_json` | `/gov_audit` | 以備份/驗證/回退取代高風險直改，讓平台變更可恢復 |
 | 低風險優化 Brain Docs 品質 | `/gov_brain_audit` | 批准 findings -> `/gov_audit` | 檢出高風險語句、保留人設方向，僅批准後套用且可回退 |
+| 重複被治理閘門封鎖時清除所有閘門 | `/gov_brain_audit force-accept` | 繼續你的任務 | 逃生機制：合法工作被治理閘門封鎖時，一鍵清除所有閘門並留有稽核記錄 |
 | 掃描重覆問題並取得升級提案 | `/gov_boot_audit` | 審閱提案 -> `/gov_apply <NN>`（Experimental） | 只讀掃描找出重覆問題並生成編號提案，你可先審閱再決定是否套用 |
 | 套用單一 BOOT 提案項目（Experimental） | `/gov_apply <NN>` | `/gov_migrate` -> `/gov_audit` | 只執行單一人手批准項目，適用受控 UAT；不可視為無人值守 GA 自動化 |
 
