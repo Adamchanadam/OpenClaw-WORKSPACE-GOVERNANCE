@@ -162,7 +162,11 @@ function alignAllowlistEntry(openclawJsonPath) {
   try {
     let cfg = {};
     if (exists(openclawJsonPath)) {
-      cfg = readJsonSafe(openclawJsonPath) || {};
+      const parsed = readJsonSafe(openclawJsonPath);
+      if (parsed === null) {
+        return { aligned: false, action: "CONFIG_CORRUPTED", previous_allow: null };
+      }
+      cfg = parsed;
     } else {
       fs.mkdirSync(path.dirname(openclawJsonPath), { recursive: true });
     }
@@ -250,6 +254,8 @@ function movePath(sourcePath, targetPath) {
   fs.rmSync(sourcePath, { recursive: true, force: true });
 }
 
+// NOTE: No file locking. Concurrent gov_setup processes are a known limitation.
+// Node.js single-threaded + env-var workspace detection makes true races unlikely.
 function executeGovSetupSync(modeInput) {
   const mode = String(modeInput || "install").toLowerCase();
   if (!allowedModes.has(mode)) {
@@ -339,16 +345,31 @@ function executeGovSetupSync(modeInput) {
     if (mode === "upgrade" && beforeExists) {
       const backupPath = path.join(backupRoot, item.targetRel);
       ensureDir(path.dirname(backupPath));
-      fs.copyFileSync(targetPath, backupPath);
+      try {
+        fs.copyFileSync(targetPath, backupPath);
+      } catch (backupErr) {
+        return {
+          exitCode: 2,
+          result: {
+            status: "BLOCKED",
+            reason: "BACKUP_FAILED",
+            mode,
+            failed_backup: backupPath,
+            error: String(backupErr?.message || backupErr),
+          },
+        };
+      }
     }
 
     ensureDir(path.dirname(targetPath));
     fs.copyFileSync(sourcePath, targetPath);
     const changed = !beforeExists || beforeNorm !== sourceNorm;
+    const customizationOverwritten = mode === "upgrade" && beforeExists && beforeNorm !== sourceNorm;
     copied.push({
       source_path: sourcePath,
       target_path: targetPath,
       changed,
+      customization_overwritten: customizationOverwritten,
       source_sha12: sha12(sourceNorm),
       target_sha12: sha12(readNormalized(targetPath)),
     });
@@ -388,6 +409,7 @@ function executeGovSetupSync(modeInput) {
       pass_detail: passDetail,
       backup_root: backupRoot || null,
       copied_files: copied,
+      customizations_overwritten: copied.filter((x) => x.customization_overwritten).map((x) => x.target_path),
       file_sync_summary_after: postSummary,
       workspace_gov_skill_dirs_reconciled: shadowMoves,
       next_action: nextAction,

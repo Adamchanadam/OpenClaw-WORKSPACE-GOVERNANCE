@@ -364,7 +364,13 @@ function executeGovAuditSync(toleranceInput) {
         continue;
       }
       const targetPath = path.join(workspaceRoot, spec.targetRel);
-      const targetText = fs.readFileSync(targetPath, "utf8");
+      let targetText;
+      try {
+        targetText = fs.readFileSync(targetPath, "utf8");
+      } catch (_readErr) {
+        equality.push({ id: spec.id, status: "READ_ERROR", target_sha12: null, canonical_sha12: sha12(canonicalInner) });
+        continue;
+      }
       equality.push({ id: spec.id, ...computeEquality(targetText, canonicalInner, spec.marker) });
     }
   }
@@ -382,6 +388,9 @@ function executeGovAuditSync(toleranceInput) {
     ),
   );
   const latestWriteBackupRoot = String(latestWriteMeta.backup_root || "").trim();
+  const latestWriteWorkspaceRoot = String(latestWriteMeta.workspace_root || "").trim();
+  const workspaceRootMismatch = latestWriteWorkspaceRoot &&
+    normalizePathKey(latestWriteWorkspaceRoot) !== normalizePathKey(workspaceRoot);
   const indexUpdated = updateWorkspaceIndex(indexPath, runRelPath);
 
   const qcItems = [];
@@ -531,6 +540,9 @@ function executeGovAuditSync(toleranceInput) {
     if (!latestWrite || latestWriteTargets.length === 0) {
       qcItems.push(makeQcItem(8, "BEFORE/AFTER PROOF", "PASS (N/A)", "no latest write target set"));
     } else {
+      const isUninstallReport = latestWrite?.name
+        ? /^gov_uninstall_/i.test(latestWrite.name)
+        : false;
       const proofFailures = [];
       const proofSummaries = [];
       for (const raw of latestWriteTargets) {
@@ -551,8 +563,22 @@ function executeGovAuditSync(toleranceInput) {
           continue;
         }
         const backupPath = path.join(latestWriteBackupRoot, rel);
-        if (!exists(backupPath) || !exists(targetAbs)) {
-          proofFailures.push(`${targetRaw}:backup_or_target_missing`);
+        if (!exists(targetAbs)) {
+          if (isUninstallReport && exists(backupPath)) {
+            // Uninstall removed this target — backup is "before", absence is "after"
+            try {
+              const beforeSha = sha12(fs.readFileSync(backupPath, "utf8"));
+              proofSummaries.push(`${targetRaw}:removed(before=${beforeSha})`);
+            } catch (_readErr) {
+              proofFailures.push(`${targetRaw}:backup_read_error`);
+            }
+            continue;
+          }
+          proofFailures.push(`${targetRaw}:target_missing`);
+          continue;
+        }
+        if (!exists(backupPath)) {
+          proofFailures.push(`${targetRaw}:backup_missing`);
           continue;
         }
         const beforeSha = sha12(fs.readFileSync(backupPath, "utf8"));
@@ -657,6 +683,7 @@ function executeGovAuditSync(toleranceInput) {
       missing_files: missingFiles,
       equality,
       latest_write_run_report: latestWrite?.relPath || null,
+      workspace_root_mismatch: workspaceRootMismatch ? latestWriteWorkspaceRoot : null,
       qc_summary: qcSummary,
       qc_items: qcItems,
       qc_failed_items: qcItems

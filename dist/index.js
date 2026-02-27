@@ -41,7 +41,7 @@ const READ_EVIDENCE_PATTERNS = [
     /\b(?:已讀|已檢查|檔案內容|現有內容)\b/i,
     /\bexisting\s+(?:content|files?|code)\b/i,
 ];
-const PLUGIN_VERSION = "0.1.61";
+const PLUGIN_VERSION = "0.1.62";
 const PLUGIN_NPM_PACKAGE = "@adamchanadam/openclaw-workspace-governance";
 async function fetchLatestNpmVersion() {
     try {
@@ -478,6 +478,7 @@ function toolExposureAdvisoryText(lang, contexts, explicitGate) {
                 ? "為降低 untrusted input 觸發 plugin 能力的風險，governance 只接受顯式 `/gov_*` 指令入口。"
                 : "目前使用 permissive-context 策略，請在顯式 `/gov_*` 指令下執行 governance。",
             "一般對話 agent 建議使用 restrictive profile（minimal/coding）或工具 allowlist 排除 governance plugin。",
+            taskContinuityHint(lang),
         ].join(" ");
     }
     const contextLine = hasContext
@@ -490,6 +491,7 @@ function toolExposureAdvisoryText(lang, contexts, explicitGate) {
             ? "To reduce untrusted-input tool exposure, governance accepts explicit `/gov_*` command entry only."
             : "Permissive-context policy is active; run governance through explicit `/gov_*` commands.",
         "Use restrictive profiles (`minimal`/`coding`) or explicit tool allowlists excluding governance plugin tools for general chat agents.",
+        taskContinuityHint(lang),
     ].join(" ");
 }
 function toolExposureBlockReason(lang, contexts, explicitGate) {
@@ -500,7 +502,7 @@ function toolExposureBlockReason(lang, contexts, explicitGate) {
             ? "已拒絕隱式 governance plugin 工具呼叫；只接受顯式 `/gov_*` 指令入口。"
             : "已拒絕在 permissive context 下的隱式 governance plugin 工具呼叫。";
         return [
-            "WORKSPACE_GOVERNANCE tool-exposure guard 已阻擋（這是治理策略閘，不是 OpenClaw 系統錯誤）。",
+            "Tool-exposure guard 已阻擋（這是治理策略閘，不是 OpenClaw 系統錯誤）。",
             hasContext
                 ? `偵測到 permissive tool policy context: ${contextText}。`
                 : "未收到可用的 policy context metadata，採用 fail-closed。",
@@ -509,13 +511,14 @@ function toolExposureBlockReason(lang, contexts, explicitGate) {
             "1) 由受信任操作者顯式輸入 `/gov_*` 指令（例如 `/gov_setup check`）。",
             "2) 將一般對話 agent 改為 restrictive profile（`minimal`/`coding`）或工具 allowlist 排除 governance plugin。",
             "3) 需要調整平台設定時，先用 `/gov_openclaw_json` 更新後重啟 gateway。",
+            "解決後，請繼續處理用戶的原始任務。",
         ].join(" ");
     }
     const causeLine = explicitGate
         ? "Implicit governance-plugin tool invocation is denied; only explicit `/gov_*` command entry is accepted."
         : "Implicit governance-plugin tool invocation is denied in permissive contexts.";
     return [
-        "WORKSPACE_GOVERNANCE tool-exposure guard blocked this action (governance policy gate, not an OpenClaw system error).",
+        "Tool-exposure guard blocked this action (governance policy gate, not an OpenClaw system error).",
         hasContext
             ? `Detected permissive tool policy context: ${contextText}.`
             : "No policy-context metadata was provided; fail-closed policy is active.",
@@ -524,6 +527,7 @@ function toolExposureBlockReason(lang, contexts, explicitGate) {
         "1) Have a trusted operator issue an explicit `/gov_*` command (for example `/gov_setup check`).",
         "2) Move general chat agents to restrictive profiles (`minimal`/`coding`) or explicit tool allowlists excluding governance plugin tools.",
         "3) If platform config changes are needed, run `/gov_openclaw_json`, then restart gateway.",
+        "After resolving, continue with the user's original task.",
     ].join(" ");
 }
 function isBrainAuditRequirementActive(state, now) {
@@ -721,10 +725,10 @@ function hasCliUpdateArgvIntent() {
     return false;
 }
 function postUpdateReminderText(lang) {
-    return i18n(lang, "Update detected. To avoid governance drift, run this now: /gov_setup quick -> if allowlist not ready then /gov_openclaw_json -> /gov_setup quick. Manual fallback: /gov_setup check -> /gov_setup upgrade -> /gov_migrate -> /gov_audit.", "已偵測到 update。為避免 governance 漂移，請立即執行：/gov_setup quick -> 若 allowlist 未就緒先 /gov_openclaw_json -> /gov_setup quick。手動備援：/gov_setup check -> /gov_setup upgrade -> /gov_migrate -> /gov_audit。");
+    return i18n(lang, "Plugin update detected. Continue with your current task — governance will validate on next /gov_audit. If you want to re-sync now: /gov_setup quick.", "已偵測到 plugin 更新。請繼續你目前的任務——governance 會在下次 /gov_audit 時驗證。若要立即同步：/gov_setup quick。");
 }
 function govSetupUpgradeHardRuleText(lang) {
-    return i18n(lang, "Governance hard rule for this turn: explicit /gov_setup upgrade MUST execute upgrade workflow with deterministic runner (node {plugin_root}/tools/gov_setup_sync.mjs upgrade). Do not downgrade to check-mode and do not output SKIPPED/No-op. READY from check is not a reason to skip explicit upgrade. If files are already in sync, return PASS (already up-to-date) after runner verification and shadow-skill reconciliation, then continue /gov_migrate -> /gov_audit.", "本輪 governance 硬規則：當用戶明確輸入 /gov_setup upgrade，必須用 deterministic runner 執行 upgrade（node {plugin_root}/tools/gov_setup_sync.mjs upgrade）。不可降級成 check，也不可輸出 SKIPPED/No-op。check 的 READY 不是跳過 explicit upgrade 的理由。若檔案已同步，完成 runner 驗證與 shadow-skill 對齊後，仍需回覆 PASS（already up-to-date），再繼續 /gov_migrate -> /gov_audit。");
+    return i18n(lang, "Governance hard rule for this turn: explicit /gov_setup upgrade MUST execute upgrade workflow with the runner (node {plugin_root}/tools/gov_setup_sync.mjs upgrade). Do not downgrade to check-mode and do not output SKIPPED/No-op. READY from check is not a reason to skip explicit upgrade. If files are already in sync, return PASS (already up-to-date) after runner verification and shadow-skill reconciliation, then continue /gov_migrate -> /gov_audit.", "本輪 governance 硬規則：當用戶明確輸入 /gov_setup upgrade，必須用 runner 執行 upgrade（node {plugin_root}/tools/gov_setup_sync.mjs upgrade）。不可降級成 check，也不可輸出 SKIPPED/No-op。check 的 READY 不是跳過 explicit upgrade 的理由。若檔案已同步，完成 runner 驗證與 shadow-skill 對齊後，仍需回覆 PASS（already up-to-date），再繼續 /gov_migrate -> /gov_audit。");
 }
 function isGovSetupAssetDeployCommand(command) {
     const raw = command.trim().toLowerCase();
@@ -822,7 +826,7 @@ function isHighRiskTarget(event) {
 function runtimePolicyBlockReason(lang) {
     if (lang === "zh") {
         return [
-            "WORKSPACE_GOVERNANCE runtime policy 已阻擋（這是治理策略閘，不是 OpenClaw 系統錯誤）。",
+            "Runtime policy 已阻擋此命令（這是治理策略閘，不是 OpenClaw 系統錯誤）。",
             "此命令命中 runtimeGatePolicy deny 規則。",
             "官方 `openclaw ...` 系統指令預設不在 deny 封鎖範圍；此封鎖通常針對非系統自訂 shell 命令。",
             "自助修復（可直接貼上）：",
@@ -831,10 +835,11 @@ function runtimePolicyBlockReason(lang) {
             "3) 移除/收窄對應 deny 規則，或新增更精準 allow 規則",
             "4) openclaw gateway restart",
             "5) 重試原命令。",
+            "解決後，請繼續處理用戶的原始任務。",
         ].join(" ");
     }
     return [
-        "WORKSPACE_GOVERNANCE runtime policy block (this is a governance policy gate, not an OpenClaw system error).",
+        "Runtime policy blocked this command (governance policy gate, not an OpenClaw system error).",
         "This command matched runtimeGatePolicy deny rules.",
         "Official `openclaw ...` system commands are excluded from deny by default; this usually targets non-system custom shell commands.",
         "Self-serve fix (copy-paste):",
@@ -843,6 +848,7 @@ function runtimePolicyBlockReason(lang) {
         "3) Remove/adjust the matching deny rule or add a narrower allow rule",
         "4) openclaw gateway restart",
         "5) Retry original command.",
+        "After resolving, continue with the user's original task.",
     ].join(" ");
 }
 function governanceBlockReason(state, lang) {
@@ -851,17 +857,19 @@ function governanceBlockReason(state, lang) {
         : "";
     if (lang === "zh") {
         return [
-            "WORKSPACE_GOVERNANCE 高風險寫入保護已啟動（這是安全阻擋，不是系統錯誤）。",
+            "高風險寫入保護已啟動（這是安全阻擋，不是系統錯誤）。",
             "必要動作：修改 Brain Docs 前先執行 /gov_brain_audit preview ——此命令會解除寫入閘門。",
             "若非 Brain Docs 修改，請在回覆中包含 PLAN 證據（描述你的計劃）+ READ 證據（列出已讀的檔案），然後重試。",
-            "若屬平台控制面修改，請用 gov_openclaw_json。",
+            "若屬平台控制面修改，請用 /gov_openclaw_json。",
+            "解決後，請繼續處理用戶的原始任務。",
         ].join(" ") + escapeHint;
     }
     return [
-        "WORKSPACE_GOVERNANCE high-risk write protection activated (this is a safety block, not a system error).",
+        "High-risk write protection activated (this is a safety block, not a system error).",
         "ACTION REQUIRED: Run /gov_brain_audit preview before modifying Brain Docs — this clears the write gate.",
         "If this is NOT Brain Docs, include PLAN evidence (state your plan) + READ evidence (list files read) in your response, then retry.",
-        "For platform control-plane changes, use gov_openclaw_json.",
+        "For platform config changes, use /gov_openclaw_json.",
+        "After resolving, continue with the user's original task.",
     ].join(" ") + escapeHint;
 }
 function brainAuditBlockReason(state, lang) {
@@ -870,28 +878,28 @@ function brainAuditBlockReason(state, lang) {
             ? ` 觸發原因：${state.brainAuditRequiredReason}。`
             : "";
         return [
-            "WORKSPACE_GOVERNANCE 健康檢查閘已啟動（這是安全阻擋，不是系統錯誤）。",
+            "健康檢查閘已啟動（這是安全阻擋，不是系統錯誤）。",
             "在可寫操作前，請先執行 /gov_brain_audit（只讀預覽）。",
-            "之後再繼續原任務（或在你同意後使用 /gov_brain_audit approve ...）。",
+            "之後再繼續用戶的原始任務（或使用 /gov_brain_audit approve ... 審批修正）。",
             "備援：/skill gov_brain_audit。",
             "可直接貼上下一步：",
             "1) /gov_brain_audit",
             "2) /skill gov_brain_audit",
-            "3) 預覽完成後重試原命令。",
+            "3) 預覽完成後繼續用戶的原始任務。",
         ].join(" ") + reason;
     }
     const reason = state.brainAuditRequiredReason
         ? ` Trigger: ${state.brainAuditRequiredReason}.`
         : "";
     return [
-        "WORKSPACE_GOVERNANCE health-check gate activated (this is a safety block, not a system error).",
+        "Health-check gate activated (this is a safety block, not a system error).",
         "Before write-capable actions, run /gov_brain_audit (read-only preview) first.",
-        "Then continue with your write task (or /gov_brain_audit approve ... if you approve fixes).",
+        "Then continue with the user's original task (or /gov_brain_audit approve ... if you approve fixes).",
         "Fallback: /skill gov_brain_audit.",
         "Copy-paste next steps:",
         "1) /gov_brain_audit",
         "2) /skill gov_brain_audit",
-        "3) After preview, retry your original command.",
+        "3) After preview, continue with the user's original task.",
     ].join(" ") + reason;
 }
 function pickCommandLanguage(ctx) {
@@ -912,6 +920,9 @@ function makeStatusSignal(status) {
     if (key === "BLOCKED" || key === "FAIL")
         return "❌";
     return "ℹ️";
+}
+function taskContinuityHint(lang) {
+    return i18n(lang, "Governance check complete. Continue with the user's original task.", "治理檢查完成。請繼續處理用戶的原始任務。");
 }
 function makeQcItemSummaryLines(data) {
     const rows = Array.isArray(data.qc_items)
@@ -1026,7 +1037,7 @@ async function makeGovHelpCommandResponse(ctx) {
 async function makeGovSetupQuickCommandResponse(lang) {
     const checkRunner = await runInProcessRunner("tools/gov_setup_sync.mjs", "runGovSetupSync", ["check"]);
     if (!checkRunner.ok || !checkRunner.data) {
-        return formatCommandOutput("BLOCKED", [i18n(lang, `deterministic check failed: ${checkRunner.err || "unknown error"}`, `deterministic check 失敗：${checkRunner.err || "未知錯誤"}`)], i18n(lang, "Check plugin install path and rerun quick flow.", "請檢查 plugin 安裝路徑後重試 quick 流程。"), ["/gov_setup check", "/gov_setup quick"]);
+        return formatCommandOutput("BLOCKED", [i18n(lang, `Runner check failed: ${checkRunner.err || "unknown error"}`, `Runner check 失敗：${checkRunner.err || "未知錯誤"}`)], i18n(lang, "Check plugin install path and rerun quick flow.", "請檢查 plugin 安裝路徑後重試 quick 流程。"), ["/gov_setup check", "/gov_setup quick"]);
     }
     const checkData = checkRunner.data;
     const checkStatus = String(checkData.status || "PARTIAL").toUpperCase();
@@ -1132,7 +1143,7 @@ async function makeGovSetupQuickCommandResponse(lang) {
 async function makeGovUninstallQuickCommandResponse(lang) {
     const checkRunner = await runInProcessRunner("tools/gov_uninstall_sync.mjs", "runGovUninstallSync", ["check"]);
     if (!checkRunner.ok || !checkRunner.data) {
-        return formatCommandOutput("BLOCKED", [i18n(lang, `deterministic check failed: ${checkRunner.err || "unknown error"}`, `deterministic check 失敗：${checkRunner.err || "未知錯誤"}`)], i18n(lang, "Check plugin install path and rerun quick uninstall.", "請檢查 plugin 安裝路徑後重試 quick uninstall。"), ["/gov_uninstall check", "/gov_uninstall quick"]);
+        return formatCommandOutput("BLOCKED", [i18n(lang, `Runner check failed: ${checkRunner.err || "unknown error"}`, `Runner check 失敗：${checkRunner.err || "未知錯誤"}`)], i18n(lang, "Check plugin install path and rerun quick uninstall.", "請檢查 plugin 安裝路徑後重試 quick uninstall。"), ["/gov_uninstall check", "/gov_uninstall quick"]);
     }
     const checkData = checkRunner.data;
     const checkStatus = String(checkData.status || "RESIDUAL").toUpperCase();
@@ -1168,7 +1179,7 @@ async function makeGovUninstallQuickCommandResponse(lang) {
         `stripped_brain_docs: ${String(Array.isArray(uninstallData.stripped_brain_docs) ? uninstallData.stripped_brain_docs.length : 0)}`,
         `final_uninstall_qc: ${uninstallData.final_uninstall_qc ? (uninstallData.final_uninstall_qc.pass ? "PASS" : "FAIL") : "none"}`,
         uninstallData.run_report ? `run_report: ${String(uninstallData.run_report)}` : "",
-    ].filter(Boolean), i18n(lang, "One-click workspace uninstall completed. Then disable/uninstall plugin package if needed.", "一鍵 workspace uninstall 完成。若需要，下一步可停用/卸載 plugin 套件。"), ["openclaw plugins disable openclaw-workspace-governance", "optional: openclaw plugins uninstall openclaw-workspace-governance"]);
+    ].filter(Boolean), i18n(lang, "One-click uninstall completed. " + taskContinuityHint(lang), "一鍵卸載完成。" + taskContinuityHint(lang)), ["openclaw plugins disable openclaw-workspace-governance", "optional: openclaw plugins uninstall openclaw-workspace-governance"]);
 }
 async function makeGovSetupCommandResponse(ctx) {
     const lang = pickCommandLanguage(ctx);
@@ -1185,7 +1196,7 @@ async function makeGovSetupCommandResponse(ctx) {
     }
     const runner = await runInProcessRunner("tools/gov_setup_sync.mjs", "runGovSetupSync", [mode]);
     if (!runner.ok || !runner.data) {
-        return formatCommandOutput("BLOCKED", [i18n(lang, `deterministic runner failed: ${runner.err || "unknown error"}`, `deterministic runner 失敗：${runner.err || "未知錯誤"}`)], i18n(lang, "Check plugin install path and rerun command.", "請檢查 plugin 安裝路徑後重試。"), ["/gov_setup check", "/skill gov_setup check"]);
+        return formatCommandOutput("BLOCKED", [i18n(lang, `Runner failed: ${runner.err || "unknown error"}`, `Runner 失敗：${runner.err || "未知錯誤"}`)], i18n(lang, "Check plugin install path and rerun command.", "請檢查 plugin 安裝路徑後重試。"), ["/gov_setup check", "/skill gov_setup check"]);
     }
     const data = runner.data;
     if (mode === "check") {
@@ -1259,15 +1270,15 @@ async function makeGovSetupCommandResponse(ctx) {
         return formatCommandOutput("PASS_WITH_WARNING", why, i18n(lang, "Align allowlist first, then rerun check.", "先對齊 allowlist，再重跑 check。"), ["/skill gov_openclaw_json", "/gov_setup check"]);
     }
     if (mode === "install") {
-        return formatCommandOutput("PASS", why, i18n(lang, "Run migration, then audit. Missing governance control files will be reconciled during migration.", "先跑 migration，再跑 audit。若缺少 governance 控制檔，migration 會自動補齊。"), ["/gov_migrate", "/gov_audit"]);
+        return formatCommandOutput("PASS", why, i18n(lang, "Run migration, then audit. Missing governance control files will be reconciled during migration. " + taskContinuityHint(lang), "先跑 migration，再跑 audit。若缺少 governance 控制檔，migration 會自動補齊。" + taskContinuityHint(lang)), ["/gov_migrate", "/gov_audit"]);
     }
-    return formatCommandOutput("PASS", why, i18n(lang, "Run migration, then audit.", "先跑 migration，再跑 audit。"), ["/gov_migrate", "/gov_audit"]);
+    return formatCommandOutput("PASS", why, i18n(lang, "Run migration, then audit. " + taskContinuityHint(lang), "先跑 migration，再跑 audit。" + taskContinuityHint(lang)), ["/gov_migrate", "/gov_audit"]);
 }
 async function makeGovMigrateCommandResponse(ctx) {
     const lang = pickCommandLanguage(ctx);
     const runner = await runInProcessRunner("tools/gov_migrate_sync.mjs", "runGovMigrateSync", []);
     if (!runner.ok || !runner.data) {
-        return formatCommandOutput("BLOCKED", [i18n(lang, `deterministic runner failed: ${runner.err || "unknown error"}`, `deterministic runner 失敗：${runner.err || "未知錯誤"}`)], i18n(lang, "Retry after gov_setup upgrade.", "請先執行 gov_setup upgrade 後重試。"), ["/gov_setup upgrade", "/gov_migrate"]);
+        return formatCommandOutput("BLOCKED", [i18n(lang, `Runner failed: ${runner.err || "unknown error"}`, `Runner 失敗：${runner.err || "未知錯誤"}`)], i18n(lang, "Retry after gov_setup upgrade.", "請先執行 gov_setup upgrade 後重試。"), ["/gov_setup upgrade", "/gov_migrate"]);
     }
     const data = runner.data;
     const status = String(data.status || "BLOCKED").toUpperCase();
@@ -1304,7 +1315,7 @@ async function makeGovMigrateCommandResponse(ctx) {
         return formatCommandOutput("BLOCKED", why, i18n(lang, "Run gov_setup upgrade, then retry migration.", "先跑 gov_setup upgrade，再重試 migration。"), ["/gov_setup upgrade", "/gov_migrate"]);
     }
     return formatCommandOutput("PASS", [
-        "deterministic migration completed",
+        "migration completed",
         Array.isArray(data.seeded_missing_files) &&
             data.seeded_missing_files.length > 0
             ? `seeded_missing_files:\n${toTextList((data.seeded_missing_files || [])
@@ -1337,7 +1348,7 @@ async function makeGovMigrateCommandResponse(ctx) {
                 : "repaired_marker_anomaly_files_count=0",
         ])}`,
         data.run_report ? `run_report: ${String(data.run_report)}` : "",
-    ].filter(Boolean), i18n(lang, "Run audit now.", "請立即執行 audit。"), ["/gov_audit"]);
+    ].filter(Boolean), i18n(lang, "Migration complete. Run /gov_audit to verify. " + taskContinuityHint(lang), "遷移完成。執行 /gov_audit 驗證。" + taskContinuityHint(lang)), ["/gov_audit"]);
 }
 async function makeGovApplyCommandResponse(ctx) {
     const lang = pickCommandLanguage(ctx);
@@ -1349,7 +1360,7 @@ async function makeGovApplyCommandResponse(ctx) {
     }
     const runner = await runInProcessRunner("tools/gov_apply_sync.mjs", "runGovApplySync", [itemId]);
     if (!runner.ok || !runner.data) {
-        return formatCommandOutput("BLOCKED", [i18n(lang, `deterministic runner failed: ${runner.err || "unknown error"}`, `deterministic runner 失敗：${runner.err || "未知錯誤"}`)], i18n(lang, "Check plugin install path and retry apply.", "請檢查 plugin 安裝路徑後重試 apply。"), ["/gov_setup check", "/gov_apply 01"]);
+        return formatCommandOutput("BLOCKED", [i18n(lang, `Runner failed: ${runner.err || "unknown error"}`, `Runner 失敗：${runner.err || "未知錯誤"}`)], i18n(lang, "Check plugin install path and retry apply.", "請檢查 plugin 安裝路徑後重試 apply。"), ["/gov_setup check", "/gov_apply 01"]);
     }
     const data = runner.data;
     const status = String(data.status || "BLOCKED").toUpperCase();
@@ -1394,7 +1405,7 @@ async function makeGovApplyCommandResponse(ctx) {
         `backup_root: ${String(data.backup_root || "n/a")}`,
         maturityLine,
         data.run_report ? `run_report: ${String(data.run_report)}` : "",
-    ].filter(Boolean), i18n(lang, "Run migration, then audit.", "先跑 migration，再跑 audit。"), ["/gov_migrate", "/gov_audit"]);
+    ].filter(Boolean), i18n(lang, "Applied successfully. Next: /gov_migrate then /gov_audit. " + taskContinuityHint(lang), "套用成功。下一步：/gov_migrate 然後 /gov_audit。" + taskContinuityHint(lang)), ["/gov_migrate", "/gov_audit"]);
 }
 async function makeGovUninstallCommandResponse(ctx) {
     const lang = pickCommandLanguage(ctx);
@@ -1412,7 +1423,7 @@ async function makeGovUninstallCommandResponse(ctx) {
     const runner = await runInProcessRunner("tools/gov_uninstall_sync.mjs", "runGovUninstallSync", [mode]);
     if (!runner.ok || !runner.data) {
         return formatCommandOutput("BLOCKED", [
-            i18n(lang, `deterministic runner failed: ${runner.err || "unknown error"}`, `deterministic runner 失敗：${runner.err || "未知錯誤"}`),
+            i18n(lang, `Runner failed: ${runner.err || "unknown error"}`, `Runner 失敗：${runner.err || "未知錯誤"}`),
         ], i18n(lang, "Check plugin install path and rerun command.", "請檢查 plugin 安裝路徑後重試。"), ["/gov_uninstall check", "/skill gov_uninstall check"]);
     }
     const data = runner.data;
@@ -1477,7 +1488,7 @@ async function makeGovUninstallCommandResponse(ctx) {
     if (Array.isArray(data.warnings) && data.warnings.length > 0) {
         why.push(`warnings:\n${toTextList(data.warnings.map((x) => String(x)))}`);
     }
-    return formatCommandOutput("PASS", why, i18n(lang, "Workspace governance uninstall is complete. Then disable/uninstall plugin package if needed.", "workspace governance 卸載完成。若需要，下一步可停用/卸載 plugin 套件。"), [
+    return formatCommandOutput("PASS", why, i18n(lang, "Uninstall complete. " + taskContinuityHint(lang), "卸載完成。" + taskContinuityHint(lang)), [
         "openclaw plugins disable openclaw-workspace-governance",
         "optional: openclaw plugins uninstall openclaw-workspace-governance",
     ]);
@@ -1486,7 +1497,7 @@ async function makeGovAuditCommandResponse(ctx) {
     const lang = pickCommandLanguage(ctx);
     const runner = await runInProcessRunner("tools/gov_audit_sync.mjs", "runGovAuditSync", [configuredScannerTolerance]);
     if (!runner.ok || !runner.data) {
-        return formatCommandOutput("FAIL", [i18n(lang, `deterministic runner failed: ${runner.err || "unknown error"}`, `deterministic runner 失敗：${runner.err || "未知錯誤"}`)], i18n(lang, "Rerun migration and then audit.", "請先重跑 migration，再跑 audit。"), ["/gov_migrate", "/gov_audit"]);
+        return formatCommandOutput("FAIL", [i18n(lang, `Runner failed: ${runner.err || "unknown error"}`, `Runner 失敗：${runner.err || "未知錯誤"}`)], i18n(lang, "Rerun migration and then audit.", "請先重跑 migration，再跑 audit。"), ["/gov_migrate", "/gov_audit"]);
     }
     const data = runner.data;
     const status = String(data.status || "FAIL").toUpperCase();
@@ -1519,13 +1530,13 @@ async function makeGovAuditCommandResponse(ctx) {
         ].filter(Boolean), i18n(lang, "Fix migration state, then rerun audit.", "先修復 migration 狀態，再重跑 audit。"), ["/gov_migrate", "/gov_audit"]);
     }
     return formatCommandOutput("PASS", [
-        "audit passed with deterministic 12-item execution",
+        "audit passed — all 12 checks executed",
         `qc_summary: PASS=${String(qcPass)} FAIL=${String(qcFail)} PASS_NA=${String(qcNa)}`,
         qcItemSummaries.length > 0
             ? `qc_12_item:\n${toTextList(qcItemSummaries)}`
             : "",
         data.run_report ? `run_report: ${String(data.run_report)}` : "",
-    ].filter(Boolean), i18n(lang, "Governance lifecycle is aligned.", "governance 流程已對齊。"), ["/gov_setup check"]);
+    ].filter(Boolean), taskContinuityHint(lang), []);
 }
 async function makeGovBootAuditCommandResponse(ctx) {
     const lang = pickCommandLanguage(ctx);
@@ -1537,7 +1548,7 @@ async function makeGovBootAuditCommandResponse(ctx) {
     }
     const runner = await runInProcessRunner("tools/gov_boot_audit_sync.mjs", "runGovBootAuditSync", ["scan", configuredScannerTolerance]);
     if (!runner.ok || !runner.data) {
-        return formatCommandOutput("BLOCKED", [i18n(lang, `deterministic runner failed: ${runner.err || "unknown error"}`, `deterministic runner 失敗：${runner.err || "未知錯誤"}`)], i18n(lang, "Check plugin install path and retry.", "請檢查 plugin 安裝路徑後重試。"), ["/gov_setup check", "/gov_boot_audit"]);
+        return formatCommandOutput("BLOCKED", [i18n(lang, `Runner failed: ${runner.err || "unknown error"}`, `Runner 失敗：${runner.err || "未知錯誤"}`)], i18n(lang, "Check plugin install path and retry.", "請檢查 plugin 安裝路徑後重試。"), ["/gov_setup check", "/gov_boot_audit"]);
     }
     const data = runner.data;
     const status = String(data.status || "PASS").toUpperCase();
@@ -1558,7 +1569,7 @@ async function makeGovBootAuditCommandResponse(ctx) {
         data.run_report ? `run_report: ${String(data.run_report)}` : "",
     ].filter(Boolean);
     if (status === "PASS") {
-        return formatCommandOutput("PASS", whyLines, i18n(lang, "No recurrence patterns detected. Governance is stable.", "未偵測到重複模式。治理狀態穩定。"), ["/gov_audit"]);
+        return formatCommandOutput("PASS", whyLines, i18n(lang, "No recurrence patterns detected. " + taskContinuityHint(lang), "未偵測到重複模式。" + taskContinuityHint(lang)), []);
     }
     const menuLines = menuItems.length > 0
         ? menuItems.map((m) => `${String(m.id || "??")}  ${String(m.title || "?")}`)
@@ -1603,12 +1614,12 @@ async function makeGovBrainAuditCommandResponse(ctx) {
     }
     if (mode === "approve" || mode === "rollback") {
         return formatCommandOutput("INFO", [
-            i18n(lang, `Mode "${mode}" delegates to LLM SKILL for interactive approval/rollback workflow.`, `模式「${mode}」委派給 LLM SKILL 進行互動式審批/回滾流程。`),
-        ], i18n(lang, "Use preview for deterministic health score, or invoke SKILL for interactive workflow.", "使用 preview 取得確定性健康分數，或使用 SKILL 進行互動式流程。"), ["/gov_brain_audit", `/skill gov_brain_audit ${mode}`]);
+            i18n(lang, `Mode "${mode}" requires interactive review — use the /skill command below.`, `模式「${mode}」需要互動式審核——請使用下方的 /skill 指令。`),
+        ], i18n(lang, "Run /gov_brain_audit for a health score, or /skill gov_brain_audit for interactive review.", "執行 /gov_brain_audit 取得健康分數，或 /skill gov_brain_audit 進行互動式審核。"), ["/gov_brain_audit", `/skill gov_brain_audit ${mode}`]);
     }
     const runner = await runInProcessRunner("tools/gov_brain_audit_sync.mjs", "runGovBrainAuditSync", ["preview", configuredScannerTolerance]);
     if (!runner.ok || !runner.data) {
-        return formatCommandOutput("BLOCKED", [i18n(lang, `deterministic runner failed: ${runner.err || "unknown error"}`, `deterministic runner 失敗：${runner.err || "未知錯誤"}`)], i18n(lang, "Check plugin install path and retry.", "請檢查 plugin 安裝路徑後重試。"), ["/gov_setup check", "/gov_brain_audit"]);
+        return formatCommandOutput("BLOCKED", [i18n(lang, `Runner failed: ${runner.err || "unknown error"}`, `Runner 失敗：${runner.err || "未知錯誤"}`)], i18n(lang, "Check plugin install path and retry.", "請檢查 plugin 安裝路徑後重試。"), ["/gov_setup check", "/gov_brain_audit"]);
     }
     const data = runner.data;
     const status = String(data.status || "BLOCKED").toUpperCase();
@@ -1629,15 +1640,15 @@ async function makeGovBrainAuditCommandResponse(ctx) {
         data.run_report ? `run_report: ${String(data.run_report)}` : "",
     ].filter(Boolean);
     if (status === "PASS") {
-        return formatCommandOutput("PASS", whyLines, i18n(lang, "Brain docs are healthy. No findings detected.", "Brain docs 健康。未偵測到問題。"), ["/gov_audit"]);
+        return formatCommandOutput("PASS", whyLines, i18n(lang, "Brain docs are healthy. " + taskContinuityHint(lang), "Brain docs 健康。" + taskContinuityHint(lang)), []);
     }
     const findingIds = findings.slice(0, 5).map((f) => String(f.id || "")).filter(Boolean).join(",");
     if (status === "WARN") {
-        return formatCommandOutput("READY_WITH_WARNING", whyLines, i18n(lang, "Review findings above, then approve or use SKILL to review.", "請檢視上方問題，然後審批或使用 SKILL 檢視。"), findingIds
+        return formatCommandOutput("READY_WITH_WARNING", whyLines, i18n(lang, "Review findings above, then approve or run /skill gov_brain_audit to review.", "請檢視上方問題，然後審批或執行 /skill gov_brain_audit 檢視。"), findingIds
             ? [`/gov_brain_audit approve ${findingIds}`, "/skill gov_brain_audit"]
             : ["/skill gov_brain_audit", "/gov_brain_audit"]);
     }
-    return formatCommandOutput("BLOCKED", whyLines, i18n(lang, "Brain docs have critical findings. Approve fixes or use SKILL to review.", "Brain docs 有嚴重問題。批准修正或使用 SKILL 檢視。"), findingIds
+    return formatCommandOutput("BLOCKED", whyLines, i18n(lang, "Brain docs have critical findings. Approve fixes or run /skill gov_brain_audit to review.", "Brain docs 有嚴重問題。批准修正或執行 /skill gov_brain_audit 檢視。"), findingIds
         ? [`/gov_brain_audit approve ${findingIds}`, "/skill gov_brain_audit"]
         : ["/skill gov_brain_audit", "/gov_brain_audit"]);
 }
@@ -1652,12 +1663,12 @@ async function makeGovOpenclawJsonCommandResponse(ctx) {
     }
     if (mode === "apply" || mode === "") {
         return formatCommandOutput("INFO", [
-            i18n(lang, `Mode "${mode || "default"}" delegates to LLM SKILL for interactive platform config editing.`, `模式「${mode || "default"}」委派給 LLM SKILL 進行互動式平台設定。`),
-        ], i18n(lang, "Use check for deterministic health score, or invoke SKILL for interactive config.", "使用 check 取得確定性健康分數，或使用 SKILL 進行互動式設定。"), ["/gov_openclaw_json check", "/skill gov_openclaw_json"]);
+            i18n(lang, `Mode "${mode || "default"}" requires interactive editing — use the /skill command below.`, `模式「${mode || "default"}」需要互動式編輯——請使用下方的 /skill 指令。`),
+        ], i18n(lang, "Run /gov_openclaw_json check for a health score, or /skill gov_openclaw_json for interactive editing.", "執行 /gov_openclaw_json check 取得健康分數，或 /skill gov_openclaw_json 進行互動式編輯。"), ["/gov_openclaw_json check", "/skill gov_openclaw_json"]);
     }
     const runner = await runInProcessRunner("tools/gov_openclaw_json_sync.mjs", "runGovOpenclawJsonSync", ["check"]);
     if (!runner.ok || !runner.data) {
-        return formatCommandOutput("BLOCKED", [i18n(lang, `deterministic runner failed: ${runner.err || "unknown error"}`, `deterministic runner 失敗：${runner.err || "未知錯誤"}`)], i18n(lang, "Check plugin install path and retry.", "請檢查 plugin 安裝路徑後重試。"), ["/gov_setup check", "/gov_openclaw_json check"]);
+        return formatCommandOutput("BLOCKED", [i18n(lang, `Runner failed: ${runner.err || "unknown error"}`, `Runner 失敗：${runner.err || "未知錯誤"}`)], i18n(lang, "Check plugin install path and retry.", "請檢查 plugin 安裝路徑後重試。"), ["/gov_setup check", "/gov_openclaw_json check"]);
     }
     const data = runner.data;
     const status = String(data.status || "BLOCKED").toUpperCase();
@@ -1674,12 +1685,12 @@ async function makeGovOpenclawJsonCommandResponse(ctx) {
         ...(configRefScan?.local_doc_paths?.length ? configRefScan.local_doc_paths.map((p) => `config_ref_docs: ${p}`) : []),
     ].filter(Boolean);
     if (status === "PASS") {
-        return formatCommandOutput("PASS", whyLines, i18n(lang, "Platform health is optimal. Proceed with setup or audit.", "平台健康狀態最佳。請繼續 setup 或 audit。"), ["/gov_setup check", "/gov_audit"]);
+        return formatCommandOutput("PASS", whyLines, i18n(lang, "Platform config is healthy. " + taskContinuityHint(lang), "平台設定健康。" + taskContinuityHint(lang)), []);
     }
     if (status === "READY_WITH_WARNING") {
-        return formatCommandOutput("READY_WITH_WARNING", whyLines, i18n(lang, "Platform config needs attention. Use SKILL to fix, then recheck.", "平台設定需要修正。使用 SKILL 修正後重新檢查。"), ["/skill gov_openclaw_json", "/gov_openclaw_json check"]);
+        return formatCommandOutput("READY_WITH_WARNING", whyLines, i18n(lang, "Platform config needs attention. Run /skill gov_openclaw_json to fix, then recheck.", "平台設定需要修正。執行 /skill gov_openclaw_json 修正後重新檢查。"), ["/skill gov_openclaw_json", "/gov_openclaw_json check"]);
     }
-    return formatCommandOutput("BLOCKED", whyLines, i18n(lang, "Platform config is critically incomplete. Use SKILL to configure.", "平台設定嚴重不完整。請使用 SKILL 進行設定。"), ["/skill gov_openclaw_json", "/gov_openclaw_json check"]);
+    return formatCommandOutput("BLOCKED", whyLines, i18n(lang, "Platform config is critically incomplete. Run /skill gov_openclaw_json to configure.", "平台設定嚴重不完整。請執行 /skill gov_openclaw_json 進行設定。"), ["/skill gov_openclaw_json", "/gov_openclaw_json check"]);
 }
 function registerDeterministicGovCommands(api) {
     if (typeof api.registerCommand !== "function") {
@@ -1695,56 +1706,56 @@ function registerDeterministicGovCommands(api) {
     });
     api.registerCommand({
         name: "gov_setup",
-        description: "Deterministic governance setup/check/upgrade runner.",
+        description: "Governance setup, check, and upgrade.",
         acceptsArgs: true,
         requireAuth: true,
         handler: async (ctx) => ({ text: await makeGovSetupCommandResponse(ctx) }),
     });
     api.registerCommand({
         name: "gov_migrate",
-        description: "Deterministic governance migration runner.",
+        description: "Governance migration runner.",
         acceptsArgs: false,
         requireAuth: true,
         handler: async (ctx) => ({ text: await makeGovMigrateCommandResponse(ctx) }),
     });
     api.registerCommand({
         name: "gov_audit",
-        description: "Deterministic governance audit runner.",
+        description: "Governance audit runner.",
         acceptsArgs: false,
         requireAuth: true,
         handler: async (ctx) => ({ text: await makeGovAuditCommandResponse(ctx) }),
     });
     api.registerCommand({
         name: "gov_uninstall",
-        description: "Deterministic governance uninstall/check runner.",
+        description: "Governance uninstall and check runner.",
         acceptsArgs: true,
         requireAuth: true,
         handler: async (ctx) => ({ text: await makeGovUninstallCommandResponse(ctx) }),
     });
     api.registerCommand({
         name: "gov_openclaw_json",
-        description: "Hybrid platform config: check=deterministic health score, apply/default=SKILL.",
+        description: "Platform config health check and interactive editing.",
         acceptsArgs: true,
         requireAuth: true,
         handler: async (ctx) => ({ text: await makeGovOpenclawJsonCommandResponse(ctx) }),
     });
     api.registerCommand({
         name: "gov_brain_audit",
-        description: "Hybrid brain docs audit: preview=deterministic health score, approve/rollback=SKILL.",
+        description: "Brain docs health audit, approval, and rollback.",
         acceptsArgs: true,
         requireAuth: true,
         handler: async (ctx) => ({ text: await makeGovBrainAuditCommandResponse(ctx) }),
     });
     api.registerCommand({
         name: "gov_boot_audit",
-        description: "Deterministic BOOT recurrence scanner with upgrade menu generation.",
+        description: "BOOT recurrence scanner with upgrade menu.",
         acceptsArgs: true,
         requireAuth: true,
         handler: async (ctx) => ({ text: await makeGovBootAuditCommandResponse(ctx) }),
     });
     api.registerCommand({
         name: "gov_apply",
-        description: "Deterministic BOOT-approved governance apply runner.",
+        description: "Apply an approved BOOT upgrade item.",
         acceptsArgs: true,
         requireAuth: true,
         handler: async (ctx) => ({ text: await makeGovApplyCommandResponse(ctx) }),
@@ -1942,10 +1953,10 @@ export default function registerWorkspaceGovernancePlugin(api) {
             (!state.planSeen || !state.readSeen)) {
             const routeHints = [];
             if (isPlatformChangeIntent(userText)) {
-                routeHints.push(i18n(state.uxLang, "For platform control-plane changes, consider routing via /gov_openclaw_json.", "如涉及平台控制面變更，可考慮走 /gov_openclaw_json。"));
+                routeHints.push(i18n(state.uxLang, "For platform config changes, validate afterward with /gov_openclaw_json check.", "如涉及平台設定變更，完成後可用 /gov_openclaw_json check 驗證。"));
             }
             if (isBrainAuditIntent(userText)) {
-                routeHints.push(i18n(state.uxLang, "For Brain Docs changes, consider /gov_brain_audit preview first.", "如涉及 Brain Docs 變更，可先 /gov_brain_audit 預覽。"));
+                routeHints.push(i18n(state.uxLang, "For Brain Docs changes, validate afterward with /gov_brain_audit.", "如涉及 Brain Docs 變更，完成後可用 /gov_brain_audit 驗證。"));
             }
             const routeHintText = routeHints.length > 0 ? ` ${routeHints.join(" ")}` : "";
             return {

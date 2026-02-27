@@ -375,7 +375,12 @@ function executeGovMigrateSync() {
   const repairedMarkerAnomalyFiles = [];
   for (const spec of blockSpecs) {
     const targetPath = path.join(workspaceRoot, spec.targetRel);
-    const targetText = fs.readFileSync(targetPath, "utf8");
+    let targetText;
+    try {
+      targetText = fs.readFileSync(targetPath, "utf8");
+    } catch (_readErr) {
+      return blocked("TARGET_DELETED_DURING_MIGRATION", { target_path: targetPath });
+    }
     const markerCounts = countAutogenMarkerPairs(targetText, spec.marker);
 
     if (markerCounts.begin === 1 && markerCounts.end === 1) {
@@ -405,7 +410,12 @@ function executeGovMigrateSync() {
 
   for (const spec of blockSpecs) {
     const targetPath = path.join(workspaceRoot, spec.targetRel);
-    const targetText = fs.readFileSync(targetPath, "utf8");
+    let targetText;
+    try {
+      targetText = fs.readFileSync(targetPath, "utf8");
+    } catch (_readErr) {
+      return blocked("TARGET_DELETED_DURING_MIGRATION", { target_path: targetPath });
+    }
     if (extractMarkerInner(targetText, spec.marker) == null) {
       return blocked("TARGET_MARKER_MISSING", { marker: spec.marker, target_path: targetPath });
     }

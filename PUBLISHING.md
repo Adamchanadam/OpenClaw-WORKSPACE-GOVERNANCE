@@ -43,7 +43,7 @@ Use a dual-channel release model:
 Do not publish if any gate below fails:
 
 1. `node dev/check_release_consistency.mjs` must return `ALL_CHECKS_PASS`.
-2. `node dev/run_runtime_regression.mjs` must return full-pass summary (current baseline: `SUMMARY 168/168 passed`).
+2. `node dev/run_runtime_regression.mjs` must return full-pass summary (current baseline: `SUMMARY 183/183 passed`).
 3. Public-flow regression required phases must pass (`A/B/B0/B2/B3/B4/C/D/F/G`) per:
    - `dev/OPENCLAW_PUBLIC_FLOW_REGRESSION.md`
    - plus `B5` when release touches `gov_apply` command/runner/contract.
