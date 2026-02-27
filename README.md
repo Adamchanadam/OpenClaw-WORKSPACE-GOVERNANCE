@@ -16,9 +16,9 @@ ClawHub installer page:
 
 | Version | Published (UTC) | Key Changes | Practical Impact |
 | --- | --- | --- | --- |
+| `v0.1.64` | 2026-02-27 | Pre-publish machine guard: `check_release_consistency.mjs` now enforces README release notes table contains current version — prevents publishing without documentation update. AGENTS.md §7b updated with mechanism. Regression 183/183 | Publishing with stale README release notes is now impossible; consistency check catches the gap before commit |
 | `v0.1.62` | 2026-02-27 | Runner defensive fixes: QC #8 uninstall awareness (backup+absent=confirmed removal); workspace_root mismatch warning; TOCTOU try-catch on readFileSync; customization overwrite warning; corrupted config detection; backup failure protection. Task context continuity: PASS outputs include task-return hint. Regression 168→183/183 | `/gov_audit` correctly passes after `/gov_uninstall`; upgrade warns when user customizations are overwritten; corrupted `openclaw.json` no longer silently replaced; AI returns to user's task after governance commands instead of suggesting more governance actions |
 | `v0.1.61` | 2026-02-26 | Brain Docs write guidance: block messages restructured for clarity; advisory hint added to high-risk write feedback; regression 164→168/168 | High-risk write block messages are human-readable and actionable; AI receives advisory coaching on Brain Doc writes |
-| `v0.1.60` | 2026-02-26 | QC #8 BEFORE/AFTER PROOF root fix: run report H1 title broke metadata parser; `backup_root: none` sentinel handled; `parseBulletList` accepts `*`/`•` bullets (LLM format tolerance); 14 new malformed-data regression tests; regression 140→164/164 | `/gov_audit` QC #8 now works correctly for all real-world flows (`/gov_setup quick`, manual chains, repeated runs); malformed or LLM-formatted run reports handled gracefully |
 
 Source: GitHub Releases (`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`)
 

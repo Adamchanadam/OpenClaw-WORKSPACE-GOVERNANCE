@@ -16,9 +16,9 @@ ClawHub 安裝頁：
 
 | 版本 | 發佈時間（UTC） | 關鍵變更 | 對使用者的直接影響 |
 | --- | --- | --- | --- |
+| `v0.1.64` | 2026-02-27 | 發佈前機器防護：`check_release_consistency.mjs` 強制 README release notes 表格必須包含當前版本號 — 防止漏更新即發佈。AGENTS.md §7b 補充機制文檔。回歸測試 183/183 | README release notes 漏更新即發佈已不可能；consistency check 在 commit 前攔截 |
 | `v0.1.62` | 2026-02-27 | Runner 防禦修復：QC #8 卸載感知（備份存在+目標已移除=確認移除）；workspace_root 不匹配警告；readFileSync TOCTOU try-catch；自訂覆寫警告；損壞設定偵測；備份失敗保護。任務上下文連續性：PASS 輸出加入任務回歸提示。回歸測試 168→183/183 | `/gov_audit` 在 `/gov_uninstall` 後正確 PASS；升級時警告用戶自訂內容被覆寫；損壞 `openclaw.json` 不再靜默取代；AI 執行 governance 指令後回歸用戶任務而非建議更多 governance 動作 |
 | `v0.1.61` | 2026-02-26 | Brain Docs 寫入指引：封鎖訊息重構提升清晰度；高風險寫入回饋加入建議性提示；回歸測試 164→168/168 | 高風險寫入封鎖訊息更易理解及可操作；AI 對 Brain Doc 寫入獲得建議性輔導 |
-| `v0.1.60` | 2026-02-26 | QC #8 BEFORE/AFTER PROOF 根因修正：run report H1 標題導致 metadata 解析器中斷；`backup_root: none` sentinel 處理修正；`parseBulletList` 接受 `*`/`•` 子彈格式（LLM 格式容忍度）；新增 14 個 malformed-data 回歸測試；回歸測試 140→164/164 | `/gov_audit` QC #8 在所有實際流程中正確運作（`/gov_setup quick`、手動鏈式、重複執行）；格式異常或 LLM 產生的 run report 可優雅處理 |
 
 來源：GitHub Releases（`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`）
 
