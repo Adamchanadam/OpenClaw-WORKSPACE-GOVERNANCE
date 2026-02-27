@@ -16,9 +16,9 @@ ClawHub installer page:
 
 | Version | Published (UTC) | Key Changes | Practical Impact |
 | --- | --- | --- | --- |
+| `v0.1.62` | 2026-02-27 | Runner defensive fixes: QC #8 uninstall awareness (backup+absent=confirmed removal); workspace_root mismatch warning; TOCTOU try-catch on readFileSync; customization overwrite warning; corrupted config detection; backup failure protection. Task context continuity: PASS outputs include task-return hint. Regression 168→183/183 | `/gov_audit` correctly passes after `/gov_uninstall`; upgrade warns when user customizations are overwritten; corrupted `openclaw.json` no longer silently replaced; AI returns to user's task after governance commands instead of suggesting more governance actions |
+| `v0.1.61` | 2026-02-26 | Brain Docs write guidance: block messages restructured for clarity; advisory hint added to high-risk write feedback; regression 164→168/168 | High-risk write block messages are human-readable and actionable; AI receives advisory coaching on Brain Doc writes |
 | `v0.1.60` | 2026-02-26 | QC #8 BEFORE/AFTER PROOF root fix: run report H1 title broke metadata parser; `backup_root: none` sentinel handled; `parseBulletList` accepts `*`/`•` bullets (LLM format tolerance); 14 new malformed-data regression tests; regression 140→164/164 | `/gov_audit` QC #8 now works correctly for all real-world flows (`/gov_setup quick`, manual chains, repeated runs); malformed or LLM-formatted run reports handled gracefully |
-| `v0.1.59` | 2026-02-26 | Scanner compatibility complete: eliminated all `\bpost\b` matches (prefixes + comments) in `gov_uninstall_sync.mjs` to pass OpenClaw 2026.2.24 scanner; added `/gov_brain_audit force-accept` to Command Chooser; regression 140/140 | Plugin passes OpenClaw runtime scanner cleanly; force-accept escape hatch discoverable from Command Chooser |
-| `v0.1.57` | 2026-02-25 | Advisory feedback loop: AI receives coaching guidance after writes without evidence; README write-protection wording clarified (transparent, not misleading "advisory with warning"); regression 135→140/140 | AI self-corrects after advisory writes instead of only learning at hard-block; users understand that normal writes are fully transparent with no visible warning |
 
 Source: GitHub Releases (`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`)
 

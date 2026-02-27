@@ -16,9 +16,9 @@ ClawHub 安裝頁：
 
 | 版本 | 發佈時間（UTC） | 關鍵變更 | 對使用者的直接影響 |
 | --- | --- | --- | --- |
+| `v0.1.62` | 2026-02-27 | Runner 防禦修復：QC #8 卸載感知（備份存在+目標已移除=確認移除）；workspace_root 不匹配警告；readFileSync TOCTOU try-catch；自訂覆寫警告；損壞設定偵測；備份失敗保護。任務上下文連續性：PASS 輸出加入任務回歸提示。回歸測試 168→183/183 | `/gov_audit` 在 `/gov_uninstall` 後正確 PASS；升級時警告用戶自訂內容被覆寫；損壞 `openclaw.json` 不再靜默取代；AI 執行 governance 指令後回歸用戶任務而非建議更多 governance 動作 |
+| `v0.1.61` | 2026-02-26 | Brain Docs 寫入指引：封鎖訊息重構提升清晰度；高風險寫入回饋加入建議性提示；回歸測試 164→168/168 | 高風險寫入封鎖訊息更易理解及可操作；AI 對 Brain Doc 寫入獲得建議性輔導 |
 | `v0.1.60` | 2026-02-26 | QC #8 BEFORE/AFTER PROOF 根因修正：run report H1 標題導致 metadata 解析器中斷；`backup_root: none` sentinel 處理修正；`parseBulletList` 接受 `*`/`•` 子彈格式（LLM 格式容忍度）；新增 14 個 malformed-data 回歸測試；回歸測試 140→164/164 | `/gov_audit` QC #8 在所有實際流程中正確運作（`/gov_setup quick`、手動鏈式、重複執行）；格式異常或 LLM 產生的 run report 可優雅處理 |
-| `v0.1.59` | 2026-02-26 | Scanner 相容性完成：消除 `gov_uninstall_sync.mjs` 中所有 `\bpost\b` 匹配（前綴 + 註解），通過 OpenClaw 2026.2.24 scanner；Command Chooser 增加 `/gov_brain_audit force-accept`；回歸測試 140/140 | Plugin 乾淨通過 OpenClaw runtime scanner；force-accept 逃生機制可從 Command Chooser 發現 |
-| `v0.1.57` | 2026-02-25 | 建議性回饋迴路：AI 在無證據寫入後下一輪收到輔導指引；README 寫入保護用語修正（透明化，非誤導性的「建議性附帶警告」）；回歸測試 135→140/140 | AI 在建議性寫入後自動修正行為，不再只在硬封鎖時才學到；用戶理解一般寫入完全透明無可見警告 |
 
 來源：GitHub Releases（`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`）
 
