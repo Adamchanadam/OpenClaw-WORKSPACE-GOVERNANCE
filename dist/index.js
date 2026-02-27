@@ -41,7 +41,7 @@ const READ_EVIDENCE_PATTERNS = [
     /\b(?:已讀|已檢查|檔案內容|現有內容)\b/i,
     /\bexisting\s+(?:content|files?|code)\b/i,
 ];
-const PLUGIN_VERSION = "0.1.62";
+const PLUGIN_VERSION = "0.1.63";
 const PLUGIN_NPM_PACKAGE = "@adamchanadam/openclaw-workspace-governance";
 async function fetchLatestNpmVersion() {
     try {

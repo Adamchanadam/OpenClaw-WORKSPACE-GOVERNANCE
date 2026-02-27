@@ -117,7 +117,7 @@ const READ_EVIDENCE_PATTERNS = [
   /\bexisting\s+(?:content|files?|code)\b/i,
 ];
 
-const PLUGIN_VERSION = "0.1.62";
+const PLUGIN_VERSION = "0.1.63";
 const PLUGIN_NPM_PACKAGE = "@adamchanadam/openclaw-workspace-governance";
 
 async function fetchLatestNpmVersion(): Promise<string | null> {
