@@ -5,9 +5,7 @@ const GOV_BYPASS_WINDOW_MS = 8 * 60 * 1000;
 const GOV_BYPASS_MAX_WRITES = 64;
 const GOV_SETUP_FLOW_WINDOW_MS = 12 * 60 * 1000;
 const GOV_COMMAND_INTENT_WINDOW_MS = 15 * 60 * 1000;
-const BRAIN_AUDIT_REQUIRE_WINDOW_MS = 60 * 1000;
 const BRAIN_AUDIT_NUDGE_COOLDOWN_MS = 5 * 60 * 1000;
-const BRAIN_AUDIT_BLOCK_THRESHOLD = 5;
 const TOOL_EXPOSURE_ADVISORY_COOLDOWN_MS = 3 * 60 * 1000;
 const POST_UPDATE_REMINDER_WINDOW_MS = 45 * 60 * 1000;
 const PRUNE_INTERVAL_MS = 60 * 1000;
@@ -41,7 +39,7 @@ const READ_EVIDENCE_PATTERNS = [
     /\b(?:已讀|已檢查|檔案內容|現有內容)\b/i,
     /\bexisting\s+(?:content|files?|code)\b/i,
 ];
-const PLUGIN_VERSION = "0.1.64";
+const PLUGIN_VERSION = "0.1.66";
 const PLUGIN_NPM_PACKAGE = "@adamchanadam/openclaw-workspace-governance";
 async function fetchLatestNpmVersion() {
     try {
@@ -134,6 +132,9 @@ const GOV_SETUP_UPGRADE_INTENT_HINT = /(?:\b(?:upgrade|update|sync|refresh|redep
 const OPENCLAW_UPDATE_INTENT_HINT = /(?:^|[\s`])openclaw\s+(?:update|plugins\s+update|extensions\s+update)\b|(?:剛|已經|已)\s*(?:更新|升級).*(?:openclaw|plugin|外掛|插件|擴充)/i;
 const NEGATED_UPDATE_INTENT_HINT = /(?:\b(?:don'?t|do\s+not|no\s+need|skip)\b.*\b(?:update|upgrade)\b)|(?:不要|唔好|無需|不用).*(?:更新|升級)/i;
 const CRON_INTENT_HINT = /(?:^|[\s`])(?:openclaw\s+cron\b|\/cron\b|cron\s+(?:job|jobs|add|update|remove|run|runs|list|ls|pause|resume)\b)|(?:cron\s*job|排程|定時任務)/i;
+const CRON_WRITE_SUBCOMMANDS = /\b(add|update|remove|delete|pause|resume|create|set|edit|modify)\b/i;
+const CRON_READ_SUBCOMMANDS = /\b(list|ls|show|status|run|runs|get|view|inspect|describe)\b/i;
+const HEARTBEAT_WRITE_INTENT_HINT = /(?:^|[\s`])(?:openclaw\s+gateway\s+heartbeat\b)|(?:heartbeat\s*(?:config|設定|interval|頻率|timeout|超時|configure|modify|change|update|adjust))|(?:(?:修改|更新|調整|設定|配置).*heartbeat)/i;
 const HOST_MAINTENANCE_INTENT_HINT = /(?:^|[\s`])openclaw\s+\S+|(?:\bopenclaw\b.*\b(?:plugins?|extensions?|skills?|hooks?|cron|gateway|onboard|configure|config|update|install|enable|disable|restart|run)\b)|(?:(?:openclaw).*(?:安裝|更新|升級|啟用|停用|設定|配置|重啟|執行|運行|管理))|(?:(?:安裝|更新|升級|啟用|停用|設定|配置|重啟|執行|運行|管理).*(?:openclaw))/i;
 const MODE_B_SYSTEM_SENSITIVE_HINT = /\b(what\s+version|latest\s+version|current\s+version|which\s+version|version\s+of|what\s+release|latest\s+release|current\s+release|is\s+\S+\s+supported|what\s+time|what\s+date|current\s+date|current\s+time|today'?s?\s+date|right\s+now|system\s+info|system\s+status)\b|(?:(?:最新|目前|現在|當前)\s*(?:版本|version|release|日期|時間|時區|系統))|(?:幾多\s*(?:號|點))/i;
 const MODE_B_EVIDENCE_PATTERNS = [
@@ -265,8 +266,6 @@ function ensureState(sessionKey) {
         govEntrypointSeen: false,
         govBypassUntil: 0,
         govBypassWritesLeft: 0,
-        brainAuditRequiredUntil: 0,
-        brainAuditRequiredReason: undefined,
         brainAuditPreviewSeenAt: 0,
         brainAuditNudgedAt: 0,
         govCommandIntentUntil: 0,
@@ -277,6 +276,8 @@ function ensureState(sessionKey) {
         advisoryWriteCount: 0,
         forceAcceptCount: 0,
         sameBlockCount: 0,
+        activeGuardsReminderSentAt: 0,
+        totalUnevidencedWrites: 0,
         updatedAt: now,
     };
     states.set(sessionKey, created);
@@ -317,6 +318,15 @@ function inferWriteIntent(prompt) {
 }
 function isCronIntent(text) {
     return CRON_INTENT_HINT.test(text);
+}
+function isCronWriteIntent(text) {
+    return CRON_INTENT_HINT.test(text) && CRON_WRITE_SUBCOMMANDS.test(text);
+}
+function isCronReadIntent(text) {
+    return CRON_INTENT_HINT.test(text) && !CRON_WRITE_SUBCOMMANDS.test(text);
+}
+function isHeartbeatWriteIntent(text) {
+    return HEARTBEAT_WRITE_INTENT_HINT.test(text);
 }
 function isHostMaintenanceIntent(text) {
     return HOST_MAINTENANCE_INTENT_HINT.test(text);
@@ -530,16 +540,6 @@ function toolExposureBlockReason(lang, contexts, explicitGate) {
         "After resolving, continue with the user's original task.",
     ].join(" ");
 }
-function isBrainAuditRequirementActive(state, now) {
-    return state.brainAuditRequiredUntil > now;
-}
-function markBrainAuditRequired(state, reason, now) {
-    const nextUntil = now + BRAIN_AUDIT_REQUIRE_WINDOW_MS;
-    if (state.brainAuditRequiredUntil < nextUntil) {
-        state.brainAuditRequiredUntil = nextUntil;
-        state.brainAuditRequiredReason = reason;
-    }
-}
 function isReadToolCall(event) {
     const n = (event.toolName || "").toLowerCase();
     if (isShellLikeTool(n)) {
@@ -646,6 +646,37 @@ function extractOpenClawRootCommand(command) {
 }
 function isOpenClawCronCommand(command) {
     return extractOpenClawRootCommand(command) === "cron";
+}
+function extractOpenClawCronSubCommand(command) {
+    const text = command.trim();
+    if (!isSingleOpenClawCommand(text))
+        return "";
+    const root = extractOpenClawRootCommand(text);
+    if (root !== "cron")
+        return "";
+    const words = splitShellWords(text);
+    let foundCron = false;
+    for (const word of words) {
+        if (!foundCron) {
+            if (word.toLowerCase() === "cron")
+                foundCron = true;
+            continue;
+        }
+        if (word.startsWith("-"))
+            continue;
+        return word.toLowerCase();
+    }
+    return "";
+}
+function isOpenClawCronWriteCommand(command) {
+    const sub = extractOpenClawCronSubCommand(command);
+    return sub !== "" && CRON_WRITE_SUBCOMMANDS.test(sub);
+}
+function isOpenClawCronReadCommand(command) {
+    const sub = extractOpenClawCronSubCommand(command);
+    if (sub === "")
+        return true;
+    return CRON_READ_SUBCOMMANDS.test(sub);
 }
 function isOpenClawHostMaintenanceCommand(command) {
     const segments = splitShellCommandSegments(command);
@@ -782,13 +813,27 @@ function isCronToolCall(event) {
     }
     return false;
 }
+function isCronReadToolCall(event) {
+    const name = (event.toolName || "").toLowerCase();
+    if (name === "cron" || name.startsWith("cron.") || name.startsWith("cron_")) {
+        return true;
+    }
+    if (isShellLikeTool(name)) {
+        const command = flattenText(event.params?.command || "");
+        return isOpenClawCronCommand(command) && isOpenClawCronReadCommand(command);
+    }
+    return false;
+}
 function isWriteToolCall(event) {
     const name = (event.toolName || "").toLowerCase();
     if (HARD_WRITE_TOOL_NAMES.has(name))
         return true;
     if (isShellLikeTool(name)) {
         const command = flattenText(event.params?.command || "");
-        return isWriteShellCommand(command);
+        if (isWriteShellCommand(command))
+            return true;
+        if (isOpenClawCronWriteCommand(command))
+            return true;
     }
     if (WRITE_NAME_HINTS.some((hint) => name.includes(hint)))
         return true;
@@ -871,36 +916,6 @@ function governanceBlockReason(state, lang) {
         "For platform config changes, use /gov_openclaw_json.",
         "After resolving, continue with the user's original task.",
     ].join(" ") + escapeHint;
-}
-function brainAuditBlockReason(state, lang) {
-    if (lang === "zh") {
-        const reason = state.brainAuditRequiredReason
-            ? ` 觸發原因：${state.brainAuditRequiredReason}。`
-            : "";
-        return [
-            "健康檢查閘已啟動（這是安全阻擋，不是系統錯誤）。",
-            "在可寫操作前，請先執行 /gov_brain_audit（只讀預覽）。",
-            "之後再繼續用戶的原始任務（或使用 /gov_brain_audit approve ... 審批修正）。",
-            "備援：/skill gov_brain_audit。",
-            "可直接貼上下一步：",
-            "1) /gov_brain_audit",
-            "2) /skill gov_brain_audit",
-            "3) 預覽完成後繼續用戶的原始任務。",
-        ].join(" ") + reason;
-    }
-    const reason = state.brainAuditRequiredReason
-        ? ` Trigger: ${state.brainAuditRequiredReason}.`
-        : "";
-    return [
-        "Health-check gate activated (this is a safety block, not a system error).",
-        "Before write-capable actions, run /gov_brain_audit (read-only preview) first.",
-        "Then continue with the user's original task (or /gov_brain_audit approve ... if you approve fixes).",
-        "Fallback: /skill gov_brain_audit.",
-        "Copy-paste next steps:",
-        "1) /gov_brain_audit",
-        "2) /skill gov_brain_audit",
-        "3) After preview, continue with the user's original task.",
-    ].join(" ") + reason;
 }
 function pickCommandLanguage(ctx) {
     const sample = flattenText([ctx.commandBody, ctx.args, ctx.channel, ctx.config]);
@@ -1598,8 +1613,6 @@ async function makeGovBrainAuditCommandResponse(ctx) {
         for (const [, st] of states) {
             st.planSeen = true;
             st.readSeen = true;
-            st.brainAuditRequiredUntil = 0;
-            st.brainAuditRequiredReason = undefined;
             st.blockedWrites = 0;
             st.highRiskBlockedWrites = 0;
             st.advisoryWriteCount = 0;
@@ -1816,13 +1829,17 @@ export default function registerWorkspaceGovernancePlugin(api) {
         const auditKindUser = detectGovCommandKindByName(latestUserTurn, "gov_audit");
         const brainAuditKindUser = detectGovCommandKindByName(latestUserTurn, "gov_brain_audit");
         const cronIntentUser = isCronIntent(latestUserTurn) || isCronIntent(userText);
+        const cronWriteIntentUser = isCronWriteIntent(latestUserTurn) || isCronWriteIntent(userText);
+        const heartbeatWriteIntentUser = isHeartbeatWriteIntent(latestUserTurn) || isHeartbeatWriteIntent(userText);
+        const systemConfigWriteIntent = cronWriteIntentUser || heartbeatWriteIntentUser;
         const hostMaintenanceIntentUser = isHostMaintenanceIntent(latestUserTurn) || isHostMaintenanceIntent(userText);
         const runtimePolicyAllowIntentUser = hasRuntimePolicyAllowIntent(latestUserTurn, runtimeGatePolicy) ||
             hasRuntimePolicyAllowIntent(userText, runtimeGatePolicy);
-        const modeCRequired = !cronIntentUser &&
+        const modeCRequired = (!cronIntentUser &&
             !hostMaintenanceIntentUser &&
             !runtimePolicyAllowIntentUser &&
-            (inferWriteIntent(userText) || govRequestKindTail === "write");
+            (inferWriteIntent(userText) || govRequestKindTail === "write"))
+            || systemConfigWriteIntent;
         const explicitGovCommandRequested = govRequestKindUser !== "none" || govRequestKindTail !== "none";
         const explicitGovEntrypoint = govRequestKind === "write" || govRequestKindTail === "write";
         const now = Date.now();
@@ -1844,17 +1861,11 @@ export default function registerWorkspaceGovernancePlugin(api) {
             if (setupUpgradeRequested || migrateRequested || auditRequested) {
                 state.brainAuditNudgedAt = 0; // Reset cooldown so nudge fires immediately on next write
             }
-            // Only repeated high-risk blocked writes triggers hard requirement (safety net)
-            if (state.highRiskBlockedWrites >= BRAIN_AUDIT_BLOCK_THRESHOLD) {
-                markBrainAuditRequired(state, "repeated blocked writes", now);
-            }
         }
         else {
             state.brainAuditNudgedAt = now;
             if (brainAuditKindUser === "read") {
                 state.brainAuditPreviewSeenAt = now;
-                state.brainAuditRequiredUntil = 0;
-                state.brainAuditRequiredReason = undefined;
                 state.blockedWrites = 0;
                 state.highRiskBlockedWrites = 0;
                 state.advisoryWriteCount = 0;
@@ -1912,19 +1923,7 @@ export default function registerWorkspaceGovernancePlugin(api) {
                 prependContext: modeBDirective,
             };
         }
-        const brainAuditRequired = isBrainAuditRequirementActive(state, now);
-        if (brainAuditRequired && modeCRequired && !explicitGovEntrypoint && !setupUpgradeIntentUser) {
-            const ctx = i18n(state.uxLang, "Automatic governance health-check is active for this session. First action in this turn MUST be /gov_brain_audit (read-only preview). Do not run any write-capable step before it. After preview, continue your requested task (or use /gov_brain_audit approve ... if you approve fixes). ", "此 session 已啟用自動 governance 健康檢查。本輪第一步必須先 /gov_brain_audit（只讀預覽）。在此之前不要執行任何可寫步驟。預覽後再繼續你的任務（或在你同意後使用 /gov_brain_audit approve ...）。");
-            return {
-                prependContext: ctx +
-                    (state.brainAuditRequiredReason
-                        ? i18n(state.uxLang, `Trigger: ${state.brainAuditRequiredReason}. `, `觸發原因：${state.brainAuditRequiredReason}。`)
-                        : "") +
-                    i18n(state.uxLang, "Fallback: /skill gov_brain_audit.", "備援：/skill gov_brain_audit。"),
-            };
-        }
-        if (!brainAuditRequired &&
-            state.brainAuditPreviewSeenAt === 0 &&
+        if (state.brainAuditPreviewSeenAt === 0 &&
             modeCRequired &&
             now - state.brainAuditNudgedAt > BRAIN_AUDIT_NUDGE_COOLDOWN_MS) {
             state.brainAuditNudgedAt = now;
@@ -1944,7 +1943,7 @@ export default function registerWorkspaceGovernancePlugin(api) {
                 ? i18n(state.uxLang, ` ${state.highRiskBlockedWrites} of these targeted high-risk governance files (likely Brain Docs) — hard block activates on the 3rd attempt. To avoid the block: run /gov_brain_audit preview before your next Brain Docs write.`, ` 其中 ${state.highRiskBlockedWrites} 次針對高風險治理檔案（可能是 Brain Docs）——第 3 次將硬封鎖。避免封鎖方法：下次寫入 Brain Docs 前先執行 /gov_brain_audit preview。`)
                 : "";
             return {
-                prependContext: i18n(state.uxLang, `Notice: your last ${count} write(s) proceeded without PLAN/READ evidence.${highRiskNote} Best practice: (1) state your plan before writing, (2) list the files you have read. This helps governance verify your work and avoids hard blocks on high-risk targets. Proceed with the user's task — include plan and read evidence naturally in your response.`, `注意：你上一輪有 ${count} 次寫入未包含 PLAN/READ 證據。${highRiskNote} 最佳實踐：(1) 寫入前陳述你的計劃，(2) 列出你已讀的檔案。這有助治理驗證你的工作並避免高風險目標被硬封鎖。繼續處理使用者的任務——在回覆中自然包含計劃和讀取證據。`),
+                prependContext: i18n(state.uxLang, `Governance reminder: your last ${count} write(s) proceeded without PLAN/READ evidence.${highRiskNote} Your next response MUST include: (1) a PLAN section stating what you will change and why, (2) a READ section listing the files you have read (including files you intend to modify). Do NOT skip straight to code changes without reading the relevant files first. After making changes, run QC (tests/checks) and report results.`, `治理提醒：你上一輪有 ${count} 次寫入未包含 PLAN/READ 證據。${highRiskNote} 你的下一個回覆必須包含：(1) PLAN 段落，說明你將改什麼及為何，(2) READ 段落，列出你已讀的檔案（包括你準備修改的檔案）。不得跳過讀取直接改代碼。修改後必須執行 QC（測試/檢查）並回報結果。`),
             };
         }
         if (modeCRequired &&
@@ -1958,9 +1957,15 @@ export default function registerWorkspaceGovernancePlugin(api) {
             if (isBrainAuditIntent(userText)) {
                 routeHints.push(i18n(state.uxLang, "For Brain Docs changes, validate afterward with /gov_brain_audit.", "如涉及 Brain Docs 變更，完成後可用 /gov_brain_audit 驗證。"));
             }
+            if (cronWriteIntentUser) {
+                routeHints.push(i18n(state.uxLang, "Before modifying cron jobs, read the official docs: https://docs.openclaw.ai/automation/cron-jobs — verify schedule syntax, timezone handling, and retry policy before making changes.", "修改排程任務前，請先閱讀官方文檔：https://docs.openclaw.ai/automation/cron-jobs — 修改前確認排程語法、時區處理及重試策略。"));
+            }
+            if (heartbeatWriteIntentUser) {
+                routeHints.push(i18n(state.uxLang, "Before modifying heartbeat config, read the official docs: https://docs.openclaw.ai/gateway/heartbeat — verify interval limits, timeout handling, and failure alerting before making changes.", "修改心跳配置前，請先閱讀官方文檔：https://docs.openclaw.ai/gateway/heartbeat — 修改前確認間隔限制、超時處理及故障告警。"));
+            }
             const routeHintText = routeHints.length > 0 ? ` ${routeHints.join(" ")}` : "";
             return {
-                prependContext: i18n(state.uxLang, "Write intent detected. Best practice: follow PLAN→READ→CHANGE→QC→PERSIST internally. (1) Plan your approach, (2) read relevant files, (3) make changes, (4) verify quality, (5) persist with run report if appropriate. Proceed directly with the user's task. Do NOT ask the user for gate tokens or to run /gov_* commands — these are internal governance mechanisms, not user-facing requirements.", "偵測到寫入意圖。最佳實踐：內部遵循 PLAN→READ→CHANGE→QC→PERSIST。(1) 規劃你的方法，(2) 讀取相關檔案，(3) 執行變更，(4) 驗證品質，(5) 適時以 run report 持久化。直接處理使用者的任務。不要要求使用者輸入 gate token 或執行 /gov_* 指令 — 這些是內部治理機制，不是使用者需求。") +
+                prependContext: i18n(state.uxLang, "Write intent detected. You MUST follow PLAN→READ→CHANGE→QC→PERSIST and include visible evidence in your response: (1) PLAN — state what you will change and why; (2) READ — list the files you have read, including the files you intend to modify and any workspace-level docs (e.g. SESSION_HANDOFF, ACTIVE_GUARDS) if they exist; (3) CHANGE — make minimal, targeted changes; (4) QC — run tests or checks after changes and report results; (5) PERSIST — update relevant docs if appropriate. Do NOT skip READ by jumping straight to a fix. Do NOT ask the user for gate tokens or to run /gov_* commands — governance evidence is demonstrated through your own workflow, not user actions.", "偵測到寫入意圖。你必須遵循 PLAN→READ→CHANGE→QC→PERSIST 並在回覆中包含可見證據：(1) PLAN — 說明你將改什麼及為何；(2) READ — 列出你已讀的檔案，包括你準備修改的檔案及 workspace 級文檔（如 SESSION_HANDOFF、ACTIVE_GUARDS，若存在）；(3) CHANGE — 做最小、有針對性的修改；(4) QC — 修改後執行測試或檢查並回報結果；(5) PERSIST — 適時更新相關文檔。不得跳過 READ 直接修補。不要要求使用者輸入 gate token 或執行 /gov_* 指令 — 治理證據通過你自身的工作流程展示，而非使用者操作。") +
                     routeHintText,
             };
         }
@@ -1974,6 +1979,19 @@ export default function registerWorkspaceGovernancePlugin(api) {
             return {
                 prependContext: toolExposureAdvisoryText(state.uxLang, permissiveContextMatches, toolExposureGuard.requireExplicitGovCommandIntent),
             };
+        }
+        // G1 + G3: quiet-turn — error correction protocol + session guard reminder
+        // Fires: (a) first time in session, OR (b) after 3+ unevidenced writes with 60s cooldown
+        const QUIET_TURN_REFIRE_THRESHOLD = 3;
+        const quietTurnFirstTime = state.activeGuardsReminderSentAt === 0;
+        const quietTurnRefire = state.totalUnevidencedWrites >= QUIET_TURN_REFIRE_THRESHOLD &&
+            now - state.activeGuardsReminderSentAt > 60_000;
+        if (quietTurnFirstTime || quietTurnRefire) {
+            state.activeGuardsReminderSentAt = now;
+            state.totalUnevidencedWrites = 0;
+            states.set(sessionKey, state);
+            const quietTurnDirective = i18n(state.uxLang, "Error Correction Protocol: When you identify a mistake in a previous response, apply a two-condition gate before recording — (1) the user's message semantically indicates an error in your previous response (not a preference change or new request); AND (2) you independently verify the error by reviewing your previous response and confirming it is real and substantive. If BOTH conditions are met: record to _control/LESSONS.md and _control/ACTIVE_GUARDS.md, then also to memory/YYYY-MM-DD.md. If only condition 1: acknowledge the feedback but log as 'unverified feedback' in daily memory only. Session Guard Reminder: read _control/ACTIVE_GUARDS.md now and apply all guard entries for the remainder of the session. If the file does not exist, create it with the seed template: a header, purpose line, hard rules (read gate, governance gates, real timestamps), and an empty guard log section — then continue.", "糾錯記錄協議：發現前一回應有錯誤時，記錄前需通過雙條件關卡——(1) 用戶訊息語義指出你前一回應的錯誤（不是偏好改變或新要求）；且 (2) 你獨立審查前一回應並確認錯誤是真實且實質性的。兩個條件同時成立：記錄到 _control/LESSONS.md 和 _control/ACTIVE_GUARDS.md，並記錄到 memory/YYYY-MM-DD.md。只有條件 1：承認反饋但僅記錄為「未驗證反饋」於每日記憶，不得寫入 _control/ 檔案。Session Guard 提醒：現在讀取 _control/ACTIVE_GUARDS.md 並在整個 session 應用所有 guard 條目。若該檔案不存在，使用種子模板建立：標題、用途說明、硬規則（read gate、governance gates、真實時間戳）及空白 guard log 段落——然後繼續。");
+            return { prependContext: quietTurnDirective };
         }
         return;
     }, { priority: 200 });
@@ -2045,9 +2063,10 @@ export default function registerWorkspaceGovernancePlugin(api) {
         const canBypassGovSetupDeploy = now <= globalGovSetupFlowUntil &&
             isGovSetupAssetDeployCommand(shellCommand);
         const canBypassGovernanceLifecycleWrite = isGovernanceLifecycleWriteToolCall(event);
-        const canBypassCron = isCronToolCall(event);
+        const canBypassCron = isCronReadToolCall(event);
         const canBypassHostMaintenance = shellLike &&
-            isOpenClawSystemChannel;
+            isOpenClawSystemChannel &&
+            !isOpenClawCronWriteCommand(shellCommand);
         const canBypassRuntimePolicyAllow = shellLike &&
             isRuntimePolicyAllowedCommand(shellCommand, runtimeGatePolicy);
         const canBypassAny = canBypassGovEntrypoint ||
@@ -2065,13 +2084,6 @@ export default function registerWorkspaceGovernancePlugin(api) {
             state.updatedAt = now;
             states.set(sessionKey, state);
             return;
-        }
-        // A4: Brain audit requirement — advisory only (prompt-build already guided user)
-        if (isBrainAuditRequirementActive(state, now) && !canBypassAny) {
-            api.logger.warn(`[governance-gate] brain audit suggested but not blocking write`);
-            state.brainAuditRequiredUntil = 0;
-            state.brainAuditRequiredReason = undefined;
-            // Fall through — allow the write
         }
         const compliant = state.planSeen && state.readSeen;
         if (!compliant) {
@@ -2105,6 +2117,7 @@ export default function registerWorkspaceGovernancePlugin(api) {
                 // Normal writes (skills/, projects/, _runs/, code): ALWAYS advisory, never hard block
                 api.logger.warn(`[governance-gate] write without PLAN/READ evidence — advisory only (normal target, attempt ${state.blockedWrites})`);
                 state.advisoryWriteCount += 1;
+                state.totalUnevidencedWrites += 1;
                 state.writeSeen = true;
                 state.lastWriteTool = event.toolName;
                 state.updatedAt = now;
@@ -2118,6 +2131,7 @@ export default function registerWorkspaceGovernancePlugin(api) {
             if (state.highRiskBlockedWrites <= 2) {
                 api.logger.warn(`[governance-gate] high-risk write without PLAN/READ evidence (advisory ${state.highRiskBlockedWrites}/2)`);
                 state.advisoryWriteCount += 1;
+                state.totalUnevidencedWrites += 1;
                 state.writeSeen = true;
                 state.lastWriteTool = event.toolName;
                 state.updatedAt = now;
@@ -2143,6 +2157,7 @@ export default function registerWorkspaceGovernancePlugin(api) {
         }
         state.writeSeen = true;
         state.lastWriteTool = event.toolName;
+        state.totalUnevidencedWrites = 0;
         state.updatedAt = now;
         states.set(sessionKey, state);
         return;

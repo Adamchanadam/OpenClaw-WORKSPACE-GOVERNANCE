@@ -375,6 +375,28 @@ function executeGovSetupSync(modeInput) {
     });
   }
 
+  // G2: Seed _control/ACTIVE_GUARDS.md on install/upgrade if not present
+  const controlDir = path.join(workspaceRoot, "_control");
+  ensureDir(controlDir);
+  const activeGuardsPath = path.join(controlDir, "ACTIVE_GUARDS.md");
+  let activeGuardsSeeded = false;
+  if (!exists(activeGuardsPath)) {
+    const seedContent = [
+      "# ACTIVE_GUARDS.md",
+      "> Purpose: Operational Guard Register (LOG; NOT governance SSOT).",
+      "> Hard rules:",
+      "> 1) READ GATE of every governance task MUST read this file and list read evidence in the run report.",
+      "> 2) Adding/updating a Guard MUST go through governance gates (PLAN ->READ ->CHANGE ->QC ->PERSIST) and MUST be paired with a Lesson entry in `_control/LESSONS.md` that includes the Guard ID + a recurrence test.",
+      "> 3) Appends MUST use a real timestamp (no future dates). Use the timezone defined in `USER.md`.",
+      "",
+      "## Guard log (append-only)",
+      "- YYYY-MM-DD HH:MM (TZ) ->Guard #NNN ->Symptom ->Root cause ->Prevention ->Recurrence test reference (link to Lesson)",
+      "",
+    ].join("\n");
+    fs.writeFileSync(activeGuardsPath, seedContent, "utf8");
+    activeGuardsSeeded = true;
+  }
+
   const shadowSkillDirs = detectWorkspaceGovSkillDirs(workspaceRoot);
   const shadowMoves = [];
   if (shadowSkillDirs.length > 0) {
@@ -407,6 +429,7 @@ function executeGovSetupSync(modeInput) {
       platform_config_path: openclawJsonPath || null,
       ...allow,
       pass_detail: passDetail,
+      active_guards_seeded: activeGuardsSeeded,
       backup_root: backupRoot || null,
       copied_files: copied,
       customizations_overwritten: copied.filter((x) => x.customization_overwritten).map((x) => x.target_path),

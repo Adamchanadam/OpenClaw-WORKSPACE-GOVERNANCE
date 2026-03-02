@@ -16,9 +16,9 @@ ClawHub 安裝頁：
 
 | 版本 | 發佈時間（UTC） | 關鍵變更 | 對使用者的直接影響 |
 | --- | --- | --- | --- |
+| `v0.1.66` | 2026-03-02 | Cron 讀寫分離 + heartbeat 寫入治理：`openclaw cron add/update/remove/pause/resume` 觸發 Mode C 寫入保護；`openclaw cron list/ls/show/status` 維持繞過；heartbeat 配置寫入需 Mode C；官方文檔 URL 注入為路由提示。回歸測試 190→197/197 | Cron 寫入指令及 heartbeat 配置變更不再繞過治理閘門；agent 修改排程或心跳配置前先讀取官方文檔 |
+| `v0.1.65` | 2026-02-28 | Governance 缺口修復 G1+G2+G3：`gov_setup` 在安裝/升級時若 `_control/ACTIVE_GUARDS.md` 不存在則自動建立；bootstrap payload 移除「(if present)」限定語確保 guards 登記冊必定存在；quiet-turn 指令於每個 session 首次空閒回合注入糾錯協議及 session guard 提醒。回歸測試 182→187/187 | 安裝後 Active Guards 登記冊保證存在；AI 每 session 首次空閒回合自動載入糾錯協議並被提醒讀取 guards |
 | `v0.1.64` | 2026-02-27 | 發佈前機器防護：`check_release_consistency.mjs` 強制 README release notes 表格必須包含當前版本號 — 防止漏更新即發佈。AGENTS.md §7b 補充機制文檔。回歸測試 183/183 | README release notes 漏更新即發佈已不可能；consistency check 在 commit 前攔截 |
-| `v0.1.62` | 2026-02-27 | Runner 防禦修復：QC #8 卸載感知（備份存在+目標已移除=確認移除）；workspace_root 不匹配警告；readFileSync TOCTOU try-catch；自訂覆寫警告；損壞設定偵測；備份失敗保護。任務上下文連續性：PASS 輸出加入任務回歸提示。回歸測試 168→183/183 | `/gov_audit` 在 `/gov_uninstall` 後正確 PASS；升級時警告用戶自訂內容被覆寫；損壞 `openclaw.json` 不再靜默取代；AI 執行 governance 指令後回歸用戶任務而非建議更多 governance 動作 |
-| `v0.1.61` | 2026-02-26 | Brain Docs 寫入指引：封鎖訊息重構提升清晰度；高風險寫入回饋加入建議性提示；回歸測試 164→168/168 | 高風險寫入封鎖訊息更易理解及可操作；AI 對 Brain Doc 寫入獲得建議性輔導 |
 
 來源：GitHub Releases（`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`）
 
@@ -59,6 +59,21 @@ GA（正式可落地）：
 Experimental（實驗性）：
 1. `/gov_apply <NN>` — 以人工明確批准的方式套用單一 BOOT 升級提案（僅限受控測試，已納入自動化回歸驗證）。
 2. 套用後，務必以 `/gov_migrate` 與 `/gov_audit` 收尾。
+
+## ✅ 已驗證場景
+
+本插件隨版本發佈包含自動化回歸測試套件，覆蓋完整操作員生命周期。以下是每次發佈所驗收的場景摘要：
+
+| 場景 | 驗收內容 |
+|---|---|
+| **工作區安裝與升級** | 全新安裝、從舊版升級、版本偵測、已是最新版時自動略過 |
+| **內容保護** | 現有 Brain Docs、`openclaw.json` 及自訂規則在安裝／升級後保持原樣 |
+| **遷移準確性** | 所有治理規則與標記正確套用；衝突與部分狀態均能偵測並回報 |
+| **審核完整性** | 所有 12 項完整性核對均執行；漂移、缺失標記及設定不符均能捕捉 |
+| **安全設定編輯** | `openclaw.json` 編輯流程：備份 → 驗證 → 套用 → 確認；無效編輯拒絕並回退 |
+| **Brain Docs 保護** | 對 Brain Docs（AGENTS.md、SOUL.md 等）的高風險寫入，寫前提示警告；可按需回退 |
+| **故障恢復** | 設定損毀、備份失敗、遷移中斷均妥善處理，不會靜默丟失資料 |
+| **完整操作員生命周期** | 端到端：安裝 → 遷移 → 審核 → 編輯 → 重新審核 → 卸載並留存清理證據 |
 
 ## 🖼️ Visual Walkthrough（ref_doc）
 
@@ -270,10 +285,22 @@ openclaw gateway restart
 
 所有治理寫入指令（`/gov_setup install`、`/gov_migrate`、`/gov_apply` 等）會自動繞過寫入閘門 8 分鐘。執行治理指令時不需要提供 PLAN/READ 證據。
 
+### 系統指令讀寫分離
+
+Cron 及 heartbeat 指令依讀/寫意圖分類：
+
+| 指令 | 分類 | Mode C |
+|------|------|--------|
+| `openclaw cron list/ls/show/status/run/runs` | 唯讀 | 繞過（無治理閘門） |
+| `openclaw cron add/update/remove/delete/pause/resume` | 寫入 | 必須 — PLAN→READ→CHANGE→QC→PERSIST |
+| `openclaw cron`（裸指令，無子命令） | 唯讀 | 繞過 |
+| `openclaw gateway heartbeat` 配置變更 | 寫入 | 必須 |
+
+修改排程任務前，請先閱讀官方文檔：https://docs.openclaw.ai/automation/cron-jobs
+修改心跳配置前，請先閱讀官方文檔：https://docs.openclaw.ai/gateway/heartbeat
+
 ### Brain Audit 時序
 
-- Brain audit 要求視窗：**60 秒**（60 秒後自動清除）
-- 封鎖門檻：連續 **5** 次被封鎖的寫入才會啟動硬要求
 - 每輪重置：當提示間隔超過 30 秒時，blockedWrites 計數器重置
 - 建議性回饋：無證據寫入後，AI 在下一輪收到輔導指引——無需用戶操作
 
@@ -291,8 +318,8 @@ openclaw gateway restart
 
 ## 🔒 安全預設
 
-1. 治理工具只在你明確請求時才啟動（透過 `/gov_*` 或 `/skill gov_*`）。它們不會自行執行。
-2. 這能防止意外觸發——如果你只是聊天或使用一般 OpenClaw 功能，治理工具不會介入。
+1. 治理指令（`/gov_*`）只在你明確請求時才啟動。它們不會自行執行。
+2. 輕量 runtime 寫入保護閘門始終活躍，但對日常操作完全透明——你在一般使用中不會看到任何提示或封鎖。
 3. 你原有的 OpenClaw 工作方式完全不受影響。治理是額外的保護層，不改變你現有的使用方式。
 
 ## ❓ FAQ（新手決策導向，10 題）

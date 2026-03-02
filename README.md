@@ -16,9 +16,9 @@ ClawHub installer page:
 
 | Version | Published (UTC) | Key Changes | Practical Impact |
 | --- | --- | --- | --- |
+| `v0.1.66` | 2026-03-02 | Cron read/write split + heartbeat write governance: `openclaw cron add/update/remove/pause/resume` now triggers Mode C write protection; `openclaw cron list/ls/show/status` remains bypass; heartbeat config writes require Mode C; official doc URLs injected as route hints. Regression 190→197/197 | Cron write commands and heartbeat config changes no longer bypass governance gates; agent reads official docs before modifying schedules or heartbeat config |
+| `v0.1.65` | 2026-02-28 | Governance gap fixes G1+G2+G3: `gov_setup` now seeds `_control/ACTIVE_GUARDS.md` on install/upgrade if absent; bootstrap payload removes "(if present)" qualifier so guards register is always created; quiet-turn directive injects error correction protocol + session guard reminder once per session. Regression 182→187/187 | Active guards register is guaranteed to exist after install; AI receives error correction protocol and is reminded to load guards on first idle turn each session |
 | `v0.1.64` | 2026-02-27 | Pre-publish machine guard: `check_release_consistency.mjs` now enforces README release notes table contains current version — prevents publishing without documentation update. AGENTS.md §7b updated with mechanism. Regression 183/183 | Publishing with stale README release notes is now impossible; consistency check catches the gap before commit |
-| `v0.1.62` | 2026-02-27 | Runner defensive fixes: QC #8 uninstall awareness (backup+absent=confirmed removal); workspace_root mismatch warning; TOCTOU try-catch on readFileSync; customization overwrite warning; corrupted config detection; backup failure protection. Task context continuity: PASS outputs include task-return hint. Regression 168→183/183 | `/gov_audit` correctly passes after `/gov_uninstall`; upgrade warns when user customizations are overwritten; corrupted `openclaw.json` no longer silently replaced; AI returns to user's task after governance commands instead of suggesting more governance actions |
-| `v0.1.61` | 2026-02-26 | Brain Docs write guidance: block messages restructured for clarity; advisory hint added to high-risk write feedback; regression 164→168/168 | High-risk write block messages are human-readable and actionable; AI receives advisory coaching on Brain Doc writes |
 
 Source: GitHub Releases (`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`)
 
@@ -59,6 +59,21 @@ GA (production-ready):
 Experimental:
 1. `/gov_apply <NN>` — apply a single BOOT upgrade proposal with explicit human approval (controlled testing only, covered by automated regression).
 2. After applying, always close with `/gov_migrate` and `/gov_audit`.
+
+## ✅ Verified Scenarios
+
+The plugin ships with an automated regression suite covering the full operator lifecycle. Below is a summary of what is verified on every release:
+
+| Scenario | What is verified |
+|---|---|
+| **Workspace setup & upgrade** | Fresh install, upgrade from previous version, version detection, skip when already current |
+| **Content preservation** | Existing Brain Docs, `openclaw.json`, and custom rules survive install/upgrade unchanged |
+| **Migration accuracy** | All governance rules and markers are correctly applied; conflicts and partial states are detected and reported |
+| **Audit completeness** | All 12 integrity checks run; drift, missing markers, and config mismatches are caught |
+| **Safe config editing** | `openclaw.json` edits go through backup → validate → apply → confirm; invalid edits are rejected and rolled back |
+| **Brain Docs protection** | Risky edits to Brain Docs (AGENTS.md, SOUL.md, etc.) are flagged before write; rollback available on request |
+| **Recovery from failures** | Corrupted config, failed backup, and partial migration are handled gracefully without silent data loss |
+| **Full operator lifecycle** | End-to-end: setup → migrate → audit → edit → re-audit → uninstall with cleanup evidence |
 
 ## 🖼️ Visual Walkthrough (ref_doc)
 
@@ -270,10 +285,22 @@ This clears all governance gates for the current session. An audit trail is writ
 
 All governance write commands (`/gov_setup install`, `/gov_migrate`, `/gov_apply`, etc.) automatically bypass the write gate for 8 minutes. You do not need to provide PLAN/READ evidence when running governance commands.
 
+### System Command Read/Write Split
+
+Cron and heartbeat commands are split by read vs. write intent:
+
+| Command | Classification | Mode C |
+|---------|---------------|--------|
+| `openclaw cron list/ls/show/status/run/runs` | Read | Bypass (no governance gate) |
+| `openclaw cron add/update/remove/delete/pause/resume` | Write | Required — PLAN→READ→CHANGE→QC→PERSIST |
+| `openclaw cron` (bare, no subcommand) | Read | Bypass |
+| `openclaw gateway heartbeat` config changes | Write | Required |
+
+Before modifying cron jobs, read the official docs: https://docs.openclaw.ai/automation/cron-jobs
+Before modifying heartbeat config, read the official docs: https://docs.openclaw.ai/gateway/heartbeat
+
 ### Brain Audit Timing
 
-- Brain audit requirement window: **60 seconds** (auto-clears after 60s)
-- Block threshold: **5** consecutive blocked writes before hard requirement activates
 - Per-turn reset: blocked-writes counter resets when prompt gap exceeds 30 seconds
 - Advisory feedback: after writes without evidence, AI receives coaching guidance on the next turn — no user action needed
 
@@ -291,8 +318,8 @@ Affects: `/gov_audit`, `/gov_brain_audit preview`, `/gov_boot_audit scan`.
 
 ## 🔒 Security Default
 
-1. Governance tools only activate when you explicitly request them (via `/gov_*` or `/skill gov_*`). They never run on their own.
-2. This protects against unintended triggering — if you are just chatting or using regular OpenClaw features, governance stays inactive.
+1. Governance commands (`/gov_*`) only activate when you explicitly request them. They never run on their own.
+2. The lightweight runtime write-protection gate is always active but fully transparent for normal operations — you will not see any prompts or blocks during everyday work.
 3. Your normal OpenClaw workflow is unaffected. Governance adds protection without changing how you already use OpenClaw.
 
 ## ❓ FAQ (Decision-Oriented, New-User Focus)
