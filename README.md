@@ -12,6 +12,16 @@ ClawHub installer page:
 
 ---
 
+## 🎬 Video Introduction
+
+> **See it in action** — watch a 2-minute overview before reading the docs.
+
+[![Discipline Master for OpenClaw](./ref_doc/page_001.jpg)](https://youtu.be/zIXT8MiL4WY)
+
+▶️ [Watch: Discipline Master for OpenClaw (Workspace Governance Plugin)](https://youtu.be/zIXT8MiL4WY)
+
+---
+
 ## 📋 Release Notes Board (Latest 3)
 
 | Version | Published (UTC) | Key Changes | Practical Impact |

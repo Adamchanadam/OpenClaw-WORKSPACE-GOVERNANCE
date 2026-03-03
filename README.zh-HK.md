@@ -12,6 +12,16 @@ ClawHub 安裝頁：
 
 ---
 
+## 🎬 影片介紹
+
+> **先看再讀** — 2 分鐘了解 Workspace Governance 做什麼、為什麼重要。
+
+[![Discipline Master for OpenClaw](./ref_doc/page_001.jpg)](https://youtu.be/zIXT8MiL4WY)
+
+▶️ [觀看：Discipline Master for OpenClaw（Workspace Governance Plugin）](https://youtu.be/zIXT8MiL4WY)
+
+---
+
 ## 📋 Release Notes 最新 3 版重點報告板
 
 | 版本 | 發佈時間（UTC） | 關鍵變更 | 對使用者的直接影響 |
