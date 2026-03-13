@@ -115,7 +115,7 @@ const READ_EVIDENCE_PATTERNS = [
   /\bexisting\s+(?:content|files?|code)\b/i,
 ];
 
-const PLUGIN_VERSION = "0.1.66";
+const PLUGIN_VERSION = "0.2.0";
 const PLUGIN_NPM_PACKAGE = "@adamchanadam/openclaw-workspace-governance";
 
 async function fetchLatestNpmVersion(): Promise<string | null> {
@@ -362,7 +362,10 @@ function classifyGovCommandRequest(
 }
 
 function toSessionKey(ctx: Partial<PluginHookAgentContext> | Partial<PluginHookToolContext>): string {
-  return ctx.sessionKey || DEFAULT_SESSION;
+  // Prefer sessionId (ephemeral — resets on /new and /reset) for accurate gate state isolation.
+  // Falls back to sessionKey for runtimes that pre-date sessionId support.
+  const c = ctx as { sessionId?: string; sessionKey?: string };
+  return c.sessionId || c.sessionKey || DEFAULT_SESSION;
 }
 
 function ensureState(sessionKey: string): GateState {
@@ -430,6 +433,28 @@ function detectEnvLanguage(): "en" | "zh" {
 
 function i18n(lang: "en" | "zh", en: string, zh: string): string {
   return lang === "zh" ? zh : en;
+}
+
+/**
+ * Compact static governance anchor injected into system prompt space every turn.
+ * Provider-cacheable. Fires regardless of AGENTS.md bootstrap state.
+ * Covers light-context cron/heartbeat runs where bootstrap injection is skipped.
+ * Also covers postCompactionSections configs that might exclude the governance section.
+ */
+function buildGovernanceSystemAnchor(lang: "en" | "zh", trigger?: string): string {
+  const isAutomated = trigger === "cron" || trigger === "heartbeat";
+  const automationNote = isAutomated
+    ? i18n(
+        lang,
+        ` (Automated ${trigger} run — bootstrap injection may be skipped; this governance anchor is always active.)`,
+        ` （自動化 ${trigger} 執行——bootstrap 注入可能跳過；此治理錨點始終生效。）`,
+      )
+    : "";
+  return i18n(
+    lang,
+    `[OpenClaw Governance v${PLUGIN_VERSION} — active] Execution order: PLAN → READ → CHANGE → QC → PERSIST. Before any write/edit/save: include PLAN (what + why) and READ (files read). Mode A = conversation only | B = read + verify sources | C = write + evidence required.${automationNote}`,
+    `[OpenClaw 治理 v${PLUGIN_VERSION} — 啟動] 執行順序：PLAN → READ → CHANGE → QC → PERSIST。任何寫入/編輯/儲存前：包含 PLAN（改什麼+為何）和 READ（已讀檔案）。模式 A = 純對話 | B = 唯讀+驗證來源 | C = 寫入+證據必要。${automationNote}`,
+  );
 }
 
 function inferWriteIntent(prompt: string): boolean {
@@ -2469,6 +2494,7 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
       const userText = latestUserText(event.messages);
       const latestUserTurn = latestUserTurnText(event.messages);
       state.uxLang = detectUxLanguage(`${latestUserTurn}\n${userText}`);
+      const systemContext = buildGovernanceSystemAnchor(state.uxLang, ctx.trigger);
       const govRequestKindUser = detectGovRequestKind(userText);
       const govRequestKindTail = detectGovRequestKind(tailText);
       const govRequestKind = govRequestKindUser !== "none" ? govRequestKindUser : govRequestKindTail;
@@ -2572,6 +2598,7 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
           state.updatedAt = now;
           states.set(sessionKey, state);
           return {
+            prependSystemContext: systemContext,
             prependContext:
               postUpdateReminderText(state.uxLang) +
               (upgradeDirectiveText ? ` ${upgradeDirectiveText}` : ""),
@@ -2583,6 +2610,7 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
 
       if (upgradeDirectiveText) {
         return {
+          prependSystemContext: systemContext,
           prependContext: upgradeDirectiveText,
         };
       }
@@ -2595,6 +2623,7 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
           "Mode B 強制：偵測到系統/版本/時間敏感問題。回答前你必須先向權威來源（官方文件、release 頁面、runtime context）驗證。在回答中附上來源參考（URL 或檔案路徑）。勿猜測或依賴訓練資料回答版本敏感聲明。",
         );
         return {
+          prependSystemContext: systemContext,
           prependContext: modeBDirective,
         };
       }
@@ -2608,6 +2637,7 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
         state.updatedAt = now;
         states.set(sessionKey, state);
         return {
+          prependSystemContext: systemContext,
           prependContext:
             i18n(
               state.uxLang,
@@ -2631,6 +2661,7 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
           : "";
 
         return {
+          prependSystemContext: systemContext,
           prependContext: i18n(state.uxLang,
             `Governance reminder: your last ${count} write(s) proceeded without PLAN/READ evidence.${highRiskNote} Your next response MUST include: (1) a PLAN section stating what you will change and why, (2) a READ section listing the files you have read (including files you intend to modify). Do NOT skip straight to code changes without reading the relevant files first. After making changes, run QC (tests/checks) and report results.`,
             `治理提醒：你上一輪有 ${count} 次寫入未包含 PLAN/READ 證據。${highRiskNote} 你的下一個回覆必須包含：(1) PLAN 段落，說明你將改什麼及為何，(2) READ 段落，列出你已讀的檔案（包括你準備修改的檔案）。不得跳過讀取直接改代碼。修改後必須執行 QC（測試/檢查）並回報結果。`,
@@ -2683,6 +2714,7 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
         }
         const routeHintText = routeHints.length > 0 ? ` ${routeHints.join(" ")}` : "";
         return {
+          prependSystemContext: systemContext,
           prependContext:
             i18n(
               state.uxLang,
@@ -2702,6 +2734,7 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
         state.updatedAt = now;
         states.set(sessionKey, state);
         return {
+          prependSystemContext: systemContext,
           prependContext: toolExposureAdvisoryText(
             state.uxLang,
             permissiveContextMatches,
@@ -2724,9 +2757,9 @@ export default function registerWorkspaceGovernancePlugin(api: OpenClawPluginApi
           "Error Correction Protocol: When you identify a mistake in a previous response, apply a two-condition gate before recording — (1) the user's message semantically indicates an error in your previous response (not a preference change or new request); AND (2) you independently verify the error by reviewing your previous response and confirming it is real and substantive. If BOTH conditions are met: record to _control/LESSONS.md and _control/ACTIVE_GUARDS.md, then also to memory/YYYY-MM-DD.md. If only condition 1: acknowledge the feedback but log as 'unverified feedback' in daily memory only. Session Guard Reminder: read _control/ACTIVE_GUARDS.md now and apply all guard entries for the remainder of the session. If the file does not exist, create it with the seed template: a header, purpose line, hard rules (read gate, governance gates, real timestamps), and an empty guard log section — then continue.",
           "糾錯記錄協議：發現前一回應有錯誤時，記錄前需通過雙條件關卡——(1) 用戶訊息語義指出你前一回應的錯誤（不是偏好改變或新要求）；且 (2) 你獨立審查前一回應並確認錯誤是真實且實質性的。兩個條件同時成立：記錄到 _control/LESSONS.md 和 _control/ACTIVE_GUARDS.md，並記錄到 memory/YYYY-MM-DD.md。只有條件 1：承認反饋但僅記錄為「未驗證反饋」於每日記憶，不得寫入 _control/ 檔案。Session Guard 提醒：現在讀取 _control/ACTIVE_GUARDS.md 並在整個 session 應用所有 guard 條目。若該檔案不存在，使用種子模板建立：標題、用途說明、硬規則（read gate、governance gates、真實時間戳）及空白 guard log 段落——然後繼續。",
         );
-        return { prependContext: quietTurnDirective };
+        return { prependSystemContext: systemContext, prependContext: quietTurnDirective };
       }
-      return;
+      return { prependSystemContext: systemContext };
     },
     { priority: 200 },
   );

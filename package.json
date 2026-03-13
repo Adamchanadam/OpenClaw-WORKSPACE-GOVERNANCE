@@ -1,6 +1,6 @@
 {
   "name": "@adamchanadam/openclaw-workspace-governance",
-  "version": "0.1.66",
+  "version": "0.2.0",
   "description": "OpenClaw workspace governance plugin and prompts (bootstrap, migration, audit, boot apply).",
   "license": "MIT",
   "type": "module",

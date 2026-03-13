@@ -5,7 +5,9 @@
 
 [繁體中文版](./README.zh-HK.md)
 
-[![OpenClaw](https://img.shields.io/badge/OpenClaw-Compatible-0ea5e9)](https://docs.openclaw.ai/) [![Distribution](https://img.shields.io/badge/Distribution-Plugin%20%2B%20ClawHub-22c55e)](#install) [![Audience](https://img.shields.io/badge/Audience-Beginners-f59e0b)](#quick-start)
+[![OpenClaw](https://img.shields.io/badge/OpenClaw-v2026.3.7%2B-0ea5e9)](https://docs.openclaw.ai/) [![Distribution](https://img.shields.io/badge/Distribution-Plugin%20%2B%20ClawHub-22c55e)](#install) [![Audience](https://img.shields.io/badge/Audience-Beginners-f59e0b)](#quick-start)
+
+> **OpenClaw Version Compatibility:** Optimised for **OpenClaw v2026.3.7+** (full `prependSystemContext` always-on anchor, `sessionId` gate isolation, `trigger` detection). Compatible with older versions — governance hooks still fire but the unconditional system prompt anchor requires runtime v2026.3.7+.
 
 ClawHub installer page:
 - https://clawhub.ai/Adamchanadam/openclaw-workspace-governance-installer
@@ -26,9 +28,9 @@ ClawHub installer page:
 
 | Version | Published (UTC) | Key Changes | Practical Impact |
 | --- | --- | --- | --- |
+| `v0.2.0` | 2026-03-13 | **Governance Hook Resilience** (OpenClaw v2026.3.7+ bypass fix): governance anchor always injected into system prompt space via `prependSystemContext` every turn, regardless of AGENTS.md bootstrap state or cron `--light-context` mode; automation notice added for cron/heartbeat triggers; `sessionId`-based gate state isolation for accurate `/new` and `/reset` boundaries; 5 new acceptance tests (C198–C207, total 197→207/207). Requires OpenClaw v2026.3.7+ for full benefit. | AI agent now always receives the Mode A/B/C governance anchor — even in light-context cron/heartbeat runs where bootstrap injection is skipped. Gate state resets correctly on `/new` and `/reset`. |
 | `v0.1.66` | 2026-03-02 | Cron read/write split + heartbeat write governance: `openclaw cron add/update/remove/pause/resume` now triggers Mode C write protection; `openclaw cron list/ls/show/status` remains bypass; heartbeat config writes require Mode C; official doc URLs injected as route hints. Regression 190→197/197 | Cron write commands and heartbeat config changes no longer bypass governance gates; agent reads official docs before modifying schedules or heartbeat config |
 | `v0.1.65` | 2026-02-28 | Governance gap fixes G1+G2+G3: `gov_setup` now seeds `_control/ACTIVE_GUARDS.md` on install/upgrade if absent; bootstrap payload removes "(if present)" qualifier so guards register is always created; quiet-turn directive injects error correction protocol + session guard reminder once per session. Regression 182→187/187 | Active guards register is guaranteed to exist after install; AI receives error correction protocol and is reminded to load guards on first idle turn each session |
-| `v0.1.64` | 2026-02-27 | Pre-publish machine guard: `check_release_consistency.mjs` now enforces README release notes table contains current version — prevents publishing without documentation update. AGENTS.md §7b updated with mechanism. Regression 183/183 | Publishing with stale README release notes is now impossible; consistency check catches the gap before commit |
 
 Source: GitHub Releases (`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`)
 

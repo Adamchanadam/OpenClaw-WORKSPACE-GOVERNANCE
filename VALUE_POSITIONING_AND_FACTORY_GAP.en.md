@@ -53,14 +53,16 @@ These are workflow-gate problems, not only model-quality problems.
 5. Run-report traceability for review and recurrence reduction
 6. Conservative Brain Docs hardening (`gov_brain_audit`) with preview-first approval and rollback
 7. Branded command output: all `/gov_*` responses include branded header, emoji status prefix, structured dividers — operators can identify status and next action at a glance
+8. Always-on governance anchor (`prependSystemContext`): compact Mode A/B/C summary injected to system prompt space every turn at the plugin layer — survives cron/heartbeat light-context mode and post-compaction section exclusions (OpenClaw v2026.3.7+)
 
 ## 5) Maturity Boundary (Current)
 
 GA baseline today:
 1. `gov_help` command catalog + one-click operator entrypoints (`/gov_setup quick`, `/gov_uninstall quick`)
-2. Deterministic core lifecycle: `gov_setup`, `gov_migrate`, `gov_audit`, `gov_openclaw_json`, `gov_brain_audit`, `gov_uninstall`
+2. Deterministic core lifecycle: `gov_setup`, `gov_migrate`, `gov_audit`, `gov_openclaw_json`, `gov_brain_audit`, `gov_boot_audit`, `gov_uninstall`
 3. Runtime hard-gate and explicit governance-command intent guard
 4. Branded UX output contract (`🐾` header + emoji status + `👉` next-step + structured dividers)
+5. Always-on `prependSystemContext` governance anchor (v0.2.0+, requires OpenClaw v2026.3.7+)
 
 Experimental today:
 1. `gov_apply <NN>` (BOOT controlled apply)

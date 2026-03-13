@@ -53,14 +53,16 @@ OpenClaw 出廠基線主要強調：
 5. run report 證據化，支援回溯與降低重覆失誤
 6. Brain Docs 保守修補能力（`gov_brain_audit`）：先預覽、後批准套用、可回退
 7. 品牌化指令輸出：所有 `/gov_*` 回覆帶品牌標頭、emoji 狀態前綴、結構化分隔，操作者可一眼辨認狀態與下一步
+8. 常態治理錨點（`prependSystemContext`）：每回合於 plugin 層將精簡 Mode A/B/C 摘要注入系統提示空間——在 cron/heartbeat light-context 模式及壓縮後段落排除下依然生效（需 OpenClaw v2026.3.7+）
 
 ## 5) 當前成熟度邊界
 
 目前 GA 基線：
 1. `gov_help` 指令目錄 + 一鍵入口（`/gov_setup quick`、`/gov_uninstall quick`）
-2. 可確定性核心生命周期：`gov_setup`、`gov_migrate`、`gov_audit`、`gov_openclaw_json`、`gov_brain_audit`、`gov_uninstall`
+2. 可確定性核心生命周期：`gov_setup`、`gov_migrate`、`gov_audit`、`gov_openclaw_json`、`gov_brain_audit`、`gov_boot_audit`、`gov_uninstall`
 3. Runtime hard-gate 與顯式治理指令意圖 guard
 4. 品牌化 UX 輸出合約（`🐾` 標頭 + emoji 狀態 + `👉` 下一步 + 結構化分隔線）
+5. 常態 `prependSystemContext` 治理錨點（v0.2.0+，需 OpenClaw v2026.3.7+）
 
 目前 Experimental：
 1. `gov_apply <NN>`（BOOT 受控套用）

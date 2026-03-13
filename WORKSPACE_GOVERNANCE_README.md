@@ -53,9 +53,9 @@ Fail-Closed 原則：
 1. 缺證據或路徑不明確時，必須停止
 2. 任一 QC 未通過，不可宣稱完成
 
-操作輸出格式（v0.1.59 品牌化）：
+操作輸出格式（v0.2.0 品牌化）：
 ```
-🐾 OpenClaw Governance · v0.1.59
+🐾 OpenClaw Governance · v0.2.0
 ─────────────────────────────────
 
 ✅  STATUS
@@ -103,8 +103,9 @@ PASS
    - `~/.openclaw/openclaw.json`
    - `~/.openclaw/extensions/`（僅在明確需要時）
    - 由 `gov_openclaw_json` 管理
+   - **OpenClaw v2026.3.12+**：工作區來源 plugin（`<workspace>/.openclaw/extensions/`）不再自動載入（GHSA-99qw-6mr3-36qr 安全修復）；npm 全域 plugin（如本 plugin）不受影響
 3. Brain Docs：
-   - `USER.md`、`IDENTITY.md`、`TOOLS.md`、`SOUL.md`、`MEMORY.md`、`HEARTBEAT.md`、`memory/*.md`
+   - `AGENTS.md`、`USER.md`、`IDENTITY.md`、`TOOLS.md`、`SOUL.md`、`MEMORY.md`、`HEARTBEAT.md`、`memory/*.md`
    - 不屬 `gov_openclaw_json` 範圍
    - 建議以 `gov_brain_audit` 單一入口執行（預設預覽，批准後才套用或回退）
 
@@ -280,7 +281,7 @@ Fallback：
 8. Runtime hard gate hooks 已啟用：
    - 缺少 PLAN/READ 證據時，可寫入工具調用會被阻擋
    - 只讀 shell/測試命令應保持可執行
-   - 寫入任務被阻擋時，先補 `WG_PLAN_GATE_OK` + `WG_READ_GATE_OK` 再重試
+   - 寫入任務被阻擋時：以自然語言補充 PLAN（改什麼+為何）和 READ（已讀檔案）證據，再重試
 9. Brain Docs 審核流程可完整運作：
    - `gov_brain_audit` 會產生 findings + approval checklist
    - `gov_brain_audit APPROVE: ...` 會產生備份與 run report
@@ -316,7 +317,7 @@ Fallback：
 8. 出現 runtime gate 阻擋訊息：
    - 這通常表示治理保護已生效，並非系統崩潰
    - 官方 `openclaw ...` 系統指令預設允許，不應被 runtime gate 誤擋
-   - 若屬寫入/更新/保存任務：先補 PLAN + READ 證據，加入 `WG_PLAN_GATE_OK` + `WG_READ_GATE_OK`，再重試 CHANGE
+   - 若屬寫入/更新/保存任務：以自然語言說明 PLAN（改什麼+為何）和 READ（已讀檔案），再重試 CHANGE
    - 若屬只讀診斷/測試：保持只讀命令並重新執行
 9. `gov_setup upgrade` 仍顯示卡在 governance gate：
    - 更新 plugin 至最新版：`openclaw plugins update openclaw-workspace-governance`

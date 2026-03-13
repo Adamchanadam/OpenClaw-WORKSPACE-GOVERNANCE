@@ -53,9 +53,9 @@ Fail-Closed:
 1. Missing evidence/path ambiguity -> stop
 2. Any QC fail -> do not claim completion
 
-Operator UX output format (v0.1.59 branded):
+Operator UX output format (v0.2.0 branded):
 ```
-🐾 OpenClaw Governance · v0.1.59
+🐾 OpenClaw Governance · v0.2.0
 ─────────────────────────────────
 
 ✅  STATUS
@@ -103,8 +103,9 @@ Tool exposure root-fix (security default):
    - `~/.openclaw/openclaw.json`
    - `~/.openclaw/extensions/` (only when explicitly needed)
    - managed by `gov_openclaw_json`
+   - **OpenClaw v2026.3.12+**: workspace-origin plugins (`<workspace>/.openclaw/extensions/`) are no longer auto-loaded (GHSA-99qw-6mr3-36qr security fix); npm global plugins (e.g. this one) are unaffected
 3. Brain Docs:
-   - `USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`
+   - `AGENTS.md`, `USER.md`, `IDENTITY.md`, `TOOLS.md`, `SOUL.md`, `MEMORY.md`, `HEARTBEAT.md`, `memory/*.md`
    - not handled by `gov_openclaw_json`
    - use `gov_brain_audit` (single entry; preview by default, approval-driven apply/rollback)
 
@@ -280,7 +281,7 @@ Maturity boundary:
 8. Runtime hard gate hooks are active:
    - write-capable tool calls are blocked if PLAN/READ evidence is missing
    - read-only shell/testing commands should remain allowed
-   - for blocked write tasks, include `WG_PLAN_GATE_OK` and `WG_READ_GATE_OK` before retry
+   - for blocked write tasks: provide natural-language PLAN (what + why) and READ (files read) evidence, then retry
 9. Brain Docs auditor flow works end-to-end:
    - `gov_brain_audit` returns findings and approval checklist
    - `gov_brain_audit APPROVE: ...` creates backup and run report
@@ -316,7 +317,7 @@ Maturity boundary:
 8. Runtime gate block message appears:
    - this usually means governance guard worked (not a system crash)
    - official `openclaw ...` system commands are allow-by-default and should not be blocked by runtime gate
-   - if task is write/update/save: output PLAN + READ evidence, include `WG_PLAN_GATE_OK` + `WG_READ_GATE_OK`, then retry CHANGE
+   - if task is write/update/save: describe PLAN (what + why) and READ (files read) in natural language, then retry CHANGE
    - if task is read-only diagnostics/testing: keep command read-only and rerun
 9. `gov_setup upgrade` still stuck at governance gate:
    - update plugin to latest: `openclaw plugins update openclaw-workspace-governance`
