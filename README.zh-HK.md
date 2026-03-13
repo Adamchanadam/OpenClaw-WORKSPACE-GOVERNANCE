@@ -28,9 +28,9 @@ ClawHub 安裝頁：
 
 | 版本 | 發佈時間（UTC） | 關鍵變更 | 對使用者的直接影響 |
 | --- | --- | --- | --- |
+| `v0.2.1` | 2026-03-13 | **純文檔修訂**：簡化安裝/升級路徑——移除最快入口的 `/gov_help`、移除新安裝及升級路徑的 step-by-step 手動鏈步驟 5；`/gov_setup quick` 現為唯一推薦入口。Bootstrap payload 同步。 | 更簡潔的快速入門——操作者不再在推薦路徑中看到多餘的逐步手動鏈。 |
 | `v0.2.0` | 2026-03-13 | **治理 Hook 韌性修復**（OpenClaw v2026.3.7+ 繞過缺口修復）：治理錨點透過 `prependSystemContext` 每回合強制注入系統提示空間，不受 AGENTS.md bootstrap 狀態或 cron `--light-context` 模式影響；cron/heartbeat 觸發時加入自動化提示；以 `sessionId` 作為閘門狀態鍵，確保 `/new` 和 `/reset` 後正確隔離；5 個新驗收測試（C198–C207，共 197→207/207）。完整功能需 OpenClaw v2026.3.7+。 | AI agent 現在每回合必定收到 Mode A/B/C 治理錨點——即使在跳過 bootstrap 注入的 light-context cron/heartbeat 執行中亦然。`/new` 和 `/reset` 後閘門狀態正確重置。 |
 | `v0.1.66` | 2026-03-02 | Cron 讀寫分離 + heartbeat 寫入治理：`openclaw cron add/update/remove/pause/resume` 觸發 Mode C 寫入保護；`openclaw cron list/ls/show/status` 維持繞過；heartbeat 配置寫入需 Mode C；官方文檔 URL 注入為路由提示。回歸測試 190→197/197 | Cron 寫入指令及 heartbeat 配置變更不再繞過治理閘門；agent 修改排程或心跳配置前先讀取官方文檔 |
-| `v0.1.65` | 2026-02-28 | Governance 缺口修復 G1+G2+G3：`gov_setup` 在安裝/升級時若 `_control/ACTIVE_GUARDS.md` 不存在則自動建立；bootstrap payload 移除「(if present)」限定語確保 guards 登記冊必定存在；quiet-turn 指令於每個 session 首次空閒回合注入糾錯協議及 session guard 提醒。回歸測試 182→187/187 | 安裝後 Active Guards 登記冊保證存在；AI 每 session 首次空閒回合自動載入糾錯協議並被提醒讀取 guards |
 
 來源：GitHub Releases（`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`）
 
