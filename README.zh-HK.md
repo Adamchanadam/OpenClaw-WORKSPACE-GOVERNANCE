@@ -117,7 +117,6 @@ Experimental（實驗性）：
 ### 最快入口（建議）
 在 OpenClaw TUI 直接輸入：
 ```text
-/gov_help
 /gov_setup quick
 ```
 `/gov_setup quick` 會自動跑：
@@ -154,14 +153,6 @@ openclaw gateway restart
 /gov_openclaw_json
 /gov_setup quick
 ```
-5. 若需要嚴格逐步（或操作者要求 step-by-step），再用：
-```text
-/gov_setup install
-prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md
-# 若是已在運作中的既有 workspace 才需要：
-/gov_migrate
-/gov_audit
-```
 
 ### 已安裝升級路徑（可直接照抄）
 1. 主機終端先執行：
@@ -178,12 +169,6 @@ openclaw gateway restart
 ```text
 /gov_openclaw_json
 /gov_setup quick
-```
-5. 若需要嚴格逐步（或操作者要求 step-by-step），再用：
-```text
-/gov_setup upgrade
-/gov_migrate
-/gov_audit
 ```
 
 ### 正式清理卸載路徑（可直接照抄）

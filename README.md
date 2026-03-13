@@ -117,7 +117,6 @@ The plugin ships with an automated regression suite covering the full operator l
 ### Fastest Operator Entry (Recommended)
 In OpenClaw TUI:
 ```text
-/gov_help
 /gov_setup quick
 ```
 `/gov_setup quick` auto-runs:
@@ -154,14 +153,7 @@ If `openclaw plugins info openclaw-workspace-governance` shows `Error: not in al
 /gov_openclaw_json
 /gov_setup quick
 ```
-5. For strict/manual chain (or if operator requests step-by-step), continue:
-```text
-/gov_setup install
-prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md
-# if this was an already-active workspace before first governance install:
-/gov_migrate
-/gov_audit
-```
+
 
 ### Existing Install Upgrade Path (Copy-Paste)
 1. In host terminal:
@@ -178,12 +170,6 @@ openclaw gateway restart
 ```text
 /gov_openclaw_json
 /gov_setup quick
-```
-5. For strict/manual chain (or if operator requests step-by-step), continue:
-```text
-/gov_setup upgrade
-/gov_migrate
-/gov_audit
 ```
 
 ### Clean Uninstall Path (Copy-Paste)
