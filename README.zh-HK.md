@@ -36,6 +36,20 @@ ClawHub 安裝頁：
 
 ---
 
+## 🆙 v0.2.0 升級一圖覽
+
+> 為何今次升級重要——一圖說清楚。
+
+**升級原因：逃逸漏洞問題 + v0.2.0 修復方案**
+
+![OpenClaw WORKSPACE_GOVERNANCE v0.2.x 從選配到全面啟用](./ref_doc/infograp_eng_upgrade_v020_p1_chi.png)
+
+**升級方法：相容矩陣 + 三步執行指令**
+
+![OpenClaw WORKSPACE_GOVERNANCE v0.2.x 升級令](./ref_doc/infograp_eng_upgrade_v020_p2_chi.png)
+
+---
+
 ## 🎯 Hero
 
 如果你每天使用 OpenClaw，最大風險通常不是模型能力不足，而是操作漂移：你很難快速知道改了什麼、下一步該跑哪條指令、升級動作是否安全。WORKSPACE_GOVERNANCE 的作用，就是把這種不確定感轉成可重覆執行的流程。

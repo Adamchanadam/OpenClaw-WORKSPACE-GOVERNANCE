@@ -303,6 +303,20 @@ Source: GitHub Releases (`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`)
 
 ---
 
+## 🆙 v0.2.0 Upgrade at a Glance
+
+> Why this upgrade matters — one infographic covers it all.
+
+**Why upgrade: the escape vulnerability problem and the v0.2.0 fix**
+
+![OpenClaw WORKSPACE_GOVERNANCE v0.2.x — from Optional to Always-On](./ref_doc/infograp_eng_upgrade_v020_p1.png)
+
+**How to upgrade: compatibility matrix and 3-step execution**
+
+![The commands to upgrade OpenClaw WORKSPACE_GOVERNANCE v0.2.x](./ref_doc/infograp_eng_upgrade_v020_p2.png)
+
+---
+
 ## 🎯 Hero
 
 If you run OpenClaw every day, the biggest risk is usually not model capability. The real risk is operational drift: you cannot quickly tell what changed, what to run next, and whether upgrade actions are safe. WORKSPACE_GOVERNANCE turns that uncertainty into a repeatable path.
