@@ -19,34 +19,23 @@ This installer gives you a repeatable governance path instead of ad-hoc prompt e
 ## 60-second quick start
 First-time install:
 ```bash
-# 1) Install plugin (first time only)
+# 1) Install plugin
 openclaw plugins install @adamchanadam/openclaw-workspace-governance@latest
-
-# 2) Enable plugin
-openclaw plugins enable openclaw-workspace-governance
-
-# 3) Verify skills
-openclaw skills list --eligible
+openclaw gateway restart
 ```
 
 In OpenClaw chat:
 ```text
-/gov_help
 /gov_setup quick
-# if quick output says allowlist is not ready (for example plugins.allow needs alignment):
+```
+If `/gov_setup quick` says allowlist is not ready:
+```text
 /gov_openclaw_json
 /gov_setup quick
-# manual fallback (step-by-step):
-/gov_setup install
-prompts/governance/OpenClaw_INIT_BOOTSTRAP_WORKSPACE_GOVERNANCE.md
-# if this workspace was already active before first governance adoption:
-/gov_migrate
-/gov_audit
 ```
 
-Already installed users (upgrade path):
+Already installed (upgrade path):
 ```bash
-# Do NOT run install again if plugin already exists
 openclaw plugins update openclaw-workspace-governance
 openclaw gateway restart
 ```
@@ -54,16 +43,11 @@ openclaw gateway restart
 Then in OpenClaw chat:
 ```text
 /gov_setup quick
-# if quick output says allowlist is not ready (for example plugins.allow needs alignment):
+```
+If allowlist is not ready:
+```text
 /gov_openclaw_json
 /gov_setup quick
-/gov_setup upgrade
-/gov_migrate
-/gov_audit
-# manual fallback:
-/gov_setup upgrade
-/gov_migrate
-/gov_audit
 ```
 
 ## What you get
@@ -84,18 +68,18 @@ Then in OpenClaw chat:
 4. All `/gov_*` command outputs use branded format: `🐾` header, emoji status indicators (✅/⚠️/❌), structured bullets, and `👉` next-step guidance.
 
 ## When to use which command (quick map)
-1. Need command list fast: `gov_help`
-2. Daily default path: `gov_setup quick` (one-click chain)
-3. Readiness decision first (manual path): `gov_setup check`
-4. First deployment path (manual): `gov_setup install`
-5. Existing deployment update (manual): `gov_setup upgrade`
-6. Policy alignment after deploy/update: `gov_migrate`
-7. Final verification before claiming done: `gov_audit`
-8. Cleanup workspace governance artifacts safely: `gov_uninstall quick`
-9. Edit OpenClaw platform config safely: `gov_openclaw_json`
-10. Review/harden Brain Docs safely: `gov_brain_audit -> gov_brain_audit APPROVE: ... -> gov_brain_audit ROLLBACK (if needed)`
-11. Scan for recurring issues and get upgrade proposals: `gov_boot_audit`
-12. Apply approved BOOT menu item only (Experimental): `gov_apply <NN>`
+1. Daily default path: `gov_setup quick` (one-click chain)
+2. Readiness decision first (manual path): `gov_setup check`
+3. First deployment path (manual): `gov_setup install`
+4. Existing deployment update (manual): `gov_setup upgrade`
+5. Policy alignment after deploy/update: `gov_migrate`
+6. Final verification before claiming done: `gov_audit`
+7. Cleanup workspace governance artifacts safely: `gov_uninstall quick`
+8. Edit OpenClaw platform config safely: `gov_openclaw_json`
+9. Review/harden Brain Docs safely: `gov_brain_audit -> gov_brain_audit APPROVE: ... -> gov_brain_audit ROLLBACK (if needed)`
+10. Scan for recurring issues and get upgrade proposals: `gov_boot_audit`
+11. Apply approved BOOT menu item only (Experimental): `gov_apply <NN>`
+12. See all commands at a glance: `gov_help`
 
 ## First-run status map
 After `/gov_setup quick`:
@@ -108,9 +92,8 @@ After `/gov_setup quick`:
 If `openclaw plugins install ...` returns `plugin already exists`, use:
 1. `openclaw plugins update openclaw-workspace-governance`
 2. `openclaw gateway restart`
-3. `/gov_setup check` (if needed, align allowlist via `/gov_openclaw_json`)
-4. `/gov_setup quick` (or manual `/gov_setup upgrade` -> `/gov_migrate` -> `/gov_audit`)
-5. If `/gov_setup check` says `READY`, that does not cancel an explicitly requested `/gov_setup upgrade` during update flow.
+3. `/gov_openclaw_json` (if allowlist needs alignment)
+4. `/gov_setup quick`
 
 Version check (operator-side):
 1. Installed: `openclaw plugins info openclaw-workspace-governance`
