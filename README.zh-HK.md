@@ -28,8 +28,8 @@ ClawHub 安裝頁：
 
 | 版本 | 發佈時間（UTC） | 關鍵變更 | 對使用者的直接影響 |
 | --- | --- | --- | --- |
+| `v0.2.3` | 2026-03-13 | **純文檔修訂**：ClawHub 安裝頁面重寫以提高清晰度——移除技術性 gate 行為段落及 slash routing fallback 段落；聚焦於快速入門、指令列表及適用對象。 | ClawHub 頁面更簡潔；移除了觸發 ClawHub 安全掃描器誤報的內容。 |
 | `v0.2.2` | 2026-03-13 | **純文檔修訂**：簡化 ClawHub 安裝頁面——`/gov_setup quick` 為唯一推薦入口；移除快速入門中的 `/gov_help` 及手動鏈步驟。 | ClawHub 安裝頁面與 GitHub README 對齊，更簡潔清晰。 |
-| `v0.2.1` | 2026-03-13 | **純文檔修訂**：簡化安裝/升級路徑——移除最快入口的 `/gov_help`、移除新安裝及升級路徑的 step-by-step 手動鏈步驟 5；`/gov_setup quick` 現為唯一推薦入口。Bootstrap payload 同步。 | 更簡潔的快速入門——操作者不再在推薦路徑中看到多餘的逐步手動鏈。 |
 | `v0.2.0` | 2026-03-13 | **治理 Hook 韌性修復**（OpenClaw v2026.3.7+ 繞過缺口修復）：治理錨點透過 `prependSystemContext` 每回合強制注入系統提示空間，不受 AGENTS.md bootstrap 狀態或 cron `--light-context` 模式影響；cron/heartbeat 觸發時加入自動化提示；以 `sessionId` 作為閘門狀態鍵，確保 `/new` 和 `/reset` 後正確隔離；5 個新驗收測試（C198–C207，共 197→207/207）。完整功能需 OpenClaw v2026.3.7+。 | AI agent 現在每回合必定收到 Mode A/B/C 治理錨點——即使在跳過 bootstrap 注入的 light-context cron/heartbeat 執行中亦然。`/new` 和 `/reset` 後閘門狀態正確重置。 |
 
 來源：GitHub Releases（`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`）

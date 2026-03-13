@@ -28,8 +28,8 @@ ClawHub installer page:
 
 | Version | Published (UTC) | Key Changes | Practical Impact |
 | --- | --- | --- | --- |
+| `v0.2.3` | 2026-03-13 | **Doc-only patch**: ClawHub installer page rewritten for clarity — removed technical gate behavior section and slash-routing fallback section; focused on install quickstart, command list, and who it's for. | Cleaner ClawHub listing; removed content that triggered ClawHub security scanner false-positive. |
 | `v0.2.2` | 2026-03-13 | **Doc-only patch**: simplified ClawHub installer README — `/gov_setup quick` is the single recommended entry point; removed `/gov_help` and manual chain steps from quickstart. | Cleaner ClawHub installer page aligned with GitHub README. |
-| `v0.2.1` | 2026-03-13 | **Doc-only patch**: simplified install/upgrade paths in README — removed `/gov_help` from Fastest Operator Entry and removed manual chain step 5 from New Install and Upgrade paths. Bootstrap payload synced. | Cleaner quickstart — operators no longer see redundant step-by-step manual chain in the recommended path. |
 | `v0.2.0` | 2026-03-13 | **Governance Hook Resilience** (OpenClaw v2026.3.7+ bypass fix): governance anchor always injected into system prompt space via `prependSystemContext` every turn, regardless of AGENTS.md bootstrap state or cron `--light-context` mode; automation notice added for cron/heartbeat triggers; `sessionId`-based gate state isolation for accurate `/new` and `/reset` boundaries; 5 new acceptance tests (C198–C207, total 197→207/207). Requires OpenClaw v2026.3.7+ for full benefit. | AI agent now always receives the Mode A/B/C governance anchor — even in light-context cron/heartbeat runs where bootstrap injection is skipped. Gate state resets correctly on `/new` and `/reset`. |
 
 Source: GitHub Releases (`Adamchanadam/OpenClaw-WORKSPACE-GOVERNANCE`)
