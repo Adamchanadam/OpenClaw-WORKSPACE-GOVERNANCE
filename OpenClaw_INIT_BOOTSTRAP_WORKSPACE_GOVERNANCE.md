@@ -267,8 +267,8 @@ Before making any change, you MUST read:
 <<BEGIN FILE: README.md>>
 # OpenClaw WORKSPACE_GOVERNANCE
 
-> Keep OpenClaw fast for daily work, but remove the high-cost failures: unclear changes, risky upgrades, and hard recovery.
-> WORKSPACE_GOVERNANCE provides a stable operating model for long-running OpenClaw workspaces.
+> OpenClaw AI agents are built to respond immediately and be helpful. That same responsiveness creates real operational gaps: edits happen before reading existing content, system-truth questions get answered from training data rather than authoritative sources, and executions leave no record when things go wrong.
+> WORKSPACE_GOVERNANCE adds the governance layer that factory settings do not include: write operations require a plan and read evidence first, every change produces a traceable run report — and governance rules stay active even in automated cron and heartbeat runs.
 
 [繁體中文版](./README.zh-HK.md)
 
@@ -332,9 +332,9 @@ Without governance, common pain accumulates quickly:
 4. Team handovers lose context — the next person cannot tell what was done, what passed, or what still needs checking.
 
 What you get immediately:
-1. Every change follows a fixed safety flow: plan first, read evidence, make the change, verify, then persist.
+1. Write operations follow a fixed safety flow: plan first, read evidence, make the change, verify, then persist.
 2. One command to get started: `/gov_setup quick` handles check, install/upgrade, migration, and audit automatically.
-3. Platform config changes come with automatic backup, validation, and rollback — no more risky manual edits.
+3. Platform config changes come with automatic backup, validation, and rollback.
 4. Run reports and audit evidence make handovers and team accountability straightforward.
 
 ## ✅ Feature Maturity (No-Misleading Contract)
@@ -360,12 +360,12 @@ The plugin ships with an automated regression suite covering the full operator l
 | Scenario | What is verified |
 |---|---|
 | **Workspace setup & upgrade** | Fresh install, upgrade from previous version, version detection, skip when already current |
-| **Content preservation** | Existing Brain Docs, `openclaw.json`, and custom rules survive install/upgrade unchanged |
+| **Content preservation** | Existing Brain Docs, `openclaw.json`, and custom rules are preserved during install/upgrade |
 | **Migration accuracy** | All governance rules and markers are correctly applied; conflicts and partial states are detected and reported |
 | **Audit completeness** | All 12 integrity checks run; drift, missing markers, and config mismatches are caught |
 | **Safe config editing** | `openclaw.json` edits go through backup → validate → apply → confirm; invalid edits are rejected and rolled back |
 | **Brain Docs protection** | Risky edits to Brain Docs (AGENTS.md, SOUL.md, etc.) are flagged before write; rollback available on request |
-| **Recovery from failures** | Corrupted config, failed backup, and partial migration are handled gracefully without silent data loss |
+| **Recovery from failures** | Corrupted config, failed backup, and partial migration are handled gracefully with error reporting |
 | **Full operator lifecycle** | End-to-end: setup → migrate → audit → edit → re-audit → uninstall with cleanup evidence |
 
 ## 🖼️ Visual Walkthrough (ref_doc)
